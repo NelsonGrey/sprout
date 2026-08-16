@@ -10,11 +10,42 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // A user's own profile document. Real product collections (classroom
-    // rosters, behaviors, rewards, transactions, etc.) get their own
-    // match blocks as the schema takes shape in packages/shared.
+    // ownerUids is denormalized onto contexts, students, and transactions
+    // (rather than joined via a per-student `contexts` map lookup) so every
+    // rule here is a plain array-contains check — no cross-document get()
+    // needed, which keeps rule evaluation cheap even under bulk writes.
+    function isContextOwner(data) {
+      return isAuthenticated() && request.auth.uid in data.ownerUids;
+    }
+
+    // A user's own profile document.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+    }
+
+    // A classroom or family unit. Only 'classroom' is populated today —
+    // 'family' is additive later, not a migration (see TRD §3.2).
+    match /contexts/{contextId} {
+      allow read, update, delete: if isContextOwner(resource.data);
+      allow create: if isContextOwner(request.resource.data);
+
+      // An immutable earn/spend ledger entry against one student in this
+      // context — no update/delete once created.
+      match /transactions/{transactionId} {
+        allow read: if isContextOwner(resource.data);
+        allow create: if isContextOwner(request.resource.data)
+          && request.resource.data.amountCents is int
+          && request.resource.data.amountCents > 0
+          && request.resource.data.type in ['earn', 'spend'];
+      }
+    }
+
+    // A student's roster entry + denormalized balance. Top-level (not
+    // nested under contexts) so a student can belong to more than one
+    // context later (classroom + family) without restructuring.
+    match /students/{studentId} {
+      allow read, update, delete: if isContextOwner(resource.data);
+      allow create: if isContextOwner(request.resource.data);
     }
 
     // Deny by default — no other collection exists yet.
