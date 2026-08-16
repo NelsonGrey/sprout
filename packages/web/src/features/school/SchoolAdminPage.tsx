@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
-import type { MemberScope } from '@sprout/shared';
+import type { MemberRole, MemberScope } from '@sprout/shared';
 import {
   cancelInvite,
   getSchool,
@@ -18,6 +18,12 @@ function scopeSummary(scope: MemberScope | undefined): string {
   if (!scope || scope.type === 'own') return 'Own classrooms only';
   if (scope.type === 'school') return 'Whole school';
   return `Grades: ${scope.grades.join(', ') || '(none selected)'}`;
+}
+
+function roleLabel(role: MemberRole): string {
+  if (role === 'super_admin') return 'Super Admin';
+  if (role === 'admin') return 'Admin';
+  return 'Teacher';
 }
 
 function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: MemberScope) => void }) {
@@ -73,14 +79,16 @@ function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: Me
   );
 }
 
-/** Shown at /school to a member of a school. Admins (principal or
- * delegate) get the full staff roster + invite/remove tooling; a plain
- * teacher just sees their own role and scope. Delegation is hierarchical
- * (BR-1.3.11/1.3.12): only the principal can invite/remove admins. */
+/** Shown at /school to a member of a school. Admins/super admins get the
+ * full staff roster + invite/remove tooling; a plain teacher just sees
+ * their own role and scope. Delegation is hierarchical
+ * (BR-1.3.11/1.3.12): only a super_admin can invite/remove another
+ * super_admin or an admin — a regular admin manages teachers only. The
+ * school is never left without at least one super_admin (enforced in
+ * firestore.rules, not just this UI's disabled-button state). */
 export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: string }) {
   const [, navigate] = useLocation();
   const [schoolName, setSchoolName] = useState<string | null>(null);
-  const [principalUid, setPrincipalUid] = useState<string | null>(null);
   const membership = useMyMembership(schoolId, user.uid);
   const members = useMembersOfSchool(schoolId);
   const invites = usePendingInvitesForSchool(schoolId);
@@ -89,18 +97,17 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
   const [inviteScope, setInviteScope] = useState<MemberScope>({ type: 'own' });
   const [inviting, setInviting] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
+  const [adminRole, setAdminRole] = useState<'admin' | 'super_admin'>('admin');
   const [invitingAdmin, setInvitingAdmin] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getSchool(schoolId).then((school) => {
-      setSchoolName(school?.name ?? null);
-      setPrincipalUid(school?.principalUid ?? null);
-    });
+    getSchool(schoolId).then((school) => setSchoolName(school?.name ?? null));
   }, [schoolId]);
 
-  const isAdmin = membership?.role === 'admin';
-  const isPrincipal = principalUid === user.uid;
+  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
+  const isSuperAdmin = membership?.role === 'super_admin';
+  const superAdminCount = members.filter((m) => m.role === 'super_admin').length;
 
   const handleInviteTeacher = async () => {
     const email = inviteEmail.trim();
@@ -124,13 +131,21 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
     setInvitingAdmin(true);
     setError('');
     try {
-      await inviteMember({ schoolId, email, role: 'admin', invitedByUid: user.uid });
+      await inviteMember({ schoolId, email, role: adminRole, invitedByUid: user.uid });
       setAdminEmail('');
     } catch {
       setError('Could not send that invite. Please try again.');
     } finally {
       setInvitingAdmin(false);
     }
+  };
+
+  const canRemove = (memberRole: MemberRole, memberUid: string): boolean => {
+    if (memberUid === user.uid) return false;
+    if (memberRole === 'teacher') return isAtLeastAdmin;
+    if (memberRole === 'admin') return isSuperAdmin;
+    // super_admin — only another super_admin can remove one, and never the last.
+    return isSuperAdmin && superAdminCount > 1;
   };
 
   return (
@@ -150,12 +165,12 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
         <section className="rounded-lg border border-white/10 p-4">
           <h2 className="text-sm font-semibold text-white/60">Your access</h2>
           <p className="mt-1">
-            {isPrincipal ? 'Principal' : membership?.role === 'admin' ? 'Admin (delegate)' : 'Teacher'}
+            {membership && roleLabel(membership.role)}
             {membership?.role === 'teacher' && ` — ${scopeSummary(membership.scope)}`}
           </p>
         </section>
 
-        {isAdmin && (
+        {isAtLeastAdmin && (
           <>
             <section>
               <h2 className="mb-3 text-sm font-semibold text-white/60">Staff</h2>
@@ -168,10 +183,12 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                     <div>
                       <p>{member.displayName || member.email}</p>
                       <p className="text-xs text-white/50">
-                        {member.role === 'admin' ? 'Admin' : `Teacher — ${scopeSummary(member.scope)}`}
+                        {member.role === 'teacher'
+                          ? `Teacher — ${scopeSummary(member.scope)}`
+                          : roleLabel(member.role)}
                       </p>
                     </div>
-                    {member.uid !== user.uid && (member.role === 'teacher' || isPrincipal) && (
+                    {canRemove(member.role, member.uid) && (
                       <button
                         type="button"
                         onClick={() => removeMember(schoolId, member.uid)}
@@ -197,7 +214,9 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                       <div>
                         <p>{invite.email}</p>
                         <p className="text-xs text-white/50">
-                          {invite.role === 'admin' ? 'Admin (pending)' : `Teacher — ${scopeSummary(invite.scope)} (pending)`}
+                          {invite.role === 'teacher'
+                            ? `Teacher — ${scopeSummary(invite.scope)} (pending)`
+                            : `${roleLabel(invite.role)} (pending)`}
                         </p>
                       </div>
                       <button
@@ -234,28 +253,46 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
               </div>
             </section>
 
-            {isPrincipal && (
+            {isSuperAdmin && (
               <section className="rounded-lg border border-white/10 p-4">
                 <h2 className="mb-3 text-sm font-semibold text-white/60">
                   Delegate admin access
                 </h2>
                 <p className="mb-3 text-xs text-white/50">
-                  Only you, as principal, can grant or revoke admin access.
+                  Only a super admin can grant or revoke admin (or super admin) access.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-3">
                   <input
                     value={adminEmail}
                     onChange={(e) => setAdminEmail(e.target.value)}
                     placeholder="Email"
-                    className="flex-1 rounded-lg border border-white/20 bg-transparent px-3 py-2"
+                    className="rounded-lg border border-white/20 bg-transparent px-3 py-2 text-left"
                   />
+                  <div className="flex gap-4 text-left text-sm">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={adminRole === 'admin'}
+                        onChange={() => setAdminRole('admin')}
+                      />
+                      Admin
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={adminRole === 'super_admin'}
+                        onChange={() => setAdminRole('super_admin')}
+                      />
+                      Super Admin
+                    </label>
+                  </div>
                   <button
                     type="button"
                     onClick={handleInviteAdmin}
                     disabled={invitingAdmin}
                     className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10 disabled:opacity-50"
                   >
-                    Invite Admin
+                    Send Invite
                   </button>
                 </div>
               </section>

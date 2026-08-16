@@ -15,21 +15,21 @@ class FakeSchoolRepository implements SchoolRepository {
   @override
   Future<School> createSchool({
     required String name,
-    required String principalUid,
-    String? principalDisplayName,
-    String? principalEmail,
+    required String founderUid,
+    String? founderDisplayName,
+    String? founderEmail,
   }) async {
-    final school = School(id: _newId(), name: name, principalUid: principalUid);
+    final school = School(id: _newId(), name: name);
     _schools[school.id] = school;
     _membersBySchool[school.id] = {
-      principalUid: SchoolMember(
-        uid: principalUid,
-        role: MemberRole.admin,
-        displayName: principalDisplayName ?? '',
-        email: principalEmail ?? '',
+      founderUid: SchoolMember(
+        uid: founderUid,
+        role: MemberRole.superAdmin,
+        displayName: founderDisplayName ?? '',
+        email: founderEmail ?? '',
       ),
     };
-    _schoolIdsByUser.putIfAbsent(principalUid, () => []).add(school.id);
+    _schoolIdsByUser.putIfAbsent(founderUid, () => []).add(school.id);
     return school;
   }
 

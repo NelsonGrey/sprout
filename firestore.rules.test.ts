@@ -115,7 +115,8 @@ describe('firestore.rules', () => {
 });
 
 describe('firestore.rules — school security matrix', () => {
-  const PRINCIPAL_UID = 'principal-1';
+  const SUPER_ADMIN_UID = 'super-admin-1';
+  const SECOND_SUPER_ADMIN_UID = 'super-admin-2';
   const DELEGATE_UID = 'delegate-1';
   const GRADE_TEACHER_UID = 'grade-teacher-1';
   const SPECIALIST_UID = 'specialist-1';
@@ -124,25 +125,29 @@ describe('firestore.rules — school security matrix', () => {
   const NEW_TEACHER_EMAIL = 'new.teacher@example.com';
   const SCHOOL_ID = 'school-1';
 
+  // A super_admin (the founder) plus one regular admin (delegate) — the
+  // baseline most tests build on. superAdminCount stays 1 here; tests that
+  // need a second super_admin add one explicitly.
   async function seedSchoolWithAdmins() {
-    const principal = testEnv.authenticatedContext(PRINCIPAL_UID).firestore();
-    await setDoc(doc(principal, `schools/${SCHOOL_ID}`), {
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}`), {
       name: 'Riverside Elementary',
-      principalUid: PRINCIPAL_UID,
+      founderUid: SUPER_ADMIN_UID,
+      superAdminCount: 1,
       createdAt: new Date(),
     });
-    await setDoc(doc(principal, `schools/${SCHOOL_ID}/members/${PRINCIPAL_UID}`), {
-      role: 'admin',
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`), {
+      role: 'super_admin',
       displayName: 'Principal',
       email: 'principal@example.com',
-      addedByUid: PRINCIPAL_UID,
+      addedByUid: SUPER_ADMIN_UID,
       createdAt: new Date(),
     });
-    await setDoc(doc(principal, `schools/${SCHOOL_ID}/members/${DELEGATE_UID}`), {
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${DELEGATE_UID}`), {
       role: 'admin',
       displayName: 'Office Manager',
       email: 'delegate@example.com',
-      addedByUid: PRINCIPAL_UID,
+      addedByUid: SUPER_ADMIN_UID,
       createdAt: new Date(),
     });
   }
@@ -172,53 +177,64 @@ describe('firestore.rules — school security matrix', () => {
     });
   }
 
-  it('lets the principal found a school and become its own admin', async () => {
-    const principal = testEnv.authenticatedContext(PRINCIPAL_UID).firestore();
+  it('lets a founder create a school and become its own super admin', async () => {
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
     await assertSucceeds(
-      setDoc(doc(principal, `schools/${SCHOOL_ID}`), {
+      setDoc(doc(superAdmin, `schools/${SCHOOL_ID}`), {
         name: 'Riverside Elementary',
-        principalUid: PRINCIPAL_UID,
+        founderUid: SUPER_ADMIN_UID,
+        superAdminCount: 1,
         createdAt: new Date(),
       }),
     );
     await assertSucceeds(
-      setDoc(doc(principal, `schools/${SCHOOL_ID}/members/${PRINCIPAL_UID}`), {
-        role: 'admin',
+      setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`), {
+        role: 'super_admin',
         displayName: 'Principal',
         email: 'principal@example.com',
-        addedByUid: PRINCIPAL_UID,
+        addedByUid: SUPER_ADMIN_UID,
         createdAt: new Date(),
       }),
     );
   });
 
-  it('lets the principal delegate admin to a second person', async () => {
-    const principal = testEnv.authenticatedContext(PRINCIPAL_UID).firestore();
-    await setDoc(doc(principal, `schools/${SCHOOL_ID}`), {
-      name: 'Riverside Elementary',
-      principalUid: PRINCIPAL_UID,
-      createdAt: new Date(),
-    });
-    await setDoc(doc(principal, `schools/${SCHOOL_ID}/members/${PRINCIPAL_UID}`), {
-      role: 'admin',
-      displayName: 'Principal',
-      email: 'principal@example.com',
-      addedByUid: PRINCIPAL_UID,
-      createdAt: new Date(),
-    });
+  it('rejects founding a school with a starting superAdminCount other than 1', async () => {
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+    await assertFails(
+      setDoc(doc(superAdmin, `schools/${SCHOOL_ID}`), {
+        name: 'Riverside Elementary',
+        founderUid: SUPER_ADMIN_UID,
+        superAdminCount: 0,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('lets a super admin add a second super admin and a regular admin', async () => {
+    await seedSchoolWithAdmins();
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
 
     await assertSucceeds(
-      setDoc(doc(principal, `schools/${SCHOOL_ID}/members/${DELEGATE_UID}`), {
+      setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SECOND_SUPER_ADMIN_UID}`), {
+        role: 'super_admin',
+        displayName: 'Assistant Principal',
+        email: 'assistant@example.com',
+        addedByUid: SUPER_ADMIN_UID,
+        createdAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/another-admin`), {
         role: 'admin',
-        displayName: 'Office Manager',
-        email: 'delegate@example.com',
-        addedByUid: PRINCIPAL_UID,
+        displayName: 'Second Delegate',
+        email: 'second-delegate@example.com',
+        addedByUid: SUPER_ADMIN_UID,
         createdAt: new Date(),
       }),
     );
   });
 
-  it('lets a delegate admin add a grade-scoped teacher, but not another admin', async () => {
+  it('lets a delegate admin add a grade-scoped teacher, but not another admin or a super admin', async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
 
@@ -242,15 +258,80 @@ describe('firestore.rules — school security matrix', () => {
         createdAt: new Date(),
       }),
     );
+    await assertFails(
+      setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/another-super-admin`), {
+        role: 'super_admin',
+        displayName: 'Uninvited Super Admin',
+        email: 'uninvited-sa@example.com',
+        addedByUid: DELEGATE_UID,
+        createdAt: new Date(),
+      }),
+    );
   });
 
-  it('denies a delegate admin removing the principal', async () => {
+  it('denies a delegate admin removing the super admin, or an admin', async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
-    await assertFails(deleteDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${PRINCIPAL_UID}`)));
+    await assertFails(deleteDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`)));
+    // Only a super_admin removes an admin — not even another admin can.
+    await setDoc(doc(testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore(), `schools/${SCHOOL_ID}/members/another-admin`), {
+      role: 'admin',
+      displayName: 'Second Delegate',
+      email: 'second-delegate@example.com',
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await assertFails(deleteDoc(doc(delegate, `schools/${SCHOOL_ID}/members/another-admin`)));
   });
 
-  it('lets a grade-scoped teacher read classrooms/students in that grade but not other grades', async () => {
+  it('denies removing the last super admin, but allows it once a second exists', async () => {
+    await seedSchoolWithAdmins();
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+
+    // Only one super_admin so far (superAdminCount: 1) — removing it must fail.
+    await assertFails(deleteDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`)));
+
+    // Add a second super_admin and bump the counter (the app does both in
+    // one batch — done here as two writes since rules-unit-testing doesn't
+    // need atomicity to exercise the rule itself).
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SECOND_SUPER_ADMIN_UID}`), {
+      role: 'super_admin',
+      displayName: 'Assistant Principal',
+      email: 'assistant@example.com',
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}`), {
+      name: 'Riverside Elementary',
+      founderUid: SUPER_ADMIN_UID,
+      superAdminCount: 2,
+      createdAt: new Date(),
+    });
+
+    await assertSucceeds(deleteDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`)));
+  });
+
+  it('lets an admin (not just a super admin) act on any classroom/student in their school', async () => {
+    await seedSchoolWithAdmins();
+    await seedClassroomAndStudent('4');
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+
+    await assertSucceeds(getDoc(doc(delegate, 'contexts/school-ctx-1')));
+    await assertSucceeds(
+      setDoc(doc(delegate, 'contexts/school-ctx-1/transactions/tx-admin'), {
+        studentId: 'school-student-1',
+        type: 'earn',
+        amountCents: 200,
+        reason: 'Admin adjustment',
+        createdByUid: DELEGATE_UID,
+        createdAt: new Date(),
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+      }),
+    );
+  });
+
+  it('lets a grade-scoped teacher CRUD classrooms/students in that grade but not other grades', async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
     await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
@@ -266,6 +347,20 @@ describe('firestore.rules — school security matrix', () => {
     const gradeTeacher = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
     await assertSucceeds(getDoc(doc(gradeTeacher, 'contexts/school-ctx-1')));
     await assertSucceeds(getDoc(doc(gradeTeacher, 'students/school-student-1')));
+    // CRUD, not just read: can record a transaction for a student they
+    // don't own but whose grade is in scope.
+    await assertSucceeds(
+      setDoc(doc(gradeTeacher, 'contexts/school-ctx-1/transactions/tx-scoped'), {
+        studentId: 'school-student-1',
+        type: 'earn',
+        amountCents: 300,
+        reason: 'Great work',
+        createdByUid: GRADE_TEACHER_UID,
+        createdAt: new Date(),
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+      }),
+    );
 
     await testEnv.clearFirestore();
     await seedSchoolWithAdmins();
@@ -281,7 +376,7 @@ describe('firestore.rules — school security matrix', () => {
     await assertFails(getDoc(doc(gradeTeacher, 'contexts/school-ctx-1')));
   });
 
-  it('lets a whole-school-scoped teacher (PE/art/music) read any classroom/student', async () => {
+  it('lets a whole-school-scoped teacher (PE/art/music) CRUD any classroom/student', async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
     await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${SPECIALIST_UID}`), {
@@ -297,6 +392,18 @@ describe('firestore.rules — school security matrix', () => {
     const specialist = testEnv.authenticatedContext(SPECIALIST_UID).firestore();
     await assertSucceeds(getDoc(doc(specialist, 'contexts/school-ctx-1')));
     await assertSucceeds(getDoc(doc(specialist, 'students/school-student-1')));
+    await assertSucceeds(
+      setDoc(doc(specialist, 'contexts/school-ctx-1/transactions/tx-specialist'), {
+        studentId: 'school-student-1',
+        type: 'earn',
+        amountCents: 100,
+        reason: 'Good sportsmanship',
+        createdByUid: SPECIALIST_UID,
+        createdAt: new Date(),
+        schoolId: SCHOOL_ID,
+        gradeLevel: 'K',
+      }),
+    );
   });
 
   it('denies an own-scope teacher reading a classroom they do not own, even in the same school', async () => {

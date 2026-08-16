@@ -46,16 +46,22 @@ export interface LedgerTransaction {
 // ---- School security matrix (BR-1.3.11/1.3.12) ----
 // See firestore.rules for the enforcement side of this model.
 
+// founderUid/superAdminCount are rules bootstrap/invariant plumbing (see
+// firestore.rules' isFoundingSuperAdmin), not app-facing — deliberately
+// not modeled here; lib/school.ts writes them directly.
 export interface School {
   id: string;
   name: string;
-  /** The only uid allowed to grant/revoke admin membership — hierarchical
-   * delegation, set once at school creation and immutable via the rules. */
-  principalUid: string;
+  /** Set when the founder picked a match from the NCES public-school
+   * lookup rather than typing a name manually — informational only. */
+  nces?: { ncesId: string; street: string; city: string; state: string; zip: string };
   createdAt: Date;
 }
 
-export type MemberRole = 'admin' | 'teacher';
+/** Hierarchical delegation: only a super_admin can create/remove another
+ * super_admin or an admin. A school is never left without at least one
+ * super_admin (enforced in firestore.rules, not just the UI). */
+export type MemberRole = 'super_admin' | 'admin' | 'teacher';
 
 /** Meaningless for admins (implicit whole-school access). For teachers:
  * 'own' = only classrooms they directly own (the default); 'grades' = any

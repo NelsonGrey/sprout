@@ -19,48 +19,70 @@ service cloud.firestore {
     }
 
     // ---- School security matrix (BR-1.3.11/1.3.12) ----
-    // A school has exactly one principal (set at creation, immutable via
-    // these rules) who is the only uid allowed to grant/revoke *admin*
-    // membership — hierarchical delegation. Any admin (principal or
-    // delegate) can freely manage *teacher* membership and scope.
+    // Three-tier hierarchy: super_admin > admin > teacher. Only a
+    // super_admin can create/remove another super_admin or an admin — a
+    // regular admin (delegate) manages teacher membership/scope only. A
+    // school is never left without at least one super_admin (see
+    // schools/{schoolId}.superAdminCount below).
     function schoolPath(schoolId) {
       return /databases/$(database)/documents/schools/$(schoolId);
     }
     function memberPath(schoolId, uid) {
       return /databases/$(database)/documents/schools/$(schoolId)/members/$(uid);
     }
-    function isPrincipal(schoolId) {
-      return isAuthenticated() && exists(schoolPath(schoolId))
-        && get(schoolPath(schoolId)).data.principalUid == request.auth.uid;
-    }
-    function isSchoolAdmin(schoolId) {
+    function isSuperAdmin(schoolId) {
       return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
-        && get(memberPath(schoolId, request.auth.uid)).data.role == 'admin';
+        && get(memberPath(schoolId, request.auth.uid)).data.role == 'super_admin';
     }
-    // Read-only visibility a teacher gets beyond the classrooms they
-    // directly own, per the scope an admin configured for them: every
-    // classroom in the school ('school', the PE/art/music case), classrooms
-    // in specific grade levels ('grades'), or nothing extra ('own', the
-    // default — falls through to isContextOwner instead).
+    function isAtLeastAdmin(schoolId) {
+      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
+        && get(memberPath(schoolId, request.auth.uid)).data.role in ['admin', 'super_admin'];
+    }
+    // The CRUD (not just read) visibility a teacher gets beyond the
+    // classrooms they directly own, per the scope an admin configured for
+    // them: every classroom in the school ('school', the PE/art/music
+    // case), classrooms in specific grade levels ('grades'), or nothing
+    // extra ('own', the default — falls through to isContextOwner
+    // instead). Admins/super_admins always have full access across their
+    // whole school, not just a grade match.
     function hasScopedAccess(schoolId, gradeLevel) {
-      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)) && (
-        get(memberPath(schoolId, request.auth.uid)).data.role == 'admin' ||
-        get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'school' ||
-        (get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'grades'
-          && gradeLevel in get(memberPath(schoolId, request.auth.uid)).data.scope.grades)
+      return isAtLeastAdmin(schoolId) || (
+        isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)) &&
+        get(memberPath(schoolId, request.auth.uid)).data.role == 'teacher' && (
+          get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'school' ||
+          (get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'grades'
+            && gradeLevel in get(memberPath(schoolId, request.auth.uid)).data.scope.grades)
+        )
       );
     }
     // A brand-new user claiming a pending invite that an admin already
     // configured for their (provider-verified) email — the only way a
     // members/{uid} doc gets created for someone who isn't already an
-    // admin/principal of the school.
+    // admin/super_admin of the school. Guarded on the email token actually
+    // being present so this is just "false", not a thrown evaluation
+    // error, when called for a caller with no email claim (e.g. a school's
+    // founder bootstrapping their own super_admin doc — see
+    // isFoundingSuperAdmin below).
     function isValidInviteClaim(schoolId, newMemberData) {
-      let inviteId = request.auth.token.email.lower();
-      let invitePath = /databases/$(database)/documents/pendingInvites/$(inviteId);
-      return isAuthenticated() && exists(invitePath)
-        && get(invitePath).data.schoolId == schoolId
-        && get(invitePath).data.role == newMemberData.role
-        && get(invitePath).data.scope == newMemberData.scope;
+      return isAuthenticated() && 'email' in request.auth.token && (
+        exists(/databases/$(database)/documents/pendingInvites/$(request.auth.token.email.lower()))
+        && get(/databases/$(database)/documents/pendingInvites/$(request.auth.token.email.lower())).data.schoolId == schoolId
+        && get(/databases/$(database)/documents/pendingInvites/$(request.auth.token.email.lower())).data.role == newMemberData.role
+        && get(/databases/$(database)/documents/pendingInvites/$(request.auth.token.email.lower())).data.scope == newMemberData.scope
+      );
+    }
+    // Bootstraps the very first super_admin: whoever is named as founder
+    // when the school doc is created may create their own super_admin
+    // member doc (nothing else could possibly grant it, since no member
+    // exists yet). Known limitation, same spirit as the superAdminCount
+    // trust note below: founderUid stays valid indefinitely, so a founder
+    // who was later legitimately removed by other super_admins could in
+    // theory re-bootstrap themselves back in. Accepted for this stage —
+    // real multi-super-admin schools with an adversarial founder aren't
+    // the threat model yet.
+    function isFoundingSuperAdmin(schoolId, uid) {
+      return isOwner(uid) && exists(schoolPath(schoolId))
+        && get(schoolPath(schoolId)).data.founderUid == request.auth.uid;
     }
 
     // A user's own profile document.
@@ -69,52 +91,67 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId} {
-      allow read: if isAuthenticated()
-        && (resource.data.principalUid == request.auth.uid || isSchoolAdmin(schoolId));
-      allow create: if isAuthenticated() && request.resource.data.principalUid == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.principalUid == request.auth.uid;
+      allow read: if isAtLeastAdmin(schoolId);
+      // A school always starts with exactly one super_admin — the founder,
+      // who must be naming themselves (founderUid is bootstrap-only, see
+      // isFoundingSuperAdmin — it's not consulted anywhere else once the
+      // school is up and running).
+      allow create: if isAuthenticated()
+        && request.resource.data.superAdminCount == 1
+        && request.resource.data.founderUid == request.auth.uid;
+      allow update, delete: if isSuperAdmin(schoolId);
 
       match /members/{memberUid} {
-        allow read: if isOwner(memberUid) || isSchoolAdmin(schoolId);
+        allow read: if isOwner(memberUid) || isAtLeastAdmin(schoolId);
         allow create: if
-          (request.resource.data.role == 'admin' && isPrincipal(schoolId)) ||
-          (request.resource.data.role == 'teacher' && isSchoolAdmin(schoolId)) ||
+          (request.resource.data.role in ['super_admin', 'admin'] && isSuperAdmin(schoolId)) ||
+          (request.resource.data.role == 'teacher' && isAtLeastAdmin(schoolId)) ||
+          (request.resource.data.role == 'super_admin' && isFoundingSuperAdmin(schoolId, memberUid)) ||
           (isOwner(memberUid) && isValidInviteClaim(schoolId, request.resource.data));
-        allow update: if isSchoolAdmin(schoolId)
+        allow update: if isAtLeastAdmin(schoolId)
           && resource.data.role == 'teacher' && request.resource.data.role == 'teacher';
+        // Removing a super_admin is only allowed while another one exists —
+        // the "never zero" invariant. The counter itself is trusted to be
+        // maintained correctly by the app's paired batch writes (member
+        // create/delete alongside schools/{schoolId}.superAdminCount);
+        // full transactional cross-validation of the counter would be
+        // disproportionate rigor for this stage.
         allow delete: if
-          (resource.data.role == 'admin' && isPrincipal(schoolId)) ||
-          (resource.data.role == 'teacher' && isSchoolAdmin(schoolId));
+          (resource.data.role == 'super_admin' && isSuperAdmin(schoolId)
+            && get(schoolPath(schoolId)).data.superAdminCount > 1) ||
+          (resource.data.role == 'admin' && isSuperAdmin(schoolId)) ||
+          (resource.data.role == 'teacher' && isAtLeastAdmin(schoolId));
       }
     }
 
-    // Doc ID is the invitee's lowercased email — an admin/principal writes
-    // it, and the only read/delete path is the matching signed-in user
-    // claiming their own invite (provider-verified email, can't be spoofed).
+    // Doc ID is the invitee's lowercased email — an admin/super_admin
+    // writes it, and the only read/delete path is the matching signed-in
+    // user claiming their own invite (provider-verified email, can't be
+    // spoofed) or a school admin managing invites they're responsible for.
     match /pendingInvites/{email} {
-      // Two independent read/delete paths: the invitee claiming their own
-      // invite (by verified email), or a school admin listing/cancelling
-      // invites they're responsible for.
       allow read, delete: if isAuthenticated() && (
-        email == request.auth.token.email.lower() || isSchoolAdmin(resource.data.schoolId)
+        email == request.auth.token.email.lower() || isAtLeastAdmin(resource.data.schoolId)
       );
       allow create: if
-        (request.resource.data.role == 'admin' && isPrincipal(request.resource.data.schoolId)) ||
-        (request.resource.data.role == 'teacher' && isSchoolAdmin(request.resource.data.schoolId));
+        (request.resource.data.role in ['super_admin', 'admin'] && isSuperAdmin(request.resource.data.schoolId)) ||
+        (request.resource.data.role == 'teacher' && isAtLeastAdmin(request.resource.data.schoolId));
     }
 
     // A classroom or family unit. Only 'classroom' is populated today —
     // 'family' is additive later, not a migration (see TRD §3.2). schoolId
     // is optional: absent for standalone teacher-created classrooms and for
-    // every family context; when present, scoped school members can read it
-    // even without being a direct owner (see hasScopedAccess above).
+    // every family context; when present, scoped school members can act on
+    // it (full CRUD, not just read) even without being a direct owner (see
+    // hasScopedAccess above).
     match /contexts/{contextId} {
-      allow read: if isContextOwner(resource.data) || (
+      allow read, update, delete: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
           && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
       );
-      allow update, delete: if isContextOwner(resource.data);
-      allow create: if isContextOwner(request.resource.data);
+      allow create: if isContextOwner(request.resource.data) || (
+        request.resource.data.schoolId != null
+          && hasScopedAccess(request.resource.data.schoolId, request.resource.data.gradeLevel)
+      );
 
       // An immutable earn/spend ledger entry against one student in this
       // context — no update/delete once created.
@@ -123,7 +160,12 @@ service cloud.firestore {
           resource.data.schoolId != null
             && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
         );
-        allow create: if isContextOwner(request.resource.data)
+        allow create: if (
+          isContextOwner(request.resource.data) || (
+            request.resource.data.schoolId != null
+              && hasScopedAccess(request.resource.data.schoolId, request.resource.data.gradeLevel)
+          )
+        )
           && request.resource.data.amountCents is int
           && request.resource.data.amountCents > 0
           && request.resource.data.type in ['earn', 'spend'];
@@ -134,14 +176,16 @@ service cloud.firestore {
     // nested under contexts) so a student can belong to more than one
     // context later (classroom + family) without restructuring. schoolId
     // is denormalized from the owning classroom at creation time so scoped
-    // reads don't need an extra context lookup.
+    // access doesn't need an extra context lookup.
     match /students/{studentId} {
-      allow read: if isContextOwner(resource.data) || (
+      allow read, update, delete: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
           && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
       );
-      allow update, delete: if isContextOwner(resource.data);
-      allow create: if isContextOwner(request.resource.data);
+      allow create: if isContextOwner(request.resource.data) || (
+        request.resource.data.schoolId != null
+          && hasScopedAccess(request.resource.data.schoolId, request.resource.data.gradeLevel)
+      );
     }
 
     // Deny by default — no other collection exists yet.

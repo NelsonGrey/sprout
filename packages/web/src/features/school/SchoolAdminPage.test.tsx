@@ -18,16 +18,15 @@ vi.mock('../../lib/school', () => ({
   usePendingInvitesForSchool: vi.fn(),
 }));
 
-const principal = { uid: 'principal-1', displayName: 'Principal Lee', email: 'lee@example.com' } as User;
+const superAdmin = { uid: 'super-admin-1', displayName: 'Principal Lee', email: 'lee@example.com' } as User;
 const delegate = { uid: 'delegate-1', displayName: 'Office Manager', email: 'om@example.com' } as User;
 const teacher = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
 
 describe('SchoolAdminPage', () => {
-  it("shows a plain teacher their own role and scope, with no admin tooling", () => {
+  it('shows a plain teacher their own role and scope, with no admin tooling', () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({
       id: 'school-1',
       name: 'Riverside Elementary',
-      principalUid: 'principal-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
@@ -36,7 +35,7 @@ describe('SchoolAdminPage', () => {
       displayName: 'Ms. Lord',
       email: 'lord@example.com',
       scope: { type: 'grades', grades: ['3', '4'] },
-      addedByUid: 'principal-1',
+      addedByUid: 'super-admin-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
@@ -53,7 +52,6 @@ describe('SchoolAdminPage', () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({
       id: 'school-1',
       name: 'Riverside Elementary',
-      principalUid: 'principal-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
@@ -61,7 +59,7 @@ describe('SchoolAdminPage', () => {
       role: 'admin',
       displayName: 'Office Manager',
       email: 'om@example.com',
-      addedByUid: 'principal-1',
+      addedByUid: 'super-admin-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
@@ -71,6 +69,7 @@ describe('SchoolAdminPage', () => {
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
 
     expect(screen.getByText('Invite a teacher')).toBeTruthy();
+    // A regular admin never sees the super-admin-only delegation section.
     expect(screen.queryByText('Delegate admin access')).toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'new@example.com' } });
@@ -89,40 +88,42 @@ describe('SchoolAdminPage', () => {
     );
   });
 
-  it('lets the principal delegate admin access', async () => {
+  it('lets a super admin delegate admin or super admin access', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({
       id: 'school-1',
       name: 'Riverside Elementary',
-      principalUid: 'principal-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
-      uid: 'principal-1',
-      role: 'admin',
+      uid: 'super-admin-1',
+      role: 'super_admin',
       displayName: 'Principal Lee',
       email: 'lee@example.com',
-      addedByUid: 'principal-1',
+      addedByUid: 'super-admin-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
     vi.mocked(schoolLib.inviteMember).mockResolvedValue(undefined);
 
-    render(<SchoolAdminPage user={principal} schoolId="school-1" />);
+    render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Delegate admin access')).toBeTruthy());
 
     const adminEmailInputs = screen.getAllByPlaceholderText('Email');
     fireEvent.change(adminEmailInputs[adminEmailInputs.length - 1], {
       target: { value: 'newadmin@example.com' },
     });
-    fireEvent.click(screen.getByText('Invite Admin'));
+    // Two "Send Invite" buttons now (teacher section + admin-delegation
+    // section) — the second is the one under "Delegate admin access".
+    // Default role selection is "Admin" — send without touching the radio.
+    fireEvent.click(screen.getAllByText('Send Invite')[1]);
 
     await waitFor(() =>
       expect(schoolLib.inviteMember).toHaveBeenCalledWith({
         schoolId: 'school-1',
         email: 'newadmin@example.com',
         role: 'admin',
-        invitedByUid: 'principal-1',
+        invitedByUid: 'super-admin-1',
       }),
     );
   });
@@ -131,25 +132,65 @@ describe('SchoolAdminPage', () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({
       id: 'school-1',
       name: 'Riverside Elementary',
-      principalUid: 'principal-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
-      uid: 'principal-1',
-      role: 'admin',
+      uid: 'super-admin-1',
+      role: 'super_admin',
       displayName: 'Principal Lee',
       email: 'lee@example.com',
-      addedByUid: 'principal-1',
+      addedByUid: 'super-admin-1',
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([
-      { email: 'pending@example.com', schoolId: 'school-1', role: 'teacher', scope: { type: 'own' }, invitedByUid: 'principal-1', createdAt: new Date() },
+      { email: 'pending@example.com', schoolId: 'school-1', role: 'teacher', scope: { type: 'own' }, invitedByUid: 'super-admin-1', createdAt: new Date() },
     ]);
 
-    render(<SchoolAdminPage user={principal} schoolId="school-1" />);
+    render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
     fireEvent.click(screen.getByText('Cancel'));
 
     await waitFor(() => expect(schoolLib.cancelInvite).toHaveBeenCalledWith('pending@example.com'));
+  });
+
+  it('hides the remove button for the sole remaining super admin', () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({
+      id: 'school-1',
+      name: 'Riverside Elementary',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'super-admin-1',
+      role: 'super_admin',
+      displayName: 'Principal Lee',
+      email: 'lee@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([
+      {
+        uid: 'super-admin-1',
+        role: 'super_admin',
+        displayName: 'Principal Lee',
+        email: 'lee@example.com',
+        addedByUid: 'super-admin-1',
+        createdAt: new Date(),
+      },
+      {
+        uid: 'delegate-1',
+        role: 'admin',
+        displayName: 'Office Manager',
+        email: 'om@example.com',
+        addedByUid: 'super-admin-1',
+        createdAt: new Date(),
+      },
+    ]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
+
+    // Only one Remove button — for the admin, not the sole super admin
+    // (including the current user, who also can't remove themselves).
+    expect(screen.getAllByText('Remove')).toHaveLength(1);
   });
 });

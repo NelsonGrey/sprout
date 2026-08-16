@@ -1,17 +1,18 @@
 /// A school in the security matrix (BR-1.3.11/1.3.12). See firestore.rules
-/// for the enforcement side of this model.
+/// for the enforcement side of this model. `founderUid`/`superAdminCount`
+/// are rules bootstrap/invariant plumbing, not app-facing — deliberately
+/// not modeled here; [SchoolRepository] writes them directly.
 class School {
-  const School({required this.id, required this.name, required this.principalUid});
+  const School({required this.id, required this.name});
 
   final String id;
   final String name;
-
-  /// The only uid allowed to grant/revoke admin membership — hierarchical
-  /// delegation, set once at school creation and immutable via the rules.
-  final String principalUid;
 }
 
-enum MemberRole { admin, teacher }
+/// Hierarchical delegation: only a super_admin can create/remove another
+/// super_admin or an admin. A school is never left without at least one
+/// super_admin (enforced in firestore.rules, not just the UI).
+enum MemberRole { superAdmin, admin, teacher }
 
 enum MemberScopeType { own, grades, school }
 

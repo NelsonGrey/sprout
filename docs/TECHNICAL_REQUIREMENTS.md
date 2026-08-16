@@ -114,13 +114,16 @@ This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_
 ### 2.7 Bulk Operations & Role Granularity (BR-1.3.9–1.3.12) 🟢 Foundation complete (Phase 1) / 🔴 CSV bulk import not started (Phase 2)
 | Requirement | Status | Notes |
 |---|---|---|
-| School security matrix: principal, hierarchical admin delegation, teacher scope grants (own/grades/whole-school) | ✅ Complete | New `schools/{schoolId}` + `schools/{schoolId}/members/{uid}` collections, `firestore.rules` enforcement, 10 rules tests. Mobile: `SchoolRepository`; web: `lib/school.ts`. Admin UI is web-only for now (`features/school/`) — matches "heavy data entry lives on web," mobile just gets the broadened classroom visibility |
-| Scoped specialist role (cross-class/school-wide visibility short of full admin) | ✅ Complete | This *is* BR-1.3.12 — a teacher's `members/{uid}.scope` of `'grades'` or `'school'` grants read access to classrooms/students they don't own, enforced in `firestore.rules`'s `hasScopedAccess()`. Visibility only, not edit rights — an admin still has to add someone as a classroom owner separately to grant write access |
+| School security matrix: three-tier hierarchy (super_admin/admin/teacher), teacher scope grants (own/grades/whole-school), NCES school lookup | ✅ Complete | New `schools/{schoolId}` + `schools/{schoolId}/members/{uid}` collections, `firestore.rules` enforcement, 17 rules tests. Mobile: `SchoolRepository`; web: `lib/school.ts`. Admin UI is web-only for now (`features/school/`) — matches "heavy data entry lives on web," mobile just gets the broadened classroom visibility. `CreateSchoolPage` searches NCES's public school directory (federal, free, no key — confirmed CORS-callable) with a manual-entry fallback |
+| Hierarchical delegation: only a super_admin creates/removes another super_admin or an admin; a school is never left without at least one super_admin | ✅ Complete | `schools/{schoolId}.superAdminCount`, checked in `firestore.rules` before allowing a super_admin's `members` doc to be deleted. The counter itself is trusted to be maintained by the app's paired batch writes (member create/delete ⟷ increment/decrement), not independently re-derived by the rules — a stated, deliberate limitation, not an oversight |
+| Scoped specialist role (cross-class/school-wide visibility *and CRUD*, short of full admin) | ✅ Complete | This *is* BR-1.3.12 — a teacher's `members/{uid}.scope` of `'grades'` or `'school'` grants full CRUD (not just read) on classrooms/students they don't own, enforced in `firestore.rules`'s `hasScopedAccess()`. Admins/super_admins get the same full-CRUD access automatically across their whole school |
 | Teacher assignable to multiple classes/sections, or as secondary teacher on another teacher's class | ✅ Complete (pre-existing) | `contexts/{contextId}.ownerUids` is an array — unchanged from the original MVP schema, still covers this directly |
 | Staff onboarding for people without an account yet | ✅ Complete | **Invite-and-claim**, not real account pre-provisioning — Cloud Functions (which could use the Admin SDK to create accounts outright) live in the private `sprout-functions` repo, not available here. An admin invite (`pendingInvites/{email}`) is claimed automatically the first time that email signs in, on either platform |
+| Emulator-seeded test accounts covering every role/scope | ✅ Complete | `npm run seed:emulator` (`scripts/seed-emulator-accounts.mjs`, uses `firebase-admin` purely as a local scripting tool against the emulator — no real credentials, no Cloud Functions involved) — see §9.3 for the account list. `npm run emulators` now imports/exports `.emulator-seed/` automatically so seeded state persists across sessions |
 | Multi-select students + bulk move to another class/teacher | 🔴 Not started (Phase 2) | Directly from field feedback: ETM Machine's one-by-one roster transfer takes ~15 clicks/student. Implement as a Firestore batched write (≤500 doc writes/batch), not N sequential writes |
 | Mass transaction (earn/spend/deposit) against an entire class or an arbitrary multi-select | 🔴 Not started (Phase 2) | Same batched-write approach; replaces ETM Machine's manually-maintained "group" workaround entirely — Sprout Streak should not need a group abstraction to do this |
 | CSV/spreadsheet bulk import for teachers and students | 🔴 Not started (Phase 2) | Builds directly on the `pendingInvites` mechanism above — a CSV row becomes one invite (or one student doc, since students don't need accounts). This was deliberately sequenced as a follow-up so the security matrix could be proven independently first |
+| Student ID barcode scanning for independent balance visibility | 🔴 Not started, future consideration | Raised in conversation, not built: many schools already issue students physical ID cards (lunch, library, etc.) with barcodes — scanning that *existing* card (camera-based, or a USB scanner acting as a keyboard wedge) to pull up a student's balance would solve BR-1.3.3 (independent student balance visibility, still otherwise unsolved — see §2.3) without proprietary hardware, unlike ETM Machine's $50 custom-card requirement (BR-1.3.6). Needs its own design pass: what a "scan" actually authorizes (view-only, at an admin-configured kiosk device — not a real auth token, since there's still no independent student login), and a kiosk-mode security model |
 
 ### 2.8 CI/CD & Infrastructure ✅ COMPLETE
 | Feature | Status |
@@ -180,16 +183,20 @@ contexts/{contextId}/transactions/{transactionId}
 ```
 schools/{schoolId}
   ├── name
-  ├── principalUid        # the only uid allowed to grant/revoke admin membership
+  ├── founderUid           # rules bootstrap only — see below, not ongoing authority
+  ├── superAdminCount      # invariant tracking — "never zero super_admins"
+  ├── nces?                # { ncesId, street, city, state, zip } — set when founded via
+  │                         # the NCES school-lookup search rather than typed manually
   └── createdAt
 
-schools/{schoolId}/members/{uid}       # every admin + teacher affiliated with the school
-  ├── role: 'admin' | 'teacher'
+schools/{schoolId}/members/{uid}       # every super_admin/admin/teacher affiliated with the school
+  ├── role: 'super_admin' | 'admin' | 'teacher'
   ├── displayName, email
   ├── scope: { type: 'own' | 'grades' | 'school', grades?: string[] }
-  │     # 'own' = only classrooms they directly own (default); 'grades' = any
-  │     # classroom in this school whose gradeLevel is in `grades`; 'school'
-  │     # = every classroom in the school (the PE/art/music case)
+  │     # meaningless for super_admin/admin (implicit full-school CRUD); for
+  │     # teachers: 'own' = only classrooms they directly own (default);
+  │     # 'grades' = any classroom in this school whose gradeLevel is in
+  │     # `grades`; 'school' = every classroom in the school (PE/art/music)
   ├── addedByUid
   └── createdAt
 
@@ -208,11 +215,13 @@ contexts/{contextId}.schoolId?, .gradeLevel?    # optional — additive, not a
 students/{studentId}.schoolId?, .gradeLevel?    # migration for standalone/family data
 ```
 
-**Delegation is hierarchical**: only `schools/{schoolId}.principalUid` can grant/revoke *admin* membership; any admin (principal or delegate) can freely manage *teacher* membership and scope. Enforced in `firestore.rules` (`isPrincipal`, `isSchoolAdmin`, `hasScopedAccess`), covered by 10 of the 14 tests in `firestore.rules.test.ts`.
+**Delegation is hierarchical, three tiers**: only a `super_admin` can create/remove another `super_admin` or an `admin` (`isSuperAdmin` in `firestore.rules`); any `admin` (super_admin or delegate) can freely manage `teacher` membership and scope (`isAtLeastAdmin`). A school is never left without at least one `super_admin` — `schools/{schoolId}.superAdminCount` is checked before a `super_admin`'s `members` doc can be deleted, maintained by the app's paired batch writes (member create/delete ⟷ increment/decrement), not independently re-derived by the rules (a stated limitation). Bootstrapping the very first `super_admin` uses a one-time `founderUid` check on the school doc (`isFoundingSuperAdmin`) — nothing else could grant it, since no `members` doc exists yet for a brand-new school.
+
+**CRUD, not just read**: `hasScopedAccess()` gates `contexts`/`students`/`contexts/{id}/transactions` create/update/delete the same way it gates read — a scoped teacher (or any admin/super_admin, who always pass) can fully act on data within their scope, not merely view it.
 
 **Why invite-and-claim instead of real account provisioning**: Cloud Functions (which could use the Admin SDK to create Firebase Auth accounts outright) live in the private `sprout-functions` repo, not available here. `pendingInvites` records what an admin configured for an email; `claimPendingInviteIfAny` (mobile: `SchoolRepository`; web: `lib/school.ts`) activates it automatically the first time that email actually signs in.
 
-**UI**: web-only for admin tooling (`packages/web/src/features/school/` — `CreateSchoolPage`, `SchoolAdminPage`), matching "heavy data entry lives on web." Both platforms get the payoff — `ClassroomsScreen`/`ClassroomsPage` merge owned classrooms with scope-visible ones client-side (`ClassroomRepository.classroomsInSchool` / `useClassroomsInSchool`).
+**UI**: web-only for admin tooling (`packages/web/src/features/school/` — `CreateSchoolPage` with NCES search, `SchoolAdminPage`), matching "heavy data entry lives on web." Both platforms get the payoff — `ClassroomsScreen`/`ClassroomsPage` merge owned classrooms with scope-visible ones client-side (`ClassroomRepository.classroomsInSchool` / `useClassroomsInSchool`).
 
 ### 3.3 Offline & Reliability Requirements (technical detail for §2.2)
 - Enable Firestore's offline persistence (`Settings(persistenceEnabled: true)` on mobile) so transaction writes queue locally and sync on reconnect, directly addressing ETM Machine's cellular-crash failure mode.
@@ -330,6 +339,20 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 | staging | `nelsongrey-sprout-staging` | ✅ Created; same |
 | production | `nelsongrey-sprout-prod` | ✅ Created; same |
 
+### 9.3 Emulator Test Accounts (local only — never real credentials)
+
+Run `npm run seed:emulator` once (regenerates `.emulator-seed/`, gitignored), then `npm run emulators` for every regular session — it imports that seed automatically and exports changes back on exit. One school ("Test Elementary") covering every role/scope, password `sprouttest1` for all:
+
+| Email | Role / scope |
+|---|---|
+| `super1@test.sprout` | Super admin (founder) |
+| `admin1@test.sprout` | Admin (delegate) |
+| `teacher.own@test.sprout` | Teacher, scope `own` — owns 3rd Grade |
+| `teacher.grades@test.sprout` | Teacher, scope `grades` — [4, 5] |
+| `teacher.school@test.sprout` | Teacher, scope `school` — whole-school specialist (PE/art/music case) |
+
+No student account — students still have no login (see §2.3); a seeded student in each classroom is reviewable via the teacher-mediated ledger screen instead.
+
 ---
 
 ## 10. Documentation
@@ -365,6 +388,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 | 1.0 | Aug 16, 2026 | Mark Nelson | Initial TRD against the fresh scaffold, including proposed Firestore data model and honest implementation-status tables |
 | 1.1 | Aug 16, 2026 | Mark Nelson | Added §2.7 (bulk operations & role granularity, BR-1.3.9–1.3.12) and flagged the scoped-specialist-role open design question in §3.2 |
 | 1.2 | Aug 16, 2026 | Mark Nelson | Shipped the school security matrix (§3.2a): principal/hierarchical admin delegation, teacher scope grants, invite-and-claim onboarding — resolves BR-1.3.11/1.3.12. CSV bulk import (BR-1.3.9/1.3.10) deliberately sequenced as a follow-up |
+| 1.3 | Aug 16, 2026 | Mark Nelson | Corrected the hierarchy to a real three-tier super_admin/admin/teacher role (was a single hardcoded `principalUid`), with a "never zero super_admins" invariant; expanded scoped access from read-only to full CRUD; added NCES public-school lookup to school creation (§3.2a); added emulator-seeded test accounts for every role/scope (§9.3); noted student ID barcode scanning as a future consideration (§2.7) |
 
 ---
 

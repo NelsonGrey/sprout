@@ -20,7 +20,8 @@
     "clean": "rm -rf packages/*/node_modules packages/*/dist node_modules",
     "deploy": "./scripts/deploy.sh deploy-all",
     "deploy:web": "./scripts/deploy.sh deploy-web",
-    "emulators": "firebase emulators:start --config firebase.dev.json"
+    "emulators": "firebase emulators:start --config firebase.dev.json --import=.emulator-seed --export-on-exit=.emulator-seed",
+    "seed:emulator": "firebase emulators:exec --config firebase.dev.json --export-on-exit=.emulator-seed \"node scripts/seed-emulator-accounts.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",
@@ -30,6 +31,7 @@
     "eslint": "^8.0.0",
     "eslint-plugin-react": "^7.33.0",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "firebase-admin": "^14.2.0",
     "prettier": "^3.0.0",
     "typescript": "^5.6.3",
     "vitest": "^4.1.10"

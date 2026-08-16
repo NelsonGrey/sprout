@@ -52,7 +52,7 @@ void main() {
     final schoolRepository = FakeSchoolRepository();
     final school = await schoolRepository.createSchool(
       name: 'Riverside Elementary',
-      principalUid: 'principal-1',
+      founderUid: 'principal-1',
     );
     await classroomRepository.createClassroom(
       name: "Mrs. Lord's 4th Grade",
@@ -91,7 +91,7 @@ void main() {
     final schoolRepository = FakeSchoolRepository();
     final school = await schoolRepository.createSchool(
       name: 'Riverside Elementary',
-      principalUid: 'principal-1',
+      founderUid: 'principal-1',
     );
     await classroomRepository.createClassroom(
       name: 'Kindergarten Room',

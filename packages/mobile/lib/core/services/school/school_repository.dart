@@ -4,15 +4,16 @@ import 'package:sprout/core/models/school.dart';
 /// screens can be tested against [FakeSchoolRepository] — same shape as
 /// AuthService/ClassroomRepository.
 abstract class SchoolRepository {
-  /// Also upserts `users/{principalUid}` and adds the school to
-  /// `users/{principalUid}.schoolIds` — mirrors
+  /// The caller becomes the school's founding super_admin. Also upserts
+  /// `users/{founderUid}` and adds the school to
+  /// `users/{founderUid}.schoolIds` — mirrors
   /// [ClassroomRepository.createClassroom]'s first-write-creates-profile
   /// pattern.
   Future<School> createSchool({
     required String name,
-    required String principalUid,
-    String? principalDisplayName,
-    String? principalEmail,
+    required String founderUid,
+    String? founderDisplayName,
+    String? founderEmail,
   });
 
   Stream<List<String>> schoolIdsForUser(String uid);
@@ -24,8 +25,10 @@ abstract class SchoolRepository {
 
   Stream<List<SchoolMember>> membersOfSchool(String schoolId);
 
-  /// A delegate admin can remove a teacher; only the principal can remove
-  /// an admin (hierarchical delegation — see firestore.rules).
+  /// A delegate admin can remove a teacher; only a super_admin can remove
+  /// an admin or another super_admin (hierarchical delegation — see
+  /// firestore.rules). Removing the school's last super_admin is denied by
+  /// the rules regardless of who attempts it.
   Future<void> removeMember(String schoolId, String uid);
 
   /// Records who's coming, keyed by email — not tied to an existing
