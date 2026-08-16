@@ -108,7 +108,15 @@ This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_
 | Parent/co-teacher invite flow | 🔴 Not started | |
 | COPPA/FERPA-appropriate data handling | 🔴 Not started | See §7 |
 
-### 2.7 CI/CD & Infrastructure ✅ COMPLETE
+### 2.7 Bulk Operations & Role Granularity (BR-1.3.9–1.3.12) 🔴 NOT STARTED
+| Requirement | Status | Notes |
+|---|---|---|
+| Multi-select students + bulk move to another class/teacher | 🔴 Not started | Directly from field feedback: ETM Machine's one-by-one roster transfer takes ~15 clicks/student. Implement as a Firestore batched write (≤500 doc writes/batch), not N sequential writes |
+| Mass transaction (earn/spend/deposit) against an entire class or an arbitrary multi-select | 🔴 Not started | Same batched-write approach; replaces ETM Machine's manually-maintained "group" workaround entirely — Sprout should not need a group abstraction to do this |
+| Teacher assignable to multiple classes/sections, or as secondary teacher on another teacher's class | 🔴 Not started | `contexts/{contextId}.ownerUids` (§3.2) is already an array, so this is largely a UI/query concern, not a schema change — needs a "my classes" view that unions contexts where `ownerUids` contains the signed-in uid |
+| Scoped specialist role (cross-class/school-wide visibility short of full admin) | 🔴 Not started | Current proposed model (§3.2) has a flat `role: 'teacher' \| 'parent' \| 'student'` with no admin tier and no scoped grant — needs explicit design before implementation (see §3.2 note) |
+
+### 2.8 CI/CD & Infrastructure ✅ COMPLETE
 | Feature | Status |
 |---|---|
 | GitHub repos (`sprout` public, `sprout-functions` private), `develop`/`staging`/`main` branch model | ✅ Complete |
@@ -158,6 +166,8 @@ contexts/{contextId}/transactions/{transactionId}
 ```
 
 **Security rule shape** (not yet implemented): a student can only read their own `students/{studentId}` document and its transactions; a context owner (teacher/parent) can read/write everything scoped to `contexts/{contextId}` where their uid is in `ownerUids`. No cross-context reads without an explicit share grant — this is the enforcement point for keeping classroom and family data appropriately separated even though they share a student identity.
+
+**Open design question — scoped specialist role (BR-1.3.12)**: `contexts/{contextId}.ownerUids` already supports a teacher co-owning multiple classroom contexts (covers BR-1.3.11's secondary-teacher/multi-section case with no schema change). It does *not* cover a specialist teacher (PE, art) needing read visibility across many classes/grades without being an owner of each one, or a school-wide admin role — `users/{uid}.role` today is a flat `'teacher' | 'parent' | 'student'` with nothing between "owns this one context" and "owns nothing." This needs a real design (e.g., a `grantedContextIds` list or a school-level document with a scoped-visibility role) before BR-1.3.12 can be implemented — flagging here rather than guessing at a schema.
 
 ### 3.3 Offline & Reliability Requirements (technical detail for §2.2)
 - Enable Firestore's offline persistence (`Settings(persistenceEnabled: true)` on mobile) so transaction writes queue locally and sync on reconnect, directly addressing ETM Machine's cellular-crash failure mode.
@@ -252,9 +262,12 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 **Phase 2 — Family/classroom continuity**:
 - Multi-context student identity (§3.2's `contexts` model)
 - Interest/compound-growth mechanics at the free tier
+- Bulk operations: multi-select + batched move/transact (§2.7)
+- Secondary/multi-section teacher assignment (§2.7)
 
 **Phase 3 — Schoolwide/district**:
 - SIS integration, centralized admin dashboard (matching ClassBank's Schoolwide tier, not a v1.0 priority per BRD §3.2)
+- Scoped specialist role for cross-class/school-wide visibility short of full admin (§2.7, §3.2 open design question)
 
 ---
 
@@ -280,7 +293,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 |---|---|---|
 | README.md | `/README.md` | Setup instructions |
 | BUSINESS_REQUIREMENTS.md | `/docs/BUSINESS_REQUIREMENTS.md` | Business case, market/competitive analysis |
-| This document | `/docs/REQUIREMENTS.md` | Technical requirements & implementation status |
+| This document | `/docs/TECHNICAL_REQUIREMENTS.md` | Technical requirements & implementation status |
 
 ---
 
@@ -305,6 +318,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | Aug 16, 2026 | Mark Nelson | Initial TRD against the fresh scaffold, including proposed Firestore data model and honest implementation-status tables |
+| 1.1 | Aug 16, 2026 | Mark Nelson | Added §2.7 (bulk operations & role granularity, BR-1.3.9–1.3.12) and flagged the scoped-specialist-role open design question in §3.2 |
 
 ---
 

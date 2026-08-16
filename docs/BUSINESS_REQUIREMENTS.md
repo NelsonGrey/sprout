@@ -1,6 +1,6 @@
 # Sprout - Business Requirements Document
 
-> **Planning baseline (written 2026-08-16):** This document describes the target product for a freshly scaffolded repository. Only the auth layer, monorepo skeleton, Firebase project trio, and CI/CD are actually built — see [REQUIREMENTS.md](REQUIREMENTS.md) §2 for an honest implementation-status table. Everything else below is planning intent, not a shipped feature.
+> **Planning baseline (written 2026-08-16):** This document describes the target product for a freshly scaffolded repository. Only the auth layer, monorepo skeleton, Firebase project trio, and CI/CD are actually built — see [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md) §2 for an honest implementation-status table. Everything else below is planning intent, not a shipped feature.
 
 **Version**: 1.0
 **Last Updated**: August 16, 2026
@@ -61,7 +61,7 @@ Sprout is a native mobile (Flutter, iOS + Android) and web (React) app, backed b
 
 ### 1.3 What ETM Machine Got Wrong (and How Sprout Fixes It)
 
-Sourced from the App Store teardown that motivated this project (full detail in Appendix A):
+Sourced from the App Store teardown that motivated this project, plus direct field feedback from a current ETM Machine teacher user collected 2026-08-16 (full detail in Appendix A):
 
 | ETM Machine failure | Sprout requirement |
 |---|---|
@@ -73,6 +73,10 @@ Sourced from the App Store teardown that motivated this project (full detail in 
 | Physical plastic card + QR code required, $50 custom-design setup fee | **BR-1.3.6**: No physical hardware required to use the product; a phone/tablet is the only required device |
 | No FERPA/COPPA compliance messaging anywhere in the product or marketing | **BR-1.3.7**: Publish a compliance/data-handling statement appropriate for K-12 procurement before any school-facing marketing (see §9) |
 | Near-zero organic growth (8 App Store ratings after 8 years) — no parent-invite/viral loop | **BR-1.3.8**: Ship a parent/co-teacher invite flow from v1.0 — this is a growth requirement, not just a feature |
+| No multi-select/bulk actions — moving a class of students to a new teacher (e.g., end-of-year promotion) takes roughly 15 clicks per student, one at a time | **BR-1.3.9**: Teachers/admins must be able to select multiple students at once and apply an action (move to another class, transact) to the whole selection in a single operation |
+| No "mass deposit" to a class — teachers fake it with manually-maintained "groups," adding/removing each student one by one whenever their teacher assignment changes | **BR-1.3.10**: A transaction (earn/spend/deposit) must be applicable to an entire class or an arbitrary multi-select of students in one action, without a separate group abstraction to keep in sync by hand |
+| No secondary/co-teacher assignment — a specials teacher (PE, art, music) who serves many classes across grade levels has no way to be added to those classes without a workaround | **BR-1.3.11**: A teacher must be assignable to multiple classes/sections, or added as a secondary teacher on another teacher's class, the way a middle/high-school teacher's schedule works — without needing a separate account per class |
+| Binary teacher/admin roles only — a specials teacher who needs cross-class or whole-school visibility has to be given a full "admin" account just to see their students, a serious over-privileging workaround | **BR-1.3.12**: Support a scoped role between single-class teacher and full admin (e.g., a specialist role with visibility across assigned classes/grade levels), so cross-class visibility never requires granting school-wide administrative privileges |
 
 ### 1.4 Deep Dive: ClassBank (Leading Competitor)
 
@@ -113,10 +117,12 @@ ClassBank (classbank.com) is the most direct, most successful existing competito
 - Give students a tangible, motivating reason to demonstrate good behavior.
 - Teach real financial concepts as a byproduct of classroom management, without needing a separate curriculum block.
 
-**Pain Points** (informed directly by ETM Machine's real user reviews):
+**Pain Points** (informed directly by ETM Machine's real user reviews and by field feedback from a current ETM Machine teacher user, 2026-08-16):
 - Existing tools crash or lock them out mid-class ("the app crashes, and they have yet to be able to log in").
 - No way for students to independently check their own balance, creating constant "how much do I have?" interruptions.
 - Physical tokens/cards are a logistics and cost burden (printing, replacement, $50 custom-design fees).
+- No bulk actions — moving a class roster to next year's teacher, or mass-depositing to a class, is a one-by-one slog (reported as ~15 clicks per student for a roster transfer, see BR-1.3.9/1.3.10).
+- The teacher/admin role split is too coarse — specialist teachers (PE, art, music) who need multi-class or school-wide visibility either can't get real accounts or have to be over-privileged as full admins (see BR-1.3.11/1.3.12).
 
 **Behaviors**: Sets up the system once at the start of the year, administers transactions daily/weekly, wants a system a substitute teacher or co-teacher could also use.
 
@@ -271,8 +277,13 @@ Full teardown conducted 2026-08-16 as the origin of this project. Summary of fin
 - **Pricing**: $2.00/student/year (1–100 students), $1.50/student/year (101–1,000 students), $50 custom card-design setup fee.
 - **Market**: Sits in a crowded but consolidating category (ClassDojo, PBIS Rewards, Kickboard, Classcraft, LiveSchool, Hero K12) where its narrow "financial literacy + physical card" differentiation is real but underexploited due to poor execution.
 
+**Supplementary source — field feedback (2026-08-16)**: Direct feedback from a current ETM Machine classroom teacher (relayed via a colleague, "Rob," regarding specials-teacher access) surfaced operational failures the App Store teardown couldn't see from the outside — bulk roster management and role/permission granularity. See BR-1.3.9–1.3.12 above. Two workflows in particular:
+- **Roster transfer**: moving a class of students to their next year's teacher is a fully manual, one-student-at-a-time process (~15 clicks/student), with no multi-select.
+- **Mass deposit**: there is no way to transact against an entire class at once; the only workaround is manually maintaining a "group" per teacher and moving each student's group membership by hand whenever their teacher changes.
+- **Specialist/PE teacher access**: teachers who see multiple classes across grade levels (PE, art, music) can't be given a secondary-teacher or multi-section assignment, and can't get a scoped "sees the whole school" role short of being made a full admin.
+
 ## Appendix B: Referenced Documents
-- [Technical Requirements](REQUIREMENTS.md)
+- [Technical Requirements](TECHNICAL_REQUIREMENTS.md)
 - [Root README](../README.md)
 
 ---
@@ -282,6 +293,7 @@ Full teardown conducted 2026-08-16 as the origin of this project. Summary of fin
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | Aug 16, 2026 | Mark Nelson | Initial BRD, including ETM Machine source analysis and ClassBank competitive deep dive |
+| 1.1 | Aug 16, 2026 | Mark Nelson | Added BR-1.3.9–1.3.12 (bulk actions, mass deposit, secondary/multi-section teachers, scoped specialist role) from direct ETM Machine teacher field feedback |
 
 ---
 
