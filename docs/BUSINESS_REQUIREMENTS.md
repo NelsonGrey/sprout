@@ -1,4 +1,4 @@
-# Sprout - Business Requirements Document
+# Sprout Streak - Business Requirements Document
 
 > **Planning baseline (written 2026-08-16):** This document describes the target product for a freshly scaffolded repository. Only the auth layer, monorepo skeleton, Firebase project trio, and CI/CD are actually built — see [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md) §2 for an honest implementation-status table. Everything else below is planning intent, not a shipped feature.
 
@@ -12,7 +12,7 @@
 ## Executive Summary
 
 **Product Overview**:
-Sprout is a subscription, no-ads classroom-and-family financial-literacy platform: a digital "earn and spend" system that replaces paper sticker charts and plastic token cards with a real mobile/web app, while teaching kids genuine money-management concepts (saving, budgeting, delayed gratification) rather than just gamified points.
+Sprout Streak is a subscription, no-ads classroom-and-family financial-literacy platform: a digital "earn and spend" system that replaces paper sticker charts and plastic token cards with a real mobile/web app, while teaching kids genuine money-management concepts (saving, budgeting, delayed gratification) rather than just gamified points.
 
 **Origin**: This product was conceived while conducting an App Store teardown of **ETM Machine** (Educational Classroom Systems, LLC) — see Appendix A. ETM Machine validates real demand for this category (physical-card classroom banking has been sold since 2018) but is a cautionary tale in execution: 3.3★ from only 8 ratings after 8 years live, no version update since February 2020 despite crash reports through 2025, a forced logout after every single transaction, no student-facing balance view, no accessibility support, and a plastic-card supply chain that adds cost and friction most classrooms won't tolerate on a trial basis.
 
@@ -20,7 +20,7 @@ Sprout is a subscription, no-ads classroom-and-family financial-literacy platfor
 Teachers and parents want a low-friction way to reinforce good behavior and teach real financial concepts, but the market splits into two unsatisfying camps: (1) general-purpose behavior trackers (ClassDojo, PBIS Rewards) with no real financial-literacy depth, and (2) financial-literacy-specific tools (ETM Machine, ClassBank) that are either poorly executed and stagnant (ETM Machine) or free-tier-crippled and classroom-only, with no native mobile app and no home/family continuity (ClassBank — see §1.2).
 
 **Solution**:
-Sprout is a native mobile (Flutter, iOS + Android) and web (React) app, backed by Firebase, that:
+Sprout Streak is a native mobile (Flutter, iOS + Android) and web (React) app, backed by Firebase, that:
 - Fixes every specific failure mode identified in ETM Machine (see §1.3): no forced logout, real student/parent balance visibility, accessibility built in from day one, no physical-card dependency, actively maintained.
 - Goes beyond ClassBank's classroom-only, web-only, free-tier-crippled model with a real native mobile experience, cross-context continuity between classroom and family use, and deeper financial-literacy content (not just a re-skinned points ledger).
 - Ships with COPPA/FERPA-appropriate data handling from the start rather than as an afterthought, since this app is squarely aimed at K-12 children's data.
@@ -59,11 +59,11 @@ Sprout is a native mobile (Flutter, iOS + Android) and web (React) app, backed b
 | **Kickboard** | Behavior analytics, admin reporting | Analytics/reporting-first, not a kid-facing experience | Admin/leadership tool | We're a kid-facing product, not primarily a reporting dashboard |
 | **Classcraft** | Heavily gamified, high engagement | Gamification-first, no real-world money literacy | Gamification specialist | Real financial concepts, not just XP/points |
 
-### 1.3 What ETM Machine Got Wrong (and How Sprout Fixes It)
+### 1.3 What ETM Machine Got Wrong (and How Sprout Streak Fixes It)
 
 Sourced from the App Store teardown that motivated this project, plus direct field feedback from a current ETM Machine teacher user collected 2026-08-16 (full detail in Appendix A):
 
-| ETM Machine failure | Sprout requirement |
+| ETM Machine failure | Sprout Streak requirement |
 |---|---|
 | App crashes on cellular data (reported 2021–2025, never fixed) | **BR-1.3.1**: Native app must maintain a stable session across network transitions (WiFi↔cellular) without crashing or losing in-progress state |
 | Forced logout after every single transaction ("not functionally useful" — Sept 2025 review) | **BR-1.3.2**: A teacher/parent must be able to complete a full session (many transactions) without re-authenticating between each one |
@@ -82,26 +82,26 @@ Sourced from the App Store teardown that motivated this project, plus direct fie
 
 ClassBank (classbank.com) is the most direct, most successful existing competitor discovered during this project's setup — "loved by 1M+ teachers and students in all 50 states," with adoption by NYC Public Schools, Columbus City Schools, and Orange County Public Schools. It is free for individual classrooms, with a $100/year Pro tier and a Schoolwide/institutional plan.
 
-**What ClassBank does well** (the bar Sprout must clear):
+**What ClassBank does well** (the bar Sprout Streak must clear):
 - Full classroom-economy mechanics: classroom jobs (students apply for and hold positions like Banker or Store Manager), automatic paychecks, optional bills, a digital class store with inventory tracking, and real bank-style checking/savings accounts.
 - Genuine financial-literacy depth: savings goals, interest-earning savings (Pro tier), budgeting practice through store purchases — this is a materially deeper simulation than ETM Machine's flat earn/spend ledger.
 - Setup friction is genuinely low (under 10 minutes, plug-and-play defaults), which is a real growth lever ETM Machine lacks entirely.
 - District-credible: multilingual support, SIS integration and centralized admin dashboards at the Schoolwide tier, real research backing (University of Wisconsin).
 
-**Where ClassBank falls short — Sprout's opportunity to exceed it**:
-1. **No native student mobile app.** ClassBank's teacher app is mobile (iOS/Android); students access their accounts via web browser only. Sprout is a native Flutter app for every role (teacher, parent, and student), which is a materially better experience for the K-12 audience actually using it day-to-day, and is table stakes for the family/home use case ClassBank doesn't attempt.
+**Where ClassBank falls short — Sprout Streak's opportunity to exceed it**:
+1. **No native student mobile app.** ClassBank's teacher app is mobile (iOS/Android); students access their accounts via web browser only. Sprout Streak is a native Flutter app for every role (teacher, parent, and student), which is a materially better experience for the K-12 audience actually using it day-to-day, and is table stakes for the family/home use case ClassBank doesn't attempt.
    → **BR-1.4.1**: Ship a first-class native mobile experience for the student role, not just teachers/admins.
-2. **Classroom-only — no family/home continuity.** ClassBank has no concept of a student's account following them home, or a parent independently running the same system for household chores/allowance. Sprout's original conception (from the ETM Machine teardown) explicitly targets both contexts.
-   → **BR-1.4.2**: A student's Sprout identity/account can be used in both a classroom context (managed by a teacher) and a family context (managed by a parent), potentially simultaneously, without being two separate products.
+2. **Classroom-only — no family/home continuity.** ClassBank has no concept of a student's account following them home, or a parent independently running the same system for household chores/allowance. Sprout Streak's original conception (from the ETM Machine teardown) explicitly targets both contexts.
+   → **BR-1.4.2**: A student's Sprout Streak identity/account can be used in both a classroom context (managed by a teacher) and a family context (managed by a parent), potentially simultaneously, without being two separate products.
 3. **Core financial mechanics are Pro-gated.** Interest-earning savings and co-teacher sharing sit behind the $100/yr paywall — the free tier's "savings account" doesn't actually teach compound growth, which is arguably the single most important financial-literacy concept a tool like this could teach.
-   → **BR-1.4.3**: Interest/compound-growth mechanics on savings should be available at Sprout's base tier, not gated behind a premium upsell — it's core to the value proposition, not a nice-to-have.
-4. **Accessibility posture is undocumented.** No public statement or evidence of screen-reader support was found. Given ETM Machine's identical, well-documented failure here, this is a low-cost, high-differentiation opportunity for Sprout to compete on.
+   → **BR-1.4.3**: Interest/compound-growth mechanics on savings should be available at Sprout Streak's base tier, not gated behind a premium upsell — it's core to the value proposition, not a nice-to-have.
+4. **Accessibility posture is undocumented.** No public statement or evidence of screen-reader support was found. Given ETM Machine's identical, well-documented failure here, this is a low-cost, high-differentiation opportunity for Sprout Streak to compete on.
    → **BR-1.4.4**: Publish an accessibility statement and hit WCAG 2.1 AA-equivalent behavior on mobile (see TRD §7).
 5. **Pricing model opacity below the Pro tier**, and no visible sub-$100 middle tier for a single teacher who wants *some* premium mechanics without a full $100/yr commitment. ETM Machine's per-student pricing ($2/student for 1–100 students, $1.50/student for 101–1,000) is more transparent and scales with class size — worth borrowing that transparency while beating ClassBank's actual feature depth.
    → **BR-1.4.5**: Publish transparent, per-seat pricing (see §4) rather than an opaque "Pro" bundle.
 
 ### 1.5 Market Trends
-- Category consolidation toward integrated platforms (behavior + gamification + parent comms + academic data) — Sprout should design its data model to support this expansion later without a rewrite (see TRD §3.2), even though v1.0 stays focused on the financial-literacy core.
+- Category consolidation toward integrated platforms (behavior + gamification + parent comms + academic data) — Sprout Streak should design its data model to support this expansion later without a rewrite (see TRD §3.2), even though v1.0 stays focused on the financial-literacy core.
 - Rising scrutiny of K-12 ed-tech data handling (state student-privacy laws expanding beyond COPPA/FERPA) — compliance-by-default is now a competitive requirement, not just legal hygiene.
 - Bottom-up (teacher/parent-led) adoption remains the dominant go-to-market in this category — neither ETM Machine nor ClassBank primarily sold through district procurement to reach their current scale.
 
@@ -151,7 +151,7 @@ ClassBank (classbank.com) is the most direct, most successful existing competito
 
 **Core Values**:
 - **No ads, ever** — this is a subscription product aimed partly at children; ad-based monetization is both a compliance risk and a trust-eroding choice this category can't afford (see [[modulo_squares_auth_design]]-adjacent reasoning: platform-appropriate defaults matter).
-- **Reliability over feature count** — ETM Machine's core failure was neglect, not a missing feature; Sprout's first commitment is that the basics never break.
+- **Reliability over feature count** — ETM Machine's core failure was neglect, not a missing feature; Sprout Streak's first commitment is that the basics never break.
 - **Accessibility is not optional** — built in from v1.0, not a backlog item.
 
 ### 3.2 Business Objectives
@@ -261,7 +261,7 @@ Firebase (Auth, Firestore, Functions, Hosting) scales with usage; no physical ha
 
 ## 9. Regulatory & Compliance
 
-Given this product handles K-12 student data directly (unlike the org's other apps, which have no live users yet — see [[feedback_no_live_users_yet]] for context on why that framing has mattered elsewhere, though Sprout's eventual school-facing nature raises the bar higher than a general consumer app):
+Given this product handles K-12 student data directly (unlike the org's other apps, which have no live users yet — see [[feedback_no_live_users_yet]] for context on why that framing has mattered elsewhere, though Sprout Streak's eventual school-facing nature raises the bar higher than a general consumer app):
 
 - **COPPA**: No behavioral advertising to any user, ever (§3.1); minimal data collection; parental/teacher consent model appropriate for under-13 users.
 - **FERPA**: Since this product may be adopted by schools and touch education records, data-handling terms need to be FERPA-appropriate (data processing agreement availability) before any district-facing marketing — a gap ETM Machine never addressed publicly (§1.3.7).

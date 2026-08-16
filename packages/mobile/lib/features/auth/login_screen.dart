@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 18),
               const Text(
-                'Sprout',
+                'Sprout Streak',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

@@ -1,4 +1,4 @@
-# Sprout - Technical Requirements & Implementation Status
+# Sprout Streak - Technical Requirements & Implementation Status
 
 > **Planning baseline (written 2026-08-16):** Unlike modulo-squares' TRD (which documents a shipped product), most of this document describes **planned** technical requirements against a fresh scaffold. The status column in every table below is the source of truth on what's actually built — do not assume a described requirement is implemented unless its row says so.
 
@@ -11,7 +11,7 @@
 
 ## Executive Summary
 
-Sprout is a React (web) + Flutter (mobile) app on a Firebase backend, structured as a monorepo (`packages/web`, `packages/mobile`, `packages/shared`, `packages/firebase-utils`, plus a private companion repo `sprout-functions`). The repository, three Firebase environments, CI/CD, and the authentication layer (extracted from the org's shared `game-shell` package, with its ads/consent/IAP layers deliberately excluded — see [[modulo_squares_auth_design]]) are built and tested. The product itself — the earn/spend/save data model and every user-facing feature described in the [Business Requirements](BUSINESS_REQUIREMENTS.md) — is not yet built.
+Sprout Streak is a React (web) + Flutter (mobile) app on a Firebase backend, structured as a monorepo (`packages/web`, `packages/mobile`, `packages/shared`, `packages/firebase-utils`, plus a private companion repo `sprout-functions`). The repository, three Firebase environments, CI/CD, and the authentication layer (extracted from the org's shared `game-shell` package, with its ads/consent/IAP layers deliberately excluded — see [[modulo_squares_auth_design]]) are built and tested. The product itself — the earn/spend/save data model and every user-facing feature described in the [Business Requirements](BUSINESS_REQUIREMENTS.md) — is not yet built.
 
 **Project Status**: 🟡 **SCAFFOLD COMPLETE — PRODUCT NOT STARTED**
 
@@ -35,9 +35,9 @@ Sprout is a React (web) + Flutter (mobile) app on a Firebase backend, structured
 
 | Platform | Status | Minimum Version |
 |---|---|---|
-| **iOS** | 🟡 Scaffolded, unconfigured (no real Firebase config yet) | 13.0+ (Xcode-project default; revisit once product features are known) |
-| **Android** | 🟡 Scaffolded, unconfigured | API 21+ (Flutter default; revisit) |
-| **Web** | 🟡 Scaffolded, unconfigured | Modern browsers |
+| **iOS** | 🟢 Real Firebase config; confirmed booting to the login screen on an iPhone 17 Pro simulator | 16.0+ (raised from the 13.0 default — `cloud_firestore`'s iOS plugin requires 15.0+, matches wishlist-wizard's floor) |
+| **Android** | 🟢 Real Firebase config; confirmed booting to the login screen on a Pixel 3a emulator | API 21+ (Flutter default; revisit) |
+| **Web** | 🟢 Deployed and verified live at `nelsongrey-sprout-dev.web.app` | Modern browsers |
 
 ### 1.3 Project Structure (as built)
 ```
@@ -65,14 +65,17 @@ sprout/
 
 This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_REQUIREMENTS.md](BUSINESS_REQUIREMENTS.md) §1.3–1.4. Every row not marked ✅ is planned work, not built.
 
-### 2.1 Authentication ✅ COMPLETE
+### 2.1 Authentication ✅ COMPLETE (mobile) / 🟡 web pending provider config
 | Feature | Status | Implementation |
 |---|---|---|
-| Google Sign-In (Android + web) | ✅ Complete | `packages/mobile/lib/core/services/auth/firebase_auth_service.dart` |
-| Apple Sign-In (iOS/macOS only, explicit platform guard) | ✅ Complete | Same file — fixes a doc/behavior gap found in `game-shell`'s original (see commit history) |
-| Fake auth for tests | ✅ Complete | `fake_auth_service.dart` |
-| Login screen (platform-gated buttons, error handling) | ✅ Complete | `features/auth/login_screen.dart`, 3 passing widget tests |
-| Auth-gated routing | ✅ Complete | `main.dart` via `go_router` redirect on `AuthService.authStateChanges()` |
+| Google Sign-In (Android + web) | ✅ Complete | `packages/mobile/lib/core/services/auth/firebase_auth_service.dart`; `packages/web/src/features/auth/LoginPage.tsx` |
+| Apple Sign-In (iOS/macOS via native SDK; web via `signInWithPopup(new OAuthProvider('apple.com'))`, no separate Apple JS SDK needed) | 🟡 Code complete, needs external config | Mobile: `firebase_auth_service.dart`. Web: `LoginPage.tsx` — **blocked** until Apple's provider is enabled for `nelsongrey-sprout-{dev,staging,prod}` in the Firebase console, which requires a Sign in with Apple Services ID + key from the Apple Developer portal with these domains registered as return URLs (owner action — no Firebase MCP tool exposes Auth provider config) |
+| Email/Password (web only for now) | 🟡 Code complete, needs provider enabled | `LoginPage.tsx` — sign in, sign up, and password reset. **Blocked** until Email/Password is toggled on in the Firebase console's Authentication → Sign-in method for each environment (owner action) |
+| Fake auth for tests | ✅ Complete | `fake_auth_service.dart` (mobile) |
+| Login screen (platform-gated buttons, error handling) | ✅ Complete | `features/auth/login_screen.dart` (mobile, 3 tests); `LoginPage.tsx` (web, 7 tests) |
+| Auth-gated routing | ✅ Complete | `main.dart` via `go_router` redirect; web via `App.tsx`'s `onAuthStateChanged` |
+
+**Future work — school/district SSO**: explicitly out of scope for now ("crawl first," per product direction 2026-08-16). Google/Apple/email-password on web is the intentionally minimal first step; SAML/OIDC-based SSO for school district identity providers is a larger, separate effort (likely Firebase Auth's SAML/OIDC provider support plus a district-onboarding flow) to design once the core product has real usage.
 
 ### 2.2 Reliability Requirements (BR-1.3.1, BR-1.3.2) 🔴 NOT STARTED
 | Requirement | Status | Notes |
@@ -112,7 +115,7 @@ This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_
 | Requirement | Status | Notes |
 |---|---|---|
 | Multi-select students + bulk move to another class/teacher | 🔴 Not started | Directly from field feedback: ETM Machine's one-by-one roster transfer takes ~15 clicks/student. Implement as a Firestore batched write (≤500 doc writes/batch), not N sequential writes |
-| Mass transaction (earn/spend/deposit) against an entire class or an arbitrary multi-select | 🔴 Not started | Same batched-write approach; replaces ETM Machine's manually-maintained "group" workaround entirely — Sprout should not need a group abstraction to do this |
+| Mass transaction (earn/spend/deposit) against an entire class or an arbitrary multi-select | 🔴 Not started | Same batched-write approach; replaces ETM Machine's manually-maintained "group" workaround entirely — Sprout Streak should not need a group abstraction to do this |
 | Teacher assignable to multiple classes/sections, or as secondary teacher on another teacher's class | 🔴 Not started | `contexts/{contextId}.ownerUids` (§3.2) is already an array, so this is largely a UI/query concern, not a schema change — needs a "my classes" view that unions contexts where `ownerUids` contains the signed-in uid |
 | Scoped specialist role (cross-class/school-wide visibility short of full admin) | 🔴 Not started | Current proposed model (§3.2) has a flat `role: 'teacher' \| 'parent' \| 'student'` with no admin tier and no scoped grant — needs explicit design before implementation (see §3.2 note) |
 
@@ -178,14 +181,14 @@ contexts/{contextId}/transactions/{transactionId}
 ## 4. Platform-Specific Implementation Notes (as built)
 
 ### 4.1 iOS
-- Bundle ID: `com.nelsongrey.sprout`
+- Bundle ID: `com.sproutstreak.app.ios` (org-unbranded convention shared with vehicle-vitals/wishlist-wizard — renamed from `com.nelsongrey.sprout`, then from `com.sprout.app.ios` once the product name became "Sprout Streak")
 - `Runner.entitlements` created with `com.apple.developer.applesignin`, wired into all 3 build configs' `CODE_SIGN_ENTITLEMENTS`.
 - `Info.plist` has a placeholder `CFBundleURLTypes` entry (`REPLACE_WITH_REVERSED_CLIENT_ID`) — must be replaced with the real reversed-client-ID once `GoogleService-Info.plist` exists for each environment. Explicitly **not** copied from another app's plist (modulo-squares' checked-in value was found to be stale/mismatched during this project's research phase).
 
 ### 4.2 Android
-- `applicationId`: `com.nelsongrey.sprout`
+- `applicationId`: `com.sproutstreak.app.android`
 - Google Services Gradle plugin applied only if `google-services.json` exists (file-exists guard), matching modulo-squares' pattern — avoids breaking local builds before real Firebase config exists.
-- Manifest permissions: `INTERNET`, `ACCESS_NETWORK_STATE` only — no `AD_ID` permission, since Sprout carries no ad SDK.
+- Manifest permissions: `INTERNET`, `ACCESS_NETWORK_STATE` only — no `AD_ID` permission, since Sprout Streak carries no ad SDK.
 
 ### 4.3 Web
 - Vite + React 19 scaffold only; no Firebase wiring, no routes beyond the default template yet.
@@ -224,7 +227,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 ## 7. Security & Compliance
 
 ### 7.1 Authentication & Authorization ✅ COMPLETE (auth layer only)
-- Firebase Authentication, Google + Apple only — no email/password or anonymous guest mode (deliberately narrower than modulo-squares' auth, since Sprout has no guest-play use case).
+- Firebase Authentication, Google + Apple only — no email/password or anonymous guest mode (deliberately narrower than modulo-squares' auth, since Sprout Streak has no guest-play use case).
 - No ads SDK, no IAP, no consent-management SDK — none apply (BR §3.1: no advertising, ever).
 
 ### 7.2 Data Security 🔴 NOT STARTED
@@ -238,7 +241,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 | **FERPA** | 🔴 Not started | Only relevant app in this org's portfolio that plausibly touches education records; a data processing agreement / district-facing compliance statement is required before any school-facing marketing (BR §9) |
 | **Accessibility (WCAG 2.1 AA-equivalent)** | 🔴 Not started | Concrete technical bar: every core flow (sign-in, balance check, earn/spend action) must pass with VoiceOver (iOS) and TalkBack (Android) enabled — treat this as a release gate for v1.0, not a post-launch backlog item, per BR-1.3.4/1.4.4 |
 
-**This is a meaningfully higher compliance bar than the org's other three apps carry** — see [[feedback_no_live_users_yet]] (modulo-squares/vehicle-vitals/wishlist-wizard have zero public users and no institutional data-handling obligations yet); Sprout's explicit K-12/school-facing ambition means COPPA/FERPA readiness needs to land *before* the first real classroom signs up, not be retrofitted after.
+**This is a meaningfully higher compliance bar than the org's other three apps carry** — see [[feedback_no_live_users_yet]] (modulo-squares/vehicle-vitals/wishlist-wizard have zero public users and no institutional data-handling obligations yet); Sprout Streak's explicit K-12/school-facing ambition means COPPA/FERPA readiness needs to land *before* the first real classroom signs up, not be retrofitted after.
 
 ---
 

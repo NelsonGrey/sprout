@@ -1,6 +1,6 @@
-# Sprout
+# Sprout Streak
 
-Sprout is a subscription-based classroom and family financial-literacy app — a
+Sprout Streak is a subscription-based classroom and family financial-literacy app — a
 digital reward/behavior-tracking system with no ads, built for schools and
 families rather than the ad-monetized arcade-game portfolio this org also
 ships. This repo is a fresh scaffold: the auth layer and infra conventions
@@ -77,7 +77,7 @@ npm run test:mobile    # Flutter widget tests
   interface (`packages/mobile/lib/core/services/auth/`) extracted from the
   org's shared `game-shell` package's auth layer — everything else in
   `game-shell` (AdMob ads, GDPR/ATT consent, IAP ad-removal) was
-  deliberately left out, since Sprout is a no-ads subscription product, not
+  deliberately left out, since Sprout Streak is a no-ads subscription product, not
   one of the ad-monetized arcade games that package targets
 
 ### System Requirements

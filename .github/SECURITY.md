@@ -15,7 +15,7 @@ Do not open public issues for suspected vulnerabilities.
 Use one of the following private channels:
 
 - GitHub Security Advisories: use the repository's private vulnerability reporting flow
-- Email fallback: `admin@nelsongrey.com` (update once Sprout has its own dedicated domain/inbox)
+- Email fallback: `admin@nelsongrey.com` (update once Sprout Streak has its own dedicated domain/inbox)
 
 Include:
 
