@@ -65,14 +65,14 @@ sprout/
 
 This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_REQUIREMENTS.md](BUSINESS_REQUIREMENTS.md) §1.3–1.4. Every row not marked ✅ is planned work, not built.
 
-### 2.1 Authentication ✅ COMPLETE (mobile) / 🟡 web pending provider config
+### 2.1 Authentication ✅ COMPLETE (code) / 🟡 Apple + email/password pending provider config
 | Feature | Status | Implementation |
 |---|---|---|
 | Google Sign-In (Android + web) | ✅ Complete | `packages/mobile/lib/core/services/auth/firebase_auth_service.dart`; `packages/web/src/features/auth/LoginPage.tsx` |
 | Apple Sign-In (iOS/macOS via native SDK; web via `signInWithPopup(new OAuthProvider('apple.com'))`, no separate Apple JS SDK needed) | 🟡 Code complete, needs external config | Mobile: `firebase_auth_service.dart`. Web: `LoginPage.tsx` — **blocked** until Apple's provider is enabled for `nelsongrey-sprout-{dev,staging,prod}` in the Firebase console, which requires a Sign in with Apple Services ID + key from the Apple Developer portal with these domains registered as return URLs (owner action — no Firebase MCP tool exposes Auth provider config) |
-| Email/Password (web only for now) | 🟡 Code complete, needs provider enabled | `LoginPage.tsx` — sign in, sign up, and password reset. **Blocked** until Email/Password is toggled on in the Firebase console's Authentication → Sign-in method for each environment (owner action) |
+| Email/Password (mobile + web) | 🟡 Code complete, needs provider enabled | Mobile: `AuthService.signInWithEmail`/`signUpWithEmail`/`sendPasswordResetEmail`, `FirebaseAuthService`/`FakeAuthService`, UI in `login_screen.dart` (sign in/up toggle, confirm-password field on sign-up, show/hide toggle on every password field). Web: `LoginPage.tsx`, same UX (`PasswordInput` component). **Blocked** on both until Email/Password is toggled on in the Firebase console's Authentication → Sign-in method for each environment (owner action) |
 | Fake auth for tests | ✅ Complete | `fake_auth_service.dart` (mobile) |
-| Login screen (platform-gated buttons, error handling) | ✅ Complete | `features/auth/login_screen.dart` (mobile, 3 tests); `LoginPage.tsx` (web, 7 tests) |
+| Login screen (platform-gated OS buttons + email/password, error handling) | ✅ Complete | `features/auth/login_screen.dart` (mobile, 9 tests); `LoginPage.tsx` (web, 17 tests) |
 | Auth-gated routing | ✅ Complete | `main.dart` via `go_router` redirect; web via `App.tsx`'s `onAuthStateChanged` |
 
 **Future work — school/district SSO**: explicitly out of scope for now ("crawl first," per product direction 2026-08-16). Google/Apple/email-password on web is the intentionally minimal first step; SAML/OIDC-based SSO for school district identity providers is a larger, separate effort (likely Firebase Auth's SAML/OIDC provider support plus a district-onboarding flow) to design once the core product has real usage.

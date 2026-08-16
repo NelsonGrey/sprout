@@ -39,10 +39,43 @@ function friendlyAuthError(error: unknown): string {
  * additionally needs a Sign in with Apple Services ID configured in the
  * Apple Developer portal with this site's domains as return URLs.
  */
+function PasswordInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required
+        minLength={6}
+        className="w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 pr-16 text-left"
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-white/60 hover:underline"
+      >
+        {visible ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  );
+}
+
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
@@ -75,6 +108,11 @@ export function LoginPage() {
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'sign-up' && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setInfo('');
+      return;
+    }
     return run(async () => {
       if (mode === 'sign-in') {
         await signInWithEmailAndPassword(firebaseClient.auth, email, password);
@@ -138,15 +176,14 @@ export function LoginPage() {
             required
             className="rounded-lg border border-white/20 bg-transparent px-3 py-2 text-left"
           />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required
-            minLength={6}
-            className="rounded-lg border border-white/20 bg-transparent px-3 py-2 text-left"
-          />
+          <PasswordInput value={password} onChange={setPassword} placeholder="Password" />
+          {mode === 'sign-up' && (
+            <PasswordInput
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              placeholder="Confirm password"
+            />
+          )}
           <button
             type="submit"
             disabled={busy}

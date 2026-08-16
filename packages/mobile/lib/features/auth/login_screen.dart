@@ -40,8 +40,26 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+enum _EmailMode { signIn, signUp }
+
 class _LoginScreenState extends State<LoginScreen> {
   bool _authInProgress = false;
+  _EmailMode _emailMode = _EmailMode.signIn;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  String? _emailError;
+  String? _emailInfo;
+  bool _passwordVisible = false;
+  bool _confirmPasswordVisible = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   void _showAuthError(BuildContext context, Object error) {
     if (!context.mounted) return;
@@ -116,6 +134,80 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  String _friendlyEmailError(Object error) {
+    if (error is! FirebaseAuthException) return 'Something went wrong. Please try again.';
+    switch (error.code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return 'Incorrect email or password.';
+      case 'email-already-in-use':
+        return 'An account already exists with that email — try signing in instead.';
+      case 'weak-password':
+        return 'Password must be at least 6 characters.';
+      case 'invalid-email':
+        return 'Enter a valid email address.';
+      default:
+        return 'Something went wrong. Please try again.';
+    }
+  }
+
+  Future<void> _handleEmailSubmit() async {
+    if (_authInProgress) return;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (_emailMode == _EmailMode.signUp && password != _confirmPasswordController.text) {
+      setState(() {
+        _emailError = 'Passwords do not match.';
+        _emailInfo = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _authInProgress = true;
+      _emailError = null;
+      _emailInfo = null;
+    });
+    try {
+      if (_emailMode == _EmailMode.signIn) {
+        await widget.authService.signInWithEmail(email, password);
+      } else {
+        await widget.authService.signUpWithEmail(email, password);
+      }
+      widget.onAuthenticationComplete?.call();
+    } catch (e) {
+      if (mounted) setState(() => _emailError = _friendlyEmailError(e));
+    } finally {
+      if (mounted) setState(() => _authInProgress = false);
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() {
+        _emailError = 'Enter your email above first, then tap "Forgot password?"';
+        _emailInfo = null;
+      });
+      return;
+    }
+    setState(() {
+      _authInProgress = true;
+      _emailError = null;
+      _emailInfo = null;
+    });
+    try {
+      await widget.authService.sendPasswordResetEmail(email);
+      if (mounted) setState(() => _emailInfo = 'Password reset email sent — check your inbox.');
+    } catch (e) {
+      if (mounted) setState(() => _emailError = _friendlyEmailError(e));
+    } finally {
+      if (mounted) setState(() => _authInProgress = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,6 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 28),
               if (defaultTargetPlatform == TargetPlatform.android) ...[
                 _AuthButton(
+                  key: const Key('googleSignInButton'),
                   label: 'Sign in with Google',
                   icon: Icons.g_mobiledata,
                   onPressed:
@@ -169,12 +262,124 @@ class _LoginScreenState extends State<LoginScreen> {
               ],
               if (defaultTargetPlatform == TargetPlatform.iOS) ...[
                 _AuthButton(
+                  key: const Key('appleSignInButton'),
                   label: 'Sign in with Apple',
                   icon: Icons.apple,
                   onPressed:
                       _authInProgress ? null : () => _signInWithApple(context),
                 ),
                 const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: Colors.white24)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('or', style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
+                  ),
+                  const Expanded(child: Divider(color: Colors.white24)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('emailField'),
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: TextStyle(color: Colors.white54),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('passwordField'),
+                controller: _passwordController,
+                obscureText: !_passwordVisible,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  labelStyle: const TextStyle(color: Colors.white54),
+                  enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  suffixIcon: IconButton(
+                    key: const Key('togglePasswordVisibility'),
+                    icon: Icon(
+                      _passwordVisible ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.white54,
+                    ),
+                    onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+                  ),
+                ),
+              ),
+              if (_emailMode == _EmailMode.signUp) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('confirmPasswordField'),
+                  controller: _confirmPasswordController,
+                  obscureText: !_confirmPasswordVisible,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Confirm password',
+                    labelStyle: const TextStyle(color: Colors.white54),
+                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                    suffixIcon: IconButton(
+                      key: const Key('toggleConfirmPasswordVisibility'),
+                      icon: Icon(
+                        _confirmPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.white54,
+                      ),
+                      onPressed: () =>
+                          setState(() => _confirmPasswordVisible = !_confirmPasswordVisible),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              _AuthButton(
+                key: const Key('emailSubmitButton'),
+                label: _emailMode == _EmailMode.signIn ? 'Sign In' : 'Create Account',
+                icon: Icons.email,
+                onPressed: _authInProgress ? null : _handleEmailSubmit,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    key: const Key('toggleModeButton'),
+                    onPressed: () => setState(() {
+                      _emailMode = _emailMode == _EmailMode.signIn
+                          ? _EmailMode.signUp
+                          : _EmailMode.signIn;
+                      _emailError = null;
+                      _emailInfo = null;
+                    }),
+                    child: Text(
+                      _emailMode == _EmailMode.signIn
+                          ? 'Create an account'
+                          : 'Already have an account?',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    key: const Key('forgotPasswordButton'),
+                    onPressed: _authInProgress ? null : _handleForgotPassword,
+                    child: const Text(
+                      'Forgot password?',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              if (_emailError != null) ...[
+                const SizedBox(height: 8),
+                Text(_emailError!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+              ],
+              if (_emailInfo != null) ...[
+                const SizedBox(height: 8),
+                Text(_emailInfo!, style: const TextStyle(color: Colors.greenAccent, fontSize: 13)),
               ],
               const SizedBox(height: 20),
             ],
@@ -187,6 +392,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class _AuthButton extends StatelessWidget {
   const _AuthButton({
+    super.key,
     required this.label,
     required this.icon,
     required this.onPressed,

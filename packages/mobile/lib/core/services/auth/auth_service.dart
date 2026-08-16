@@ -20,5 +20,11 @@ abstract class AuthService {
   /// only. Callers should hide the Apple button on other platforms.
   Future<AppUser> signInWithApple();
 
+  /// Email/password, available on every platform alongside the
+  /// platform-specific OS sign-in above.
+  Future<AppUser> signInWithEmail(String email, String password);
+  Future<AppUser> signUpWithEmail(String email, String password);
+  Future<void> sendPasswordResetEmail(String email);
+
   Future<void> signOut();
 }

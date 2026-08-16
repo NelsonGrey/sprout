@@ -60,6 +60,60 @@ describe('LoginPage', () => {
     );
   });
 
+  it('requires a confirm-password field only in sign-up mode', () => {
+    render(<LoginPage />);
+    expect(screen.queryByPlaceholderText('Confirm password')).toBeNull();
+    fireEvent.click(screen.getByText('Create an account'));
+    expect(screen.getByPlaceholderText('Confirm password')).toBeTruthy();
+  });
+
+  it('rejects sign-up when passwords do not match', () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText('Create an account'));
+
+    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret1' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'secret2' },
+    });
+    fireEvent.click(screen.getByText('Create Account'));
+
+    expect(screen.getByRole('alert').textContent).toMatch(/do not match/i);
+    expect(firebaseAuth.createUserWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it('signs up when passwords match', async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText('Create an account'));
+
+    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret1' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'secret1' },
+    });
+    fireEvent.click(screen.getByText('Create Account'));
+
+    await waitFor(() =>
+      expect(firebaseAuth.createUserWithEmailAndPassword).toHaveBeenCalledWith(
+        expect.anything(),
+        'a@b.com',
+        'secret1',
+      ),
+    );
+  });
+
+  it('defaults password fields to hidden with a working show/hide toggle', () => {
+    render(<LoginPage />);
+    const passwordInput = screen.getByPlaceholderText('Password') as HTMLInputElement;
+    expect(passwordInput.type).toBe('password');
+
+    fireEvent.click(screen.getByText('Show'));
+    expect(passwordInput.type).toBe('text');
+
+    fireEvent.click(screen.getByText('Hide'));
+    expect(passwordInput.type).toBe('password');
+  });
+
   it('requires an email before sending a password reset', () => {
     render(<LoginPage />);
     fireEvent.click(screen.getByText('Forgot password?'));

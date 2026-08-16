@@ -96,6 +96,29 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
+  Future<AppUser> signInWithEmail(String email, String password) async {
+    final result = await _firebaseAuth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    return _toAppUser(result.user)!;
+  }
+
+  @override
+  Future<AppUser> signUpWithEmail(String email, String password) async {
+    final result = await _firebaseAuth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    return _toAppUser(result.user)!;
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) {
+    return _firebaseAuth.sendPasswordResetEmail(email: email);
+  }
+
+  @override
   Future<void> signOut() async {
     await Future.wait([
       _firebaseAuth.signOut(),
