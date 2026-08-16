@@ -1,12 +1,33 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
-import { createClassroom, useClassrooms } from '../../lib/firestore';
+import { createClassroom, useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
+import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
 import { firebaseClient } from '../../lib/firebase';
 
-/** Post-login landing page: a teacher's classroom list plus "create a classroom". */
+/** Post-login landing page: a teacher's classroom list plus "create a
+ * classroom". The list is classrooms this user owns directly, merged with
+ * any classrooms visible via a school-wide or grade-level scope grant
+ * (BR-1.3.11/1.3.12) — most users belong to no school at all, in which case
+ * this is just the plain owned-classrooms list, unchanged from before. */
 export function ClassroomsPage({ user }: { user: User }) {
-  const classrooms = useClassrooms(user.uid);
+  const schoolIds = useSchoolIdsForUser(user.uid);
+  // Multi-school membership/switching is deferred — use the first one.
+  const schoolId = schoolIds[0];
+  const membership = useMyMembership(schoolId, user.uid);
+  const scope = membership?.scope;
+
+  const ownClassrooms = useClassrooms(user.uid);
+  const scopedClassrooms = useClassroomsInSchool(
+    scope && scope.type !== 'own' ? schoolId : undefined,
+    scope?.type === 'grades' ? scope.grades : undefined,
+  );
+  const classrooms = useMemo(() => {
+    const merged = new Map(ownClassrooms.map((c) => [c.id, c]));
+    for (const c of scopedClassrooms) merged.set(c.id, c);
+    return Array.from(merged.values());
+  }, [ownClassrooms, scopedClassrooms]);
+
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [, navigate] = useLocation();
@@ -29,13 +50,22 @@ export function ClassroomsPage({ user }: { user: User }) {
     <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
         <h1 className="text-xl font-bold">My Classrooms</h1>
-        <button
-          type="button"
-          onClick={() => firebaseClient.auth.signOut()}
-          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/school')}
+            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            School
+          </button>
+          <button
+            type="button"
+            onClick={() => firebaseClient.auth.signOut()}
+            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -51,6 +81,9 @@ export function ClassroomsPage({ user }: { user: User }) {
                   className="w-full rounded-lg border border-white/10 px-4 py-3 text-left hover:bg-white/5"
                 >
                   {classroom.name}
+                  {classroom.gradeLevel && (
+                    <span className="ml-2 text-xs text-white/40">Grade {classroom.gradeLevel}</span>
+                  )}
                 </button>
               </li>
             ))}

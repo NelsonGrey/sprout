@@ -9,6 +9,8 @@ import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/auth/firebase_auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/classroom/firestore_classroom_repository.dart';
+import 'package:sprout/core/services/school/firestore_school_repository.dart';
+import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/features/auth/login_screen.dart';
 import 'package:sprout/features/classroom/classroom_detail_screen.dart';
 import 'package:sprout/features/classroom/classrooms_screen.dart';
@@ -20,23 +22,30 @@ Future<void> main() async {
   runApp(SproutApp(
     authService: FirebaseAuthService(),
     classroomRepository: FirestoreClassroomRepository(),
+    schoolRepository: FirestoreSchoolRepository(),
   ));
 }
 
 class SproutApp extends StatelessWidget {
-  SproutApp({super.key, required this.authService, required this.classroomRepository})
-      : _router = _buildRouter(authService, classroomRepository);
+  SproutApp({
+    super.key,
+    required this.authService,
+    required this.classroomRepository,
+    required this.schoolRepository,
+  }) : _router = _buildRouter(authService, classroomRepository, schoolRepository);
 
   final AuthService authService;
   final ClassroomRepository classroomRepository;
+  final SchoolRepository schoolRepository;
   final GoRouter _router;
 
   static GoRouter _buildRouter(
     AuthService authService,
     ClassroomRepository classroomRepository,
+    SchoolRepository schoolRepository,
   ) {
     return GoRouter(
-      refreshListenable: _AuthStateRefresh(authService.authStateChanges()),
+      refreshListenable: _AuthStateRefresh(authService.authStateChanges(), schoolRepository),
       redirect: (context, state) {
         final signedIn = authService.currentUser != null;
         final onLoginPage = state.matchedLocation == '/login';
@@ -53,6 +62,7 @@ class SproutApp extends StatelessWidget {
             return ClassroomsScreen(
               authService: authService,
               classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
               user: user,
             );
           },
@@ -101,10 +111,23 @@ class SproutApp extends StatelessWidget {
 }
 
 /// Bridges [AuthService.authStateChanges] into a [Listenable] so GoRouter's
-/// `redirect` re-evaluates on sign-in/sign-out.
+/// `redirect` re-evaluates on sign-in/sign-out. Also runs
+/// [SchoolRepository.claimPendingInviteIfAny] on every sign-in — a no-op
+/// unless an admin invited this exact email, in which case it activates
+/// the access they configured (see plan's "Invite-and-Claim Flow").
 class _AuthStateRefresh extends ChangeNotifier {
-  _AuthStateRefresh(Stream<AppUser?> stream) {
-    _subscription = stream.listen((_) => notifyListeners());
+  _AuthStateRefresh(Stream<AppUser?> stream, SchoolRepository schoolRepository) {
+    _subscription = stream.listen((user) {
+      notifyListeners();
+      final email = user?.email;
+      if (user != null && email != null) {
+        schoolRepository.claimPendingInviteIfAny(
+          uid: user.uid,
+          email: email,
+          displayName: user.displayName,
+        );
+      }
+    });
   }
 
   late final StreamSubscription<AppUser?> _subscription;

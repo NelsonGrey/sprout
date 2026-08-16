@@ -26,6 +26,8 @@ function contextFromDoc(d: QueryDocumentSnapshot<DocumentData>): ClassroomContex
     type: data.type,
     name: data.name,
     ownerUids: data.ownerUids,
+    schoolId: data.schoolId,
+    gradeLevel: data.gradeLevel,
     createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
   };
 }
@@ -39,6 +41,8 @@ function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
     contexts: data.contexts,
     contextIds: data.contextIds,
     ownerUids: data.ownerUids,
+    schoolId: data.schoolId,
+    gradeLevel: data.gradeLevel,
     createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
   };
 }
@@ -74,16 +78,45 @@ export function useClassrooms(ownerUid: string): ClassroomContext[] {
   return classrooms;
 }
 
+/** Classrooms visible via a school-wide or grade-level scope grant
+ * (BR-1.3.11/1.3.12), independent of direct ownership — the caller merges
+ * this with useClassrooms client-side, de-duplicating by id. `gradeLevels`
+ * undefined means whole-school scope; a list filters to those grades. */
+export function useClassroomsInSchool(schoolId: string | undefined, gradeLevels?: string[]): ClassroomContext[] {
+  const [classrooms, setClassrooms] = useState<ClassroomContext[]>([]);
+  const gradeLevelsKey = gradeLevels?.join(',');
+
+  useEffect(() => {
+    if (!schoolId) {
+      setClassrooms([]);
+      return;
+    }
+    const constraints = [where('schoolId', '==', schoolId)];
+    if (gradeLevelsKey !== undefined) {
+      constraints.push(where('gradeLevel', 'in', gradeLevelsKey.split(',')));
+    }
+    const q = query(collection(db, 'contexts'), ...constraints);
+    return onSnapshot(q, (snapshot) => setClassrooms(snapshot.docs.map(contextFromDoc)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gradeLevelsKey stands in for gradeLevels (array identity would re-fire every render)
+  }, [schoolId, gradeLevelsKey]);
+
+  return classrooms;
+}
+
 export async function createClassroom({
   name,
   ownerUid,
   ownerDisplayName,
   ownerEmail,
+  schoolId,
+  gradeLevel,
 }: {
   name: string;
   ownerUid: string;
   ownerDisplayName?: string | null;
   ownerEmail?: string | null;
+  schoolId?: string;
+  gradeLevel?: string;
 }): Promise<void> {
   const batch = writeBatch(db);
 
@@ -99,6 +132,8 @@ export async function createClassroom({
     type: 'classroom',
     name,
     ownerUids: [ownerUid],
+    ...(schoolId ? { schoolId } : {}),
+    ...(gradeLevel ? { gradeLevel } : {}),
     createdAt: serverTimestamp(),
   });
 
@@ -124,10 +159,14 @@ export async function addStudent({
   contextId,
   displayName,
   ownerUids,
+  schoolId,
+  gradeLevel,
 }: {
   contextId: string;
   displayName: string;
   ownerUids: string[];
+  schoolId?: string;
+  gradeLevel?: string;
 }): Promise<void> {
   await addDoc(collection(db, 'students'), {
     displayName,
@@ -135,6 +174,8 @@ export async function addStudent({
     contexts: { [contextId]: { type: 'classroom', role: 'member' } },
     contextIds: [contextId],
     ownerUids,
+    ...(schoolId ? { schoolId } : {}),
+    ...(gradeLevel ? { gradeLevel } : {}),
     createdAt: serverTimestamp(),
   });
 }

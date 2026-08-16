@@ -18,21 +18,111 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid in data.ownerUids;
     }
 
+    // ---- School security matrix (BR-1.3.11/1.3.12) ----
+    // A school has exactly one principal (set at creation, immutable via
+    // these rules) who is the only uid allowed to grant/revoke *admin*
+    // membership — hierarchical delegation. Any admin (principal or
+    // delegate) can freely manage *teacher* membership and scope.
+    function schoolPath(schoolId) {
+      return /databases/$(database)/documents/schools/$(schoolId);
+    }
+    function memberPath(schoolId, uid) {
+      return /databases/$(database)/documents/schools/$(schoolId)/members/$(uid);
+    }
+    function isPrincipal(schoolId) {
+      return isAuthenticated() && exists(schoolPath(schoolId))
+        && get(schoolPath(schoolId)).data.principalUid == request.auth.uid;
+    }
+    function isSchoolAdmin(schoolId) {
+      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
+        && get(memberPath(schoolId, request.auth.uid)).data.role == 'admin';
+    }
+    // Read-only visibility a teacher gets beyond the classrooms they
+    // directly own, per the scope an admin configured for them: every
+    // classroom in the school ('school', the PE/art/music case), classrooms
+    // in specific grade levels ('grades'), or nothing extra ('own', the
+    // default — falls through to isContextOwner instead).
+    function hasScopedAccess(schoolId, gradeLevel) {
+      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)) && (
+        get(memberPath(schoolId, request.auth.uid)).data.role == 'admin' ||
+        get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'school' ||
+        (get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'grades'
+          && gradeLevel in get(memberPath(schoolId, request.auth.uid)).data.scope.grades)
+      );
+    }
+    // A brand-new user claiming a pending invite that an admin already
+    // configured for their (provider-verified) email — the only way a
+    // members/{uid} doc gets created for someone who isn't already an
+    // admin/principal of the school.
+    function isValidInviteClaim(schoolId, newMemberData) {
+      let inviteId = request.auth.token.email.lower();
+      let invitePath = /databases/$(database)/documents/pendingInvites/$(inviteId);
+      return isAuthenticated() && exists(invitePath)
+        && get(invitePath).data.schoolId == schoolId
+        && get(invitePath).data.role == newMemberData.role
+        && get(invitePath).data.scope == newMemberData.scope;
+    }
+
     // A user's own profile document.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
     }
 
+    match /schools/{schoolId} {
+      allow read: if isAuthenticated()
+        && (resource.data.principalUid == request.auth.uid || isSchoolAdmin(schoolId));
+      allow create: if isAuthenticated() && request.resource.data.principalUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.principalUid == request.auth.uid;
+
+      match /members/{memberUid} {
+        allow read: if isOwner(memberUid) || isSchoolAdmin(schoolId);
+        allow create: if
+          (request.resource.data.role == 'admin' && isPrincipal(schoolId)) ||
+          (request.resource.data.role == 'teacher' && isSchoolAdmin(schoolId)) ||
+          (isOwner(memberUid) && isValidInviteClaim(schoolId, request.resource.data));
+        allow update: if isSchoolAdmin(schoolId)
+          && resource.data.role == 'teacher' && request.resource.data.role == 'teacher';
+        allow delete: if
+          (resource.data.role == 'admin' && isPrincipal(schoolId)) ||
+          (resource.data.role == 'teacher' && isSchoolAdmin(schoolId));
+      }
+    }
+
+    // Doc ID is the invitee's lowercased email — an admin/principal writes
+    // it, and the only read/delete path is the matching signed-in user
+    // claiming their own invite (provider-verified email, can't be spoofed).
+    match /pendingInvites/{email} {
+      // Two independent read/delete paths: the invitee claiming their own
+      // invite (by verified email), or a school admin listing/cancelling
+      // invites they're responsible for.
+      allow read, delete: if isAuthenticated() && (
+        email == request.auth.token.email.lower() || isSchoolAdmin(resource.data.schoolId)
+      );
+      allow create: if
+        (request.resource.data.role == 'admin' && isPrincipal(request.resource.data.schoolId)) ||
+        (request.resource.data.role == 'teacher' && isSchoolAdmin(request.resource.data.schoolId));
+    }
+
     // A classroom or family unit. Only 'classroom' is populated today —
-    // 'family' is additive later, not a migration (see TRD §3.2).
+    // 'family' is additive later, not a migration (see TRD §3.2). schoolId
+    // is optional: absent for standalone teacher-created classrooms and for
+    // every family context; when present, scoped school members can read it
+    // even without being a direct owner (see hasScopedAccess above).
     match /contexts/{contextId} {
-      allow read, update, delete: if isContextOwner(resource.data);
+      allow read: if isContextOwner(resource.data) || (
+        resource.data.schoolId != null
+          && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
+      );
+      allow update, delete: if isContextOwner(resource.data);
       allow create: if isContextOwner(request.resource.data);
 
       // An immutable earn/spend ledger entry against one student in this
       // context — no update/delete once created.
       match /transactions/{transactionId} {
-        allow read: if isContextOwner(resource.data);
+        allow read: if isContextOwner(resource.data) || (
+          resource.data.schoolId != null
+            && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
+        );
         allow create: if isContextOwner(request.resource.data)
           && request.resource.data.amountCents is int
           && request.resource.data.amountCents > 0
@@ -42,9 +132,15 @@ service cloud.firestore {
 
     // A student's roster entry + denormalized balance. Top-level (not
     // nested under contexts) so a student can belong to more than one
-    // context later (classroom + family) without restructuring.
+    // context later (classroom + family) without restructuring. schoolId
+    // is denormalized from the owning classroom at creation time so scoped
+    // reads don't need an extra context lookup.
     match /students/{studentId} {
-      allow read, update, delete: if isContextOwner(resource.data);
+      allow read: if isContextOwner(resource.data) || (
+        resource.data.schoolId != null
+          && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
+      );
+      allow update, delete: if isContextOwner(resource.data);
       allow create: if isContextOwner(request.resource.data);
     }
 

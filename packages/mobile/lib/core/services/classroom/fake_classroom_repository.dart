@@ -22,13 +22,31 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
+  Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels}) {
+    return Stream.value(
+      _contexts.values
+          .where((c) =>
+              c.schoolId == schoolId && (gradeLevels == null || gradeLevels.contains(c.gradeLevel)))
+          .toList(),
+    );
+  }
+
+  @override
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,
     String? ownerDisplayName,
     String? ownerEmail,
+    String? schoolId,
+    String? gradeLevel,
   }) async {
-    final context = ClassroomContext(id: _newId(), name: name, ownerUids: [ownerUid]);
+    final context = ClassroomContext(
+      id: _newId(),
+      name: name,
+      ownerUids: [ownerUid],
+      schoolId: schoolId,
+      gradeLevel: gradeLevel,
+    );
     _contexts[context.id] = context;
     _studentIdsByContext[context.id] = {};
     return context;
@@ -45,12 +63,16 @@ class FakeClassroomRepository implements ClassroomRepository {
     required String contextId,
     required String displayName,
     required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
   }) async {
     final student = Student(
       id: _newId(),
       displayName: displayName,
       balanceCents: 0,
       ownerUids: ownerUids,
+      schoolId: schoolId,
+      gradeLevel: gradeLevel,
     );
     _students[student.id] = student;
     _studentIdsByContext.putIfAbsent(contextId, () => {}).add(student.id);
@@ -94,6 +116,8 @@ class FakeClassroomRepository implements ClassroomRepository {
       displayName: current.displayName,
       balanceCents: current.balanceCents + delta,
       ownerUids: current.ownerUids,
+      schoolId: current.schoolId,
+      gradeLevel: current.gradeLevel,
     );
   }
 }

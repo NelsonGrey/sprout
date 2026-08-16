@@ -26,11 +26,22 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   }
 
   @override
+  Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels}) {
+    Query<Map<String, dynamic>> query = _contexts.where('schoolId', isEqualTo: schoolId);
+    if (gradeLevels != null) {
+      query = query.where('gradeLevel', whereIn: gradeLevels);
+    }
+    return query.snapshots().map((snapshot) => snapshot.docs.map(_contextFromDoc).toList());
+  }
+
+  @override
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,
     String? ownerDisplayName,
     String? ownerEmail,
+    String? schoolId,
+    String? gradeLevel,
   }) async {
     final batch = _firestore.batch();
 
@@ -47,11 +58,19 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       'type': 'classroom',
       'name': name,
       'ownerUids': ownerUids,
+      if (schoolId != null) 'schoolId': schoolId,
+      if (gradeLevel != null) 'gradeLevel': gradeLevel,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
     await batch.commit();
-    return ClassroomContext(id: contextRef.id, name: name, ownerUids: ownerUids);
+    return ClassroomContext(
+      id: contextRef.id,
+      name: name,
+      ownerUids: ownerUids,
+      schoolId: schoolId,
+      gradeLevel: gradeLevel,
+    );
   }
 
   @override
@@ -68,6 +87,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     required String contextId,
     required String displayName,
     required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
   }) async {
     final ref = _students.doc();
     await ref.set({
@@ -78,6 +99,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       },
       'contextIds': [contextId],
       'ownerUids': ownerUids,
+      if (schoolId != null) 'schoolId': schoolId,
+      if (gradeLevel != null) 'gradeLevel': gradeLevel,
       'createdAt': FieldValue.serverTimestamp(),
     });
     return Student(
@@ -85,6 +108,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       displayName: displayName,
       balanceCents: 0,
       ownerUids: ownerUids,
+      schoolId: schoolId,
+      gradeLevel: gradeLevel,
     );
   }
 
@@ -141,6 +166,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       id: doc.id,
       name: data['name'] as String,
       ownerUids: List<String>.from(data['ownerUids'] as List),
+      schoolId: data['schoolId'] as String?,
+      gradeLevel: data['gradeLevel'] as String?,
     );
   }
 
@@ -151,6 +178,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       displayName: data['displayName'] as String,
       balanceCents: (data['balanceCents'] as num).toInt(),
       ownerUids: List<String>.from(data['ownerUids'] as List),
+      schoolId: data['schoolId'] as String?,
+      gradeLevel: data['gradeLevel'] as String?,
     );
   }
 

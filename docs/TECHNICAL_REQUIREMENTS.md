@@ -111,13 +111,16 @@ This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_
 | Parent/co-teacher invite flow | 🔴 Not started | |
 | COPPA/FERPA-appropriate data handling | 🔴 Not started | See §7 |
 
-### 2.7 Bulk Operations & Role Granularity (BR-1.3.9–1.3.12) 🔴 NOT STARTED
+### 2.7 Bulk Operations & Role Granularity (BR-1.3.9–1.3.12) 🟢 Foundation complete (Phase 1) / 🔴 CSV bulk import not started (Phase 2)
 | Requirement | Status | Notes |
 |---|---|---|
-| Multi-select students + bulk move to another class/teacher | 🔴 Not started | Directly from field feedback: ETM Machine's one-by-one roster transfer takes ~15 clicks/student. Implement as a Firestore batched write (≤500 doc writes/batch), not N sequential writes |
-| Mass transaction (earn/spend/deposit) against an entire class or an arbitrary multi-select | 🔴 Not started | Same batched-write approach; replaces ETM Machine's manually-maintained "group" workaround entirely — Sprout Streak should not need a group abstraction to do this |
-| Teacher assignable to multiple classes/sections, or as secondary teacher on another teacher's class | 🔴 Not started | `contexts/{contextId}.ownerUids` (§3.2) is already an array, so this is largely a UI/query concern, not a schema change — needs a "my classes" view that unions contexts where `ownerUids` contains the signed-in uid |
-| Scoped specialist role (cross-class/school-wide visibility short of full admin) | 🔴 Not started | Current proposed model (§3.2) has a flat `role: 'teacher' \| 'parent' \| 'student'` with no admin tier and no scoped grant — needs explicit design before implementation (see §3.2 note) |
+| School security matrix: principal, hierarchical admin delegation, teacher scope grants (own/grades/whole-school) | ✅ Complete | New `schools/{schoolId}` + `schools/{schoolId}/members/{uid}` collections, `firestore.rules` enforcement, 10 rules tests. Mobile: `SchoolRepository`; web: `lib/school.ts`. Admin UI is web-only for now (`features/school/`) — matches "heavy data entry lives on web," mobile just gets the broadened classroom visibility |
+| Scoped specialist role (cross-class/school-wide visibility short of full admin) | ✅ Complete | This *is* BR-1.3.12 — a teacher's `members/{uid}.scope` of `'grades'` or `'school'` grants read access to classrooms/students they don't own, enforced in `firestore.rules`'s `hasScopedAccess()`. Visibility only, not edit rights — an admin still has to add someone as a classroom owner separately to grant write access |
+| Teacher assignable to multiple classes/sections, or as secondary teacher on another teacher's class | ✅ Complete (pre-existing) | `contexts/{contextId}.ownerUids` is an array — unchanged from the original MVP schema, still covers this directly |
+| Staff onboarding for people without an account yet | ✅ Complete | **Invite-and-claim**, not real account pre-provisioning — Cloud Functions (which could use the Admin SDK to create accounts outright) live in the private `sprout-functions` repo, not available here. An admin invite (`pendingInvites/{email}`) is claimed automatically the first time that email signs in, on either platform |
+| Multi-select students + bulk move to another class/teacher | 🔴 Not started (Phase 2) | Directly from field feedback: ETM Machine's one-by-one roster transfer takes ~15 clicks/student. Implement as a Firestore batched write (≤500 doc writes/batch), not N sequential writes |
+| Mass transaction (earn/spend/deposit) against an entire class or an arbitrary multi-select | 🔴 Not started (Phase 2) | Same batched-write approach; replaces ETM Machine's manually-maintained "group" workaround entirely — Sprout Streak should not need a group abstraction to do this |
+| CSV/spreadsheet bulk import for teachers and students | 🔴 Not started (Phase 2) | Builds directly on the `pendingInvites` mechanism above — a CSV row becomes one invite (or one student doc, since students don't need accounts). This was deliberately sequenced as a follow-up so the security matrix could be proven independently first |
 
 ### 2.8 CI/CD & Infrastructure ✅ COMPLETE
 | Feature | Status |
@@ -170,7 +173,46 @@ contexts/{contextId}/transactions/{transactionId}
 
 **Security rule shape** (not yet implemented): a student can only read their own `students/{studentId}` document and its transactions; a context owner (teacher/parent) can read/write everything scoped to `contexts/{contextId}` where their uid is in `ownerUids`. No cross-context reads without an explicit share grant — this is the enforcement point for keeping classroom and family data appropriately separated even though they share a student identity.
 
-**Open design question — scoped specialist role (BR-1.3.12)**: `contexts/{contextId}.ownerUids` already supports a teacher co-owning multiple classroom contexts (covers BR-1.3.11's secondary-teacher/multi-section case with no schema change). It does *not* cover a specialist teacher (PE, art) needing read visibility across many classes/grades without being an owner of each one, or a school-wide admin role — `users/{uid}.role` today is a flat `'teacher' | 'parent' | 'student'` with nothing between "owns this one context" and "owns nothing." This needs a real design (e.g., a `grantedContextIds` list or a school-level document with a scoped-visibility role) before BR-1.3.12 can be implemented — flagging here rather than guessing at a schema.
+**Resolved — scoped specialist role (BR-1.3.12)**: implemented via a `schools/{schoolId}/members/{uid}.scope` field (`'own' | 'grades' | 'school'`), not the `grantedContextIds`-list idea originally sketched here — see §3.2a immediately below for the shipped design.
+
+### 3.2a School Security Matrix (implemented, BR-1.3.11/1.3.12)
+
+```
+schools/{schoolId}
+  ├── name
+  ├── principalUid        # the only uid allowed to grant/revoke admin membership
+  └── createdAt
+
+schools/{schoolId}/members/{uid}       # every admin + teacher affiliated with the school
+  ├── role: 'admin' | 'teacher'
+  ├── displayName, email
+  ├── scope: { type: 'own' | 'grades' | 'school', grades?: string[] }
+  │     # 'own' = only classrooms they directly own (default); 'grades' = any
+  │     # classroom in this school whose gradeLevel is in `grades`; 'school'
+  │     # = every classroom in the school (the PE/art/music case)
+  ├── addedByUid
+  └── createdAt
+
+pendingInvites/{lowercasedEmail}       # top-level, doc ID = the invitee's lowercased email
+  ├── schoolId, role, scope            # copied into `members` on claim
+  ├── invitedByUid
+  └── createdAt
+  # Claimed by matching request.auth.token.email (provider-verified) against
+  # the doc ID — runs once after every sign-in on both platforms, a no-op
+  # unless a matching invite exists. Deleted once claimed.
+
+users/{uid}.schoolIds: [schoolId, ...] # denormalized so the app knows which
+                                        # school(s) to offer navigating into
+
+contexts/{contextId}.schoolId?, .gradeLevel?    # optional — additive, not a
+students/{studentId}.schoolId?, .gradeLevel?    # migration for standalone/family data
+```
+
+**Delegation is hierarchical**: only `schools/{schoolId}.principalUid` can grant/revoke *admin* membership; any admin (principal or delegate) can freely manage *teacher* membership and scope. Enforced in `firestore.rules` (`isPrincipal`, `isSchoolAdmin`, `hasScopedAccess`), covered by 10 of the 14 tests in `firestore.rules.test.ts`.
+
+**Why invite-and-claim instead of real account provisioning**: Cloud Functions (which could use the Admin SDK to create Firebase Auth accounts outright) live in the private `sprout-functions` repo, not available here. `pendingInvites` records what an admin configured for an email; `claimPendingInviteIfAny` (mobile: `SchoolRepository`; web: `lib/school.ts`) activates it automatically the first time that email actually signs in.
+
+**UI**: web-only for admin tooling (`packages/web/src/features/school/` — `CreateSchoolPage`, `SchoolAdminPage`), matching "heavy data entry lives on web." Both platforms get the payoff — `ClassroomsScreen`/`ClassroomsPage` merge owned classrooms with scope-visible ones client-side (`ClassroomRepository.classroomsInSchool` / `useClassroomsInSchool`).
 
 ### 3.3 Offline & Reliability Requirements (technical detail for §2.2)
 - Enable Firestore's offline persistence (`Settings(persistenceEnabled: true)` on mobile) so transaction writes queue locally and sync on reconnect, directly addressing ETM Machine's cellular-crash failure mode.
@@ -322,6 +364,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 |---------|------|--------|---------|
 | 1.0 | Aug 16, 2026 | Mark Nelson | Initial TRD against the fresh scaffold, including proposed Firestore data model and honest implementation-status tables |
 | 1.1 | Aug 16, 2026 | Mark Nelson | Added §2.7 (bulk operations & role granularity, BR-1.3.9–1.3.12) and flagged the scoped-specialist-role open design question in §3.2 |
+| 1.2 | Aug 16, 2026 | Mark Nelson | Shipped the school security matrix (§3.2a): principal/hierarchical admin delegation, teacher scope grants, invite-and-claim onboarding — resolves BR-1.3.11/1.3.12. CSV bulk import (BR-1.3.9/1.3.10) deliberately sequenced as a follow-up |
 
 ---
 

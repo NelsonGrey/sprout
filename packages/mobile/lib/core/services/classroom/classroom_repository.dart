@@ -8,22 +8,38 @@ import 'package:sprout/core/models/student.dart';
 abstract class ClassroomRepository {
   Stream<List<ClassroomContext>> myClassrooms(String ownerUid);
 
+  /// Classrooms visible via a school-wide or grade-level scope grant
+  /// (BR-1.3.11/1.3.12), independent of direct ownership — the caller
+  /// merges this with [myClassrooms] client-side, de-duplicating by id.
+  /// [gradeLevels] null means whole-school scope (every classroom in the
+  /// school); non-null filters to those specific grades.
+  Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels});
+
   /// Also upserts `users/{ownerUid}` with [ownerDisplayName]/[ownerEmail] —
   /// the first classroom a teacher creates is when their profile doc is
-  /// written.
+  /// written. [schoolId]/[gradeLevel] are optional — omit for a standalone
+  /// classroom (today's default flow); set both to affiliate it with a
+  /// school so scoped members can see it.
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,
     String? ownerDisplayName,
     String? ownerEmail,
+    String? schoolId,
+    String? gradeLevel,
   });
 
   Stream<List<Student>> studentsInClassroom(String contextId);
 
+  /// [schoolId]/[gradeLevel] should mirror the owning classroom's, if any —
+  /// denormalized at creation time for scoped reads (see
+  /// [classroomsInSchool]).
   Future<Student> addStudent({
     required String contextId,
     required String displayName,
     required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
   });
 
   Stream<List<LedgerTransaction>> transactionsForStudent({
