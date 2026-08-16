@@ -1,0 +1,311 @@
+# Sprout - Technical Requirements & Implementation Status
+
+> **Planning baseline (written 2026-08-16):** Unlike modulo-squares' TRD (which documents a shipped product), most of this document describes **planned** technical requirements against a fresh scaffold. The status column in every table below is the source of truth on what's actually built — do not assume a described requirement is implemented unless its row says so.
+
+**Version**: 1.0
+**Last Updated**: August 16, 2026
+**Status**: Scaffold — Pre-MVP
+**Project Owner**: Mark Nelson
+
+---
+
+## Executive Summary
+
+Sprout is a React (web) + Flutter (mobile) app on a Firebase backend, structured as a monorepo (`packages/web`, `packages/mobile`, `packages/shared`, `packages/firebase-utils`, plus a private companion repo `sprout-functions`). The repository, three Firebase environments, CI/CD, and the authentication layer (extracted from the org's shared `game-shell` package, with its ads/consent/IAP layers deliberately excluded — see [[modulo_squares_auth_design]]) are built and tested. The product itself — the earn/spend/save data model and every user-facing feature described in the [Business Requirements](BUSINESS_REQUIREMENTS.md) — is not yet built.
+
+**Project Status**: 🟡 **SCAFFOLD COMPLETE — PRODUCT NOT STARTED**
+
+---
+
+## 1. Architecture Overview
+
+### 1.1 Technology Stack
+
+| Component | Technology | Version | Status |
+|---|---|---|---|
+| **Web Frontend** | React + Vite | React 19 | ✅ Scaffolded |
+| **Mobile Frontend** | Flutter | 3.44.2 | ✅ Scaffolded |
+| **Backend** | Firebase Functions (consolidated `api` function) | Node 22 | ✅ Scaffolded (repo only — no business logic yet) |
+| **Database** | Cloud Firestore | — | 🔴 Not designed (see §3.2 for the proposed first-cut schema) |
+| **Auth** | Firebase Auth (Google + Apple) | — | ✅ Complete, tested |
+| **State Management (mobile)** | `provider` | 6.1.2 | ✅ Scaffolded |
+| **Routing (mobile)** | `go_router` | 16.2.4 | ✅ Scaffolded |
+
+### 1.2 Platform Support
+
+| Platform | Status | Minimum Version |
+|---|---|---|
+| **iOS** | 🟡 Scaffolded, unconfigured (no real Firebase config yet) | 13.0+ (Xcode-project default; revisit once product features are known) |
+| **Android** | 🟡 Scaffolded, unconfigured | API 21+ (Flutter default; revisit) |
+| **Web** | 🟡 Scaffolded, unconfigured | Modern browsers |
+
+### 1.3 Project Structure (as built)
+```
+sprout/
+├── packages/
+│   ├── web/                    # React 19 + Vite, unconfigured beyond default scaffold
+│   ├── mobile/                 # Flutter app
+│   │   └── lib/
+│   │       ├── core/
+│   │       │   ├── config/firebase_options.dart      # placeholder, needs flutterfire configure
+│   │       │   └── services/auth/                    # ✅ real, extracted from game-shell
+│   │       └── features/
+│   │           ├── auth/login_screen.dart             # ✅ real
+│   │           └── home/home_screen.dart               # placeholder only
+│   ├── shared/                 # TS types — empty barrel, no domain schema yet
+│   ├── firebase-utils/         # Client/Admin SDK wrapper helpers — generic, ported from wishlist-wizard
+│   └── functions/               # gitignored — real code lives in NelsonGrey/sprout-functions (private)
+├── firebase.json / firebase.{dev,staging,prod}.json
+└── .firebaserc                 # nelsongrey-sprout-{dev,staging,prod}
+```
+
+---
+
+## 2. Core Features & Implementation Status
+
+This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_REQUIREMENTS.md](BUSINESS_REQUIREMENTS.md) §1.3–1.4. Every row not marked ✅ is planned work, not built.
+
+### 2.1 Authentication ✅ COMPLETE
+| Feature | Status | Implementation |
+|---|---|---|
+| Google Sign-In (Android + web) | ✅ Complete | `packages/mobile/lib/core/services/auth/firebase_auth_service.dart` |
+| Apple Sign-In (iOS/macOS only, explicit platform guard) | ✅ Complete | Same file — fixes a doc/behavior gap found in `game-shell`'s original (see commit history) |
+| Fake auth for tests | ✅ Complete | `fake_auth_service.dart` |
+| Login screen (platform-gated buttons, error handling) | ✅ Complete | `features/auth/login_screen.dart`, 3 passing widget tests |
+| Auth-gated routing | ✅ Complete | `main.dart` via `go_router` redirect on `AuthService.authStateChanges()` |
+
+### 2.2 Reliability Requirements (BR-1.3.1, BR-1.3.2) 🔴 NOT STARTED
+| Requirement | Status | Notes |
+|---|---|---|
+| Session survives WiFi↔cellular transitions without crash/data loss | 🔴 Not started | This is ETM Machine's #1 unresolved complaint (crashes on cellular, 2021–2025). Needs explicit test coverage before v1.0, not just "should work" |
+| No forced re-authentication between transactions | 🔴 Not started | ETM Machine forces logout after *every* entry. Firebase Auth's default token refresh already avoids this by construction, but must be verified under real network conditions, not assumed |
+| Offline queueing for transactions | 🔴 Not started | Firestore's offline persistence should be enabled by default for the transaction-write path (see §3.3) |
+
+### 2.3 Student-Facing Balance & History (BR-1.3.3, BR-1.4.1) 🔴 NOT STARTED
+| Requirement | Status | Notes |
+|---|---|---|
+| Student can view own balance in-app | 🔴 Not started | ETM Machine never shipped this despite being requested since 2021 |
+| Student can view transaction history | 🔴 Not started | |
+| Native mobile experience for the student role (not just teacher/admin) | 🔴 Not started | ClassBank's gap — students are web-only there |
+
+### 2.4 Accessibility (BR-1.3.4, BR-1.4.4) 🔴 NOT STARTED
+| Requirement | Status | Notes |
+|---|---|---|
+| VoiceOver (iOS) / TalkBack (Android) support on core flows | 🔴 Not started | ETM Machine requested-and-never-shipped since 2021; see TRD §7 for the concrete technical bar |
+| Public accessibility statement | 🔴 Not started | Neither ETM Machine nor (as far as could be determined) ClassBank publishes one — cheap differentiation |
+
+### 2.5 Financial-Literacy Data Model (BR-1.4.2, BR-1.4.3) 🔴 NOT STARTED
+| Requirement | Status | Notes |
+|---|---|---|
+| Interest/compound-growth on savings, available at free tier | 🔴 Not started | ClassBank gates this behind its $100/yr Pro tier; see §3.2 for the proposed schema |
+| Classroom context (teacher-managed) | 🔴 Not started | |
+| Family context (parent-managed) | 🔴 Not started | |
+| A single student identity usable in both contexts | 🔴 Not started | This is the core differentiator vs. every competitor studied (§3.2 addresses the data-model implication directly) |
+
+### 2.6 Growth/Compliance (BR-1.3.7, BR-1.3.8) 🔴 NOT STARTED
+| Requirement | Status | Notes |
+|---|---|---|
+| Parent/co-teacher invite flow | 🔴 Not started | |
+| COPPA/FERPA-appropriate data handling | 🔴 Not started | See §7 |
+
+### 2.7 CI/CD & Infrastructure ✅ COMPLETE
+| Feature | Status |
+|---|---|
+| GitHub repos (`sprout` public, `sprout-functions` private), `develop`/`staging`/`main` branch model | ✅ Complete |
+| Firebase project trio (`nelsongrey-sprout-dev/staging/prod`) | ✅ Created; billing/IAM/Auth-provider setup pending (owner action, tracked outside this doc) |
+| GitHub Actions (`master-pipeline.yml`, hosting deploys per branch, CodeQL, secret scanning) | ✅ Complete, mirrored from `wishlist-wizard` |
+| Functions companion-repo checkout (`FUNCTIONS_REPO_PAT`) | ✅ Workflow wired; secret not yet set |
+
+---
+
+## 3. Technical Implementation
+
+### 3.1 Auth Architecture (as built)
+`AuthService` (abstract interface) → `FirebaseAuthService` (real) / `FakeAuthService` (test double), extracted verbatim from `game-shell`'s `src/auth/` (confirmed zero cross-imports from that package's ads/consent/IAP layers during extraction). `LoginScreen` is constructor-injected with an `AuthService`, matching modulo-squares' platform-gating convention (Google/Android, Apple/iOS) but reimplementing cancellation-swallowing and friendly error messages at the UI layer, since `FirebaseAuthService` intentionally just propagates exceptions.
+
+### 3.2 Proposed Firestore Data Model (not yet implemented)
+
+This is the concrete technical shape needed to satisfy BR-1.4.2/1.4.3 (classroom **and** family context sharing one student identity) — the single biggest structural differentiator identified in the BRD. Proposed, not final:
+
+```
+users/{uid}
+  ├── role: 'teacher' | 'parent' | 'student'
+  ├── displayName, email
+
+students/{studentId}
+  ├── ownerUid                      # the student's own auth uid, if they have one
+  ├── displayName
+  ├── contexts: {
+  │     [contextId]: { type: 'classroom' | 'family', role: 'member' }
+  │   }                              # a student can belong to >1 context — the
+  │                                   # classroom/family continuity requirement
+  └── balance: { current, currency }  # denormalized for fast reads; source of
+                                       # truth is the transactions subcollection
+
+contexts/{contextId}                 # a classroom OR a family unit
+  ├── type: 'classroom' | 'family'
+  ├── ownerUids: [uid, ...]          # teacher(s) or parent(s) — supports
+  │                                   # co-teacher/co-parent sharing at NO extra
+  │                                   # tier, unlike ClassBank's Pro-gated
+  │                                   # co-teacher sharing (BR-1.4.3)
+  ├── memberStudentIds: [studentId, ...]
+  └── settings: { interestRateBps, ... }  # interest available at every tier
+
+contexts/{contextId}/transactions/{transactionId}
+  ├── studentId, type: 'earn' | 'spend' | 'interest'
+  ├── amount, reason, createdByUid, createdAt
+  └── syncStatus                     # for offline-queue reconciliation (§2.2)
+```
+
+**Security rule shape** (not yet implemented): a student can only read their own `students/{studentId}` document and its transactions; a context owner (teacher/parent) can read/write everything scoped to `contexts/{contextId}` where their uid is in `ownerUids`. No cross-context reads without an explicit share grant — this is the enforcement point for keeping classroom and family data appropriately separated even though they share a student identity.
+
+### 3.3 Offline & Reliability Requirements (technical detail for §2.2)
+- Enable Firestore's offline persistence (`Settings(persistenceEnabled: true)` on mobile) so transaction writes queue locally and sync on reconnect, directly addressing ETM Machine's cellular-crash failure mode.
+- Firebase Auth's token refresh is automatic and should not require user-visible re-authentication under normal operation; this needs to be verified with an integration test that simulates a network drop mid-session, not assumed from SDK defaults alone.
+
+---
+
+## 4. Platform-Specific Implementation Notes (as built)
+
+### 4.1 iOS
+- Bundle ID: `com.nelsongrey.sprout`
+- `Runner.entitlements` created with `com.apple.developer.applesignin`, wired into all 3 build configs' `CODE_SIGN_ENTITLEMENTS`.
+- `Info.plist` has a placeholder `CFBundleURLTypes` entry (`REPLACE_WITH_REVERSED_CLIENT_ID`) — must be replaced with the real reversed-client-ID once `GoogleService-Info.plist` exists for each environment. Explicitly **not** copied from another app's plist (modulo-squares' checked-in value was found to be stale/mismatched during this project's research phase).
+
+### 4.2 Android
+- `applicationId`: `com.nelsongrey.sprout`
+- Google Services Gradle plugin applied only if `google-services.json` exists (file-exists guard), matching modulo-squares' pattern — avoids breaking local builds before real Firebase config exists.
+- Manifest permissions: `INTERNET`, `ACCESS_NETWORK_STATE` only — no `AD_ID` permission, since Sprout carries no ad SDK.
+
+### 4.3 Web
+- Vite + React 19 scaffold only; no Firebase wiring, no routes beyond the default template yet.
+
+---
+
+## 5. CI/CD & DevOps ✅ COMPLETE (infrastructure only — nothing to deploy yet)
+
+| Workflow | Trigger | Status |
+|---|---|---|
+| `master-pipeline.yml` | PR → develop/staging/main; push → staging/main | ✅ Wired, mirrors wishlist-wizard |
+| `firebase-hosting-{dev,staging,merge}.yml` | Push to matching branch | ✅ Wired |
+| `firebase-deploy-local.yml` (reusable) | Called from pipeline | ✅ Wired; GCP Workload Identity Federation not yet configured (placeholder TODO in workflow) |
+| `codeql.yml`, `secret-scan.yml` | Push/PR + schedule | ✅ Wired |
+
+**Deliberately not yet added** (per the original scaffold plan): `ios-mobile-release.yml`, `manage-asc-subscriptions.yml`, `e2e-tests.yml`, `release-readiness-gate.yml` — add once there's an actual app to release.
+
+---
+
+## 6. Quality Assurance
+
+### 6.1 Testing Coverage (as built)
+| Test Type | Coverage | Status |
+|---|---|---|
+| Mobile widget tests | Auth/login screen only (3 tests) | ✅ Passing |
+| Mobile `flutter analyze` | Whole `lib/` | ✅ 0 issues (2 pre-existing info-level lints matching upstream pattern) |
+| Web tests | None yet | 🔴 Not started |
+| Functions tests | None yet (repo not even scaffolded with logic) | 🔴 Not started |
+| Firestore security rules tests | None (no rules written yet — §3.2 is proposed, not implemented) | 🔴 Not started |
+
+### 6.2 Known Testing Gotcha (documented for future contributors)
+A widget test that manually creates a raw `StreamSubscription` on `AuthService.authStateChanges()` outside the widget tree caused a full 10-minute hang in this sandboxed dev environment, reproducibly, regardless of trigger mechanism (`tester.tap()`, `pumpAndSettle()`, or direct `onPressed()` invocation). Root cause not fully isolated; asserting against `authService.currentUser` directly instead of a manual subscription avoids it. See `packages/mobile/test/features/auth/login_screen_test.dart` and its git history for the full isolation process.
+
+---
+
+## 7. Security & Compliance
+
+### 7.1 Authentication & Authorization ✅ COMPLETE (auth layer only)
+- Firebase Authentication, Google + Apple only — no email/password or anonymous guest mode (deliberately narrower than modulo-squares' auth, since Sprout has no guest-play use case).
+- No ads SDK, no IAP, no consent-management SDK — none apply (BR §3.1: no advertising, ever).
+
+### 7.2 Data Security 🔴 NOT STARTED
+- Firestore security rules: not written (§3.2's proposed model above is the design target).
+- No sensitive PII beyond what auth providers give (name, email) — students should not require their own email/password credential at all if a teacher/parent-managed model can avoid it (reduces COPPA surface area; needs a product decision before implementation).
+
+### 7.3 Privacy Compliance 🔴 NOT STARTED — HIGHER BAR THAN THE ORG'S OTHER APPS
+| Regulation | Status | Notes |
+|---|---|---|
+| **COPPA** | 🔴 Not started | No behavioral ads (structural — no ad SDK exists in this codebase at all); parental/teacher consent model needs explicit design before any under-13 account can be created |
+| **FERPA** | 🔴 Not started | Only relevant app in this org's portfolio that plausibly touches education records; a data processing agreement / district-facing compliance statement is required before any school-facing marketing (BR §9) |
+| **Accessibility (WCAG 2.1 AA-equivalent)** | 🔴 Not started | Concrete technical bar: every core flow (sign-in, balance check, earn/spend action) must pass with VoiceOver (iOS) and TalkBack (Android) enabled — treat this as a release gate for v1.0, not a post-launch backlog item, per BR-1.3.4/1.4.4 |
+
+**This is a meaningfully higher compliance bar than the org's other three apps carry** — see [[feedback_no_live_users_yet]] (modulo-squares/vehicle-vitals/wishlist-wizard have zero public users and no institutional data-handling obligations yet); Sprout's explicit K-12/school-facing ambition means COPPA/FERPA readiness needs to land *before* the first real classroom signs up, not be retrofitted after.
+
+---
+
+## 8. Known Limitations & Roadmap
+
+### 8.1 Current Limitations (scaffold state)
+- No product features exist yet — only auth, infra, and CI/CD.
+- No Firestore schema, security rules, or Cloud Functions business logic.
+- `firebase_options.dart` is a placeholder that throws `UnsupportedError` until `flutterfire configure` is run against real per-environment Firebase config.
+- Web app is the unmodified Vite template.
+
+### 8.2 Planned Work (maps to BRD §3.2 short-term objectives)
+
+**Phase 1 — MVP (single classroom or family, core loop)**:
+- Firestore schema + security rules (§3.2)
+- Earn/spend/save core transaction flow, both roles (teacher/parent administering, student viewing)
+- Reliability hardening: offline queueing, network-transition testing (§2.2)
+- Accessibility pass on all core flows (§2.4)
+- Parent/co-teacher invite flow (§2.6)
+
+**Phase 2 — Family/classroom continuity**:
+- Multi-context student identity (§3.2's `contexts` model)
+- Interest/compound-growth mechanics at the free tier
+
+**Phase 3 — Schoolwide/district**:
+- SIS integration, centralized admin dashboard (matching ClassBank's Schoolwide tier, not a v1.0 priority per BRD §3.2)
+
+---
+
+## 9. Dependencies & Environment
+
+### 9.1 Key Flutter Dependencies (`packages/mobile/pubspec.yaml`)
+- `firebase_core: ^4.13.0`, `firebase_auth: ^6.5.7`, `cloud_firestore: ^6.8.0`, `cloud_functions: ^6.3.6`, `firebase_app_check: ^0.4.6`
+- `google_sign_in: ^7.2.0`, `sign_in_with_apple: ^8.1.0`, `crypto: ^3.0.7`
+- `go_router: ^16.2.4`, `provider: ^6.1.2`, `flutter_secure_storage: ^9.2.2`
+
+### 9.2 Firebase Projects
+| Alias | Project ID | Status |
+|---|---|---|
+| development | `nelsongrey-sprout-dev` | ✅ Created; Auth providers/IAM pending owner action |
+| staging | `nelsongrey-sprout-staging` | ✅ Created; same |
+| production | `nelsongrey-sprout-prod` | ✅ Created; same |
+
+---
+
+## 10. Documentation
+
+| Document | Location | Purpose |
+|---|---|---|
+| README.md | `/README.md` | Setup instructions |
+| BUSINESS_REQUIREMENTS.md | `/docs/BUSINESS_REQUIREMENTS.md` | Business case, market/competitive analysis |
+| This document | `/docs/REQUIREMENTS.md` | Technical requirements & implementation status |
+
+---
+
+## 11. Project Status Summary
+
+| Category | Completion | Notes |
+|---|---|---|
+| Auth | 100% | Real, tested |
+| Repo/CI/CD infra | 100% | Real, tested |
+| Firebase projects | 100% created | Auth providers, billing, IAM pending owner action |
+| Product data model | 0% | Proposed design only (§3.2) |
+| Product features | 0% | Nothing beyond auth exists |
+| Compliance (COPPA/FERPA/accessibility) | 0% | Requirements defined (§7), nothing implemented |
+| Testing | ~5% | Auth only |
+
+**Status**: 🟡 **Ready for Phase 1 (MVP) implementation to begin.**
+
+---
+
+## Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | Aug 16, 2026 | Mark Nelson | Initial TRD against the fresh scaffold, including proposed Firestore data model and honest implementation-status tables |
+
+---
+
+**Next Review Date**: Upon Phase 1 (MVP) kickoff
