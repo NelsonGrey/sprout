@@ -1,0 +1,16 @@
+title = "sprout gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Firebase client configuration required by mobile/web clients"
+paths = [
+  '''packages/mobile/lib/core/config/firebase_options\.dart''',
+  '''packages/mobile/android/app/google-services(\.(dev|prod|staging))?\.json''',
+  '''packages/mobile/ios/Runner/GoogleService-Info(\.(dev|prod|staging))?\.plist''',
+  '''packages/mobile/(ios|macos)/Podfile\.lock''',
+]
+regexes = [
+  '''AIza[0-9A-Za-z_-]{20,}''',
+]

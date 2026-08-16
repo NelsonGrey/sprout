@@ -1,0 +1,10 @@
+{
+  "projects": {
+    "default": "sprout-dev",
+    "production": "sprout-prod",
+    "staging": "sprout-staging",
+    "development": "sprout-dev"
+  },
+  "targets": {},
+  "etags": {}
+}

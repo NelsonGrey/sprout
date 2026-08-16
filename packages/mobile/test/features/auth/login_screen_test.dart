@@ -1,0 +1,69 @@
+import 'package:flutter/foundation.dart' show TargetPlatform, debugDefaultTargetPlatformOverride;
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:sprout/core/services/auth/auth_service.dart';
+import 'package:sprout/core/services/auth/fake_auth_service.dart';
+import 'package:sprout/features/auth/login_screen.dart';
+
+// debugDefaultTargetPlatformOverride must be reset as the LAST statement of
+// each test body, not via tearDown()/addTearDown() — flutter_test's
+// _verifyInvariants() runs immediately after the test body returns, before
+// any registered teardown callback fires.
+void main() {
+  testWidgets('shows only the Google button on Android', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await tester.pumpWidget(
+      MaterialApp(home: LoginScreen(authService: FakeAuthService())),
+    );
+
+    expect(find.text('Sign in with Google'), findsOneWidget);
+    expect(find.text('Sign in with Apple'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('shows only the Apple button on iOS', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    await tester.pumpWidget(
+      MaterialApp(home: LoginScreen(authService: FakeAuthService())),
+    );
+
+    expect(find.text('Sign in with Apple'), findsOneWidget);
+    expect(find.text('Sign in with Google'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('Google sign-in calls onAuthenticationComplete and updates authStateChanges', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final authService = FakeAuthService();
+    var completed = false;
+    AppUser? latestUser;
+    final subscription = authService.authStateChanges().listen((u) => latestUser = u);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginScreen(
+          authService: authService,
+          onAuthenticationComplete: () => completed = true,
+        ),
+      ),
+    );
+
+    // pump() rather than pumpAndSettle(): FakeAuthService resolves
+    // synchronously, and pumpAndSettle can hang waiting for the button's
+    // ink-splash animation to fully settle once onPressed goes null
+    // mid-splash (during _authInProgress).
+    await tester.tap(find.text('Sign in with Google'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(completed, isTrue);
+    expect(authService.currentUser, isNotNull);
+    expect(latestUser, isNotNull);
+
+    await subscription.cancel();
+    debugDefaultTargetPlatformOverride = null;
+  });
+}

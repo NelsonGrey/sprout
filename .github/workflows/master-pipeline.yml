@@ -1,0 +1,158 @@
+name: "Master CI/CD Pipeline"
+
+# Trimmed down from wishlist-wizard's master-pipeline.yml for a fresh
+# scaffold: no Android/iOS release builds, no browser extension, no ASC
+# subscriptions job — those get added back as real store-release
+# infrastructure lands. Promotion path is develop → staging → main, same as
+# every other repo in this org.
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "What to run"
+        required: true
+        default: "test_all"
+        type: choice
+        options:
+          - test_all
+          - build_all
+          - deploy_only
+      environment:
+        description: "Target environment for deploy_only"
+        required: false
+        default: "development"
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+  pull_request:
+    branches: [develop, staging, main]
+    paths:
+      - "packages/**"
+      - ".github/workflows/**"
+      - "firebase*.json"
+      - "firestore.rules"
+      - "storage.rules"
+  push:
+    # develop is deliberately excluded here — firebase-hosting-dev.yml
+    # already deploys on every push to develop; this pipeline's job is
+    # testing/build validation plus staging/production deploys.
+    branches: [staging, main]
+    paths:
+      - "packages/**"
+      - ".github/workflows/**"
+      - "firebase*.json"
+      - "firestore.rules"
+      - "storage.rules"
+
+concurrency:
+  group: master-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  load-config:
+    name: Resolve target environment
+    runs-on: ubuntu-latest
+    outputs:
+      target_environment: ${{ steps.resolve.outputs.target_environment }}
+    steps:
+      - name: Resolve environment from branch/dispatch input
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "target_environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "${{ github.ref_name }}" in
+            main) echo "target_environment=production" >> "$GITHUB_OUTPUT" ;;
+            staging) echo "target_environment=staging" >> "$GITHUB_OUTPUT" ;;
+            *) echo "target_environment=development" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  test:
+    name: Test
+    if: github.event.inputs.run_mode != 'deploy_only'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps 2>/dev/null || npm ci --force
+
+      - name: Lint + typecheck
+        run: |
+          npm run lint --if-present
+          npm run check --if-present
+
+      - name: Test workspaces
+        run: npm test
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: stable
+
+      - name: Flutter analyze + test
+        working-directory: packages/mobile
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+  build:
+    name: Build
+    if: github.event.inputs.run_mode != 'deploy_only'
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps 2>/dev/null || npm ci --force
+
+      - name: Build shared + firebase-utils
+        run: |
+          npm run build --workspace=@sprout/shared
+          npm run build --workspace=@shared/firebase-utils
+
+      - name: Build web
+        run: npm run build --workspace=@sprout/web
+
+  deploy-firebase:
+    name: Deploy Firebase
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_mode == 'deploy_only')
+    needs: [load-config, build]
+    uses: ./.github/workflows/firebase-deploy-local.yml
+    with:
+      project_name: sprout
+      environment: ${{ needs.load-config.outputs.target_environment }}
+      deploy_rules: true
+    secrets:
+      firebase_project_dev: ${{ secrets.FIREBASE_PROJECT_DEV }}
+      firebase_project_staging: ${{ secrets.FIREBASE_PROJECT_STAGING }}
+      firebase_project_prod: ${{ secrets.FIREBASE_PROJECT_PROD }}
+      functions_repo_pat: ${{ secrets.FUNCTIONS_REPO_PAT }}

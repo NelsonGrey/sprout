@@ -1,0 +1,21 @@
+name: 'Setup Firebase'
+description: 'Setup Firebase CLI and configure project'
+
+inputs:
+  firebase-token:
+    description: 'Firebase authentication token'
+    required: true
+  project-id:
+    description: 'Firebase project ID'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 📦 Install Firebase CLI
+      run: npm install -g firebase-tools
+      shell: bash
+
+    - name: 🔥 Configure Firebase Project
+      run: firebase use ${{ inputs.project-id }} --token ${{ inputs.firebase-token }}
+      shell: bash

@@ -1,0 +1,164 @@
+name: Reusable Firebase Functions Deployment (Local)
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        required: true
+        type: string
+      functions_dir:
+        required: false
+        type: string
+        default: packages/functions
+      environment:
+        required: true
+        type: string
+      node_version:
+        required: false
+        type: string
+        default: "20"
+      deploy_rules:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      firebase_project_dev:
+        required: false
+      firebase_project_staging:
+        required: false
+      firebase_project_prod:
+        required: false
+      functions_repo_pat:
+        required: true
+
+jobs:
+  deploy-firebase:
+    name: Deploy Firebase to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment == 'production' && 'PRODUCTION' || inputs.environment == 'staging' && 'STAGING' || 'DEVELOPMENT' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      # packages/functions lives in a separate private repo (business logic
+      # shouldn't be world-readable on this public repo). It lands at the
+      # exact path it used to occupy, so vendor-shared.js's relative path to
+      # packages/shared/dist and firebase*.json's "source": "packages/functions"
+      # both keep working unchanged.
+      - name: Checkout Functions (private companion repo)
+        uses: actions/checkout@v7
+        with:
+          repository: NelsonGrey/sprout-functions
+          token: ${{ secrets.functions_repo_pat }}
+          ref: ${{ inputs.environment == 'production' && 'main' || inputs.environment == 'staging' && 'staging' || 'develop' }}
+          path: ${{ inputs.functions_dir }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+
+      - name: Install Firebase CLI
+        run: |
+          npm install -g firebase-tools
+          firebase --version
+
+      # TODO(infra): replace with this org's real Workload Identity
+      # Federation pool/provider + a github-actions-deploy service account
+      # created in sprout-dev, once sprout-dev/staging/prod exist — matches
+      # wishlist-wizard-functions' short-lived-credential pattern (no
+      # long-lived key, per this org's iam.disableServiceAccountKeyCreation
+      # policy). Until then this step will fail; deploy manually with
+      # `firebase deploy --only functions` in the interim.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Configure Environment
+        id: config
+        run: |
+          case "${{ inputs.environment }}" in
+            production)
+              if [ -z "${{ secrets.firebase_project_prod }}" ]; then
+                echo "Missing firebase_project_prod"
+                exit 1
+              fi
+              echo "project_id=${{ secrets.firebase_project_prod }}" >> $GITHUB_OUTPUT
+              echo "config_file=firebase.prod.json" >> $GITHUB_OUTPUT
+              ;;
+            staging)
+              if [ -z "${{ secrets.firebase_project_staging }}" ]; then
+                echo "Missing firebase_project_staging"
+                exit 1
+              fi
+              echo "project_id=${{ secrets.firebase_project_staging }}" >> $GITHUB_OUTPUT
+              echo "config_file=firebase.staging.json" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              if [ -z "${{ secrets.firebase_project_dev }}" ]; then
+                echo "Missing firebase_project_dev"
+                exit 1
+              fi
+              echo "project_id=${{ secrets.firebase_project_dev }}" >> $GITHUB_OUTPUT
+              echo "config_file=firebase.dev.json" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Install Dependencies
+        run: |
+          npm ci --legacy-peer-deps 2>/dev/null || npm ci --force
+          npm run build --workspace=@sprout/shared
+          npm run build --workspace=functions
+
+      - name: Deploy Firebase Functions
+        run: |
+          if [ -f "${{ steps.config.outputs.config_file }}" ]; then
+            cp "${{ steps.config.outputs.config_file }}" firebase.json
+          fi
+
+          # --force allows non-interactive cleanup of functions removed from source.
+          firebase deploy \
+            --project="${{ steps.config.outputs.project_id }}" \
+            --only=functions \
+            --message="Functions deployment from GitHub Actions for ${{ inputs.project_name }} to ${{ inputs.environment }}" \
+            --force \
+            --non-interactive
+
+      - name: Deploy Firestore Rules
+        if: inputs.deploy_rules == true
+        run: |
+          if [ ! -f "firestore.rules" ]; then
+            echo "No firestore.rules file; skipping"
+            exit 0
+          fi
+
+          firebase deploy \
+            --project="${{ steps.config.outputs.project_id }}" \
+            --only=firestore:rules \
+            --message="Firestore rules deployment for ${{ inputs.project_name }} to ${{ inputs.environment }}" \
+            --force \
+            --non-interactive
+
+      - name: Deploy Firestore Indexes
+        if: inputs.deploy_rules == true
+        run: |
+          if [ ! -f "firestore.indexes.json" ]; then
+            echo "No firestore.indexes.json file; skipping"
+            exit 0
+          fi
+
+          firebase deploy \
+            --project="${{ steps.config.outputs.project_id }}" \
+            --only=firestore:indexes \
+            --message="Firestore indexes deployment for ${{ inputs.project_name }} to ${{ inputs.environment }}" \
+            --force \
+            --non-interactive

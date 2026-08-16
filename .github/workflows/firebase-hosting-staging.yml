@@ -1,0 +1,74 @@
+name: "Deploy Web App to Staging (Hosting)"
+
+# Branch promotion path: develop → staging → main. Push to staging deploys
+# the compiled dist/ bundle to Firebase Hosting on sprout-staging. Business
+# logic lives in Firebase Functions (private, server-side). This workflow
+# publishes only the compiled dist/ bundle; no source is exposed.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - staging
+
+concurrency:
+  group: firebase-hosting-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-hosting:
+    name: Build and Deploy to Firebase Hosting (Staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Firebase CLI
+        run: |
+          npm install -g firebase-tools
+          firebase --version
+
+      - name: Install Dependencies
+        run: |
+          npm ci --legacy-peer-deps 2>/dev/null || npm ci --force
+          npm run build --workspace=@sprout/shared
+          npm run build --workspace=@shared/firebase-utils
+
+      - name: Build Web App
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY_STAGING }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN_STAGING }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID_STAGING }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET_STAGING }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID_STAGING }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID_STAGING }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID_STAGING }}
+        run: npm run build --workspace=@sprout/web
+
+      - name: Use Staging Firebase Config
+        run: cp firebase.staging.json firebase.json
+
+      - name: Deploy Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "FIREBASE_TOKEN secret is not set"
+            exit 1
+          fi
+          firebase deploy \
+            --project="sprout-staging" \
+            --token="$FIREBASE_TOKEN" \
+            --only=hosting \
+            --message="Staging hosting deploy from staging — ${{ github.sha }}" \
+            --non-interactive

@@ -1,0 +1,36 @@
+{
+  "extends": [],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    "build/",
+    "*.generated.*"
+  ],
+  "rules": {},
+  "overrides": [
+    {
+      "files": ["packages/web/**/*.{js,jsx,ts,tsx}"],
+      "extends": [],
+      "plugins": ["react", "react-hooks"],
+      "env": {
+        "browser": true
+      },
+      "settings": {
+        "react": {
+          "version": "detect"
+        }
+      },
+      "rules": {}
+    }
+  ]
+}

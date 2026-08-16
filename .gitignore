@@ -1,0 +1,347 @@
+# Act CLI secrets
+.act-secrets/
+.act-secrets/real-secrets
+
+# Local tooling artifacts
+.git-filter-repo/
+
+# Android build files
+packages/mobile/android/app/build/
+packages/mobile/android/build/
+packages/mobile/android/.gradle/
+packages/mobile/android/local.properties
+packages/mobile/android/key.properties
+packages/mobile/android/app/release/
+.cxx/
+.cxx
+.gradle/
+**/android/app/build/
+**/android/build/
+**/android/.gradle/
+
+# Android Keystores (NEVER COMMIT)
+packages/mobile/android/app/*.jks
+packages/mobile/android/app/*.keystore
+
+# App Store Connect Private Keys (NEVER COMMIT)
+packages/mobile/ios/asc_private_key.p8
+packages/mobile/ios/*.p8
+**/*.p8
+
+# Automation and monitoring logs
+automation.log
+monitoring.log
+sprout.log
+flutter_*.log
+
+# Automation and monitoring files
+health-status.json
+monitoring.pid
+
+# Backup files
+*.backup
+package.json.backup
+packages/*/package.json.backup
+
+# Build outputs
+dist/
+build/
+*.tgz
+*.tar.gz
+web/dist/
+web/build/
+
+# Cache directories
+.sass-cache/
+.cache/
+**/.cache/
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# DataConnect local data
+dataconnect/.dataconnect/
+
+# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor and IDE files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.automation.*.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Environment-specific files (dynamically generated during CI/CD)
+packages/web/.env
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+packages/mobile/ios/fastlane/builds/
+packages/mobile/ios/fastlane/Payload/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Firebase service account keys
+serviceAccountKey.json
+firebase-service-account-*.json
+**/firebase-service-account-*.json
+
+# Firebase config files (contain sensitive API keys/OAuth client IDs)
+packages/mobile/android/app/google-services.json
+packages/mobile/ios/Runner/GoogleService-Info.plist
+packages/mobile/config/*/android/google-services.json
+packages/mobile/config/*/ios/GoogleService-Info.plist
+
+# Firebase Service Account Keys (NEVER COMMIT)
+packages/mobile/android/app/service-account-key.json
+packages/mobile/ios/service-account-key.json
+**/*service-account-key.json
+**/*service-account-key*.json
+
+# Flutter
+.dart_tool/
+packages/mobile/.dart_tool/
+packages/mobile/build/
+packages/mobile/pubspec.lock
+packages/mobile/.flutter-plugins
+packages/mobile/.flutter-plugins-dependencies
+packages/mobile/.packages
+packages/mobile/linux/flutter/
+packages/mobile/macos/Flutter/
+packages/mobile/windows/flutter/
+packages/mobile/.pub-cache/
+packages/mobile/.pub/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+**/build/
+*.dill.track.dill
+.cache.dill.track.dill
+**/*.dill.track.dill
+
+# Gradle
+.gradle/
+
+# Generated secrets and certificates (should not be committed)
+.db-password
+.encryption-key
+.jwt-secret
+certs/
+monitoring-report-*.json
+*.pem
+*.key
+*.p12
+*.mobileprovision
+*.cer
+*.crt
+*.der
+
+# IDE files
+*.iml
+*.ipr
+*.iws
+
+# iOS build files
+packages/mobile/ios/build/
+packages/mobile/ios/Pods/
+packages/mobile/ios/Runner.xcworkspace/xcuserdata/
+packages/mobile/ios/Runner.xcodeproj/xcuserdata/
+packages/mobile/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+packages/mobile/ios/*.ipa
+packages/mobile/ios/*.xcarchive
+
+# iOS Certificates (NEVER COMMIT)
+packages/mobile/ios/certs/*.p12
+packages/mobile/ios/certs/*.pem
+
+# iOS related
+**/ios/Pods/
+**/ios/Podfile.lock
+**/ios/build/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/ServiceDefinitions.json
+
+# iOS signing (generally handled by Xcode, but good to be safe)
+packages/mobile/ios/*.mobileprovision
+packages/mobile/ios/*.p12
+
+# Linux related
+**/linux/build/
+**/linux/.dart_tool/
+
+# Logs
+logs
+*.log
+pids
+*.pid
+*.seed
+*.pid.lock
+/.act-secrets/
+*-debug.log
+dataconnect-debug.log
+firestore-debug.log
+pglite-debug.log
+
+# macOS related
+**/macos/Pods/
+**/macos/build/
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/Generated.xcconfig
+**/macos/Flutter/App.framework
+**/macos/Flutter/Flutter.framework
+**/macos/Flutter/Flutter.podspec
+**/macos/Runner/GeneratedPluginRegistrant.*
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Metro cache
+.metro-cache/
+
+# Miscellaneous
+*.class
+*.pyc
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# Misc
+Thumbs.db
+
+# Monitoring runtime files
+monitoring/*.pid
+
+# Node
+pnpm-lock.yaml
+
+# Obfuscation related
+app.*.map.json
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# OS generated files
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Ruby/Bundler related
+packages/mobile/.bundle/
+packages/mobile/vendor/
+packages/mobile/Gemfile.lock
+
+# Secrets
+.act-secrets/
+
+# Self-hosted runner binaries (too large for Git)
+actions-runner/externals/node*/bin/node
+actions-runner/actions-runner-*.tar.gz
+actions-runner/_work/
+actions-runner/_diag/
+actions-runner/.runner_migrated
+actions-runner/
+
+# Symbolication related
+app.*.symbols
+
+# Test files
+*.coverage
+junit.xml
+
+# TypeScript cache
+*.tsbuildinfo
+vite.config.ts.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+
+# Vite cache
+.vite/
+
+# Web app builds
+packages/web/dist/
+packages/web/build/
+
+# Web related
+**/web/build/
+**/web/.dart_tool/
+
+# Windows related
+**/windows/build/
+**/windows/.dart_tool/
+
+# Windows system files
+ehthumbs.db
+Desktop.ini
+
+# Xcode
+*.xcworkspace
+*.xcuserdata
+*.xcodeproj/project.xcworkspace/
+vendor/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# packages/functions now lives in a separate private repo
+# (NelsonGrey/sprout-functions). A local clone into this path for
+# dev/emulator use is fine, but it should never be committed here.
+packages/functions/
+
+# Claude Code local session data
+.claude/

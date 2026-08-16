@@ -1,0 +1,121 @@
+name: 'Setup Flutter'
+description: 'Setup Flutter SDK with caching'
+
+inputs:
+  flutter-version:
+    description: 'Flutter version to install'
+    required: true
+    default: 'stable'
+  cache-bust:
+    description: 'Cache busting parameter'
+    required: false
+    default: 'v3'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🦋 Setup Flutter
+      run: |
+        # Check runner architecture first
+        echo "Runner OS: $RUNNER_OS"
+        echo "Runner Architecture: $RUNNER_ARCH"
+        uname -a
+        sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "CPU info not available"
+        
+        # Download and setup Flutter manually
+        FLUTTER_VERSION="${{ inputs.flutter-version }}"
+        
+        # Determine OS and architecture for correct archive
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          OS_NAME="macos"
+          ARCHIVE_EXT="zip"
+          EXTRACT_CMD="unzip -q"
+          EXTRACT_ARGS="-d"
+          # macOS has both x64 and ARM64 builds
+          if [ "$RUNNER_ARCH" = "ARM64" ] || [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then
+            ARCH_SUFFIX="_arm64"
+          else
+            ARCH_SUFFIX=""
+          fi
+        elif [ "$RUNNER_OS" = "Linux" ]; then
+          OS_NAME="linux"
+          ARCHIVE_EXT="tar.xz"
+          EXTRACT_CMD="tar -xf"
+          EXTRACT_ARGS="-C"
+          # Linux only has x64 builds available, even on ARM64 runners
+          ARCH_SUFFIX=""
+        else
+          echo "Unsupported OS: $RUNNER_OS"
+          exit 1
+        fi
+        
+        # Construct archive name and URL
+        FLUTTER_ARCHIVE="flutter_${OS_NAME}${ARCH_SUFFIX}_${FLUTTER_VERSION}-stable.${ARCHIVE_EXT}"
+        FLUTTER_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/${OS_NAME}/${FLUTTER_ARCHIVE}"
+        
+        echo "Flutter archive: $FLUTTER_ARCHIVE"
+        echo "Download URL: $FLUTTER_URL"
+        
+        # Create cache key
+        CACHE_KEY="flutter-${OS_NAME}${ARCH_SUFFIX}-${FLUTTER_VERSION}-${{ inputs.cache-bust }}"
+        CACHE_PATH="$RUNNER_TEMP/flutter"
+        
+        echo "Cache key: $CACHE_KEY"
+        echo "Cache path: $CACHE_PATH"
+        
+        # Check if cached version exists
+        if [ -d "$CACHE_PATH/bin" ] && [ "$("$CACHE_PATH/bin/flutter" --version | grep "$FLUTTER_VERSION" | wc -l)" -gt 0 ]; then
+          echo "Using cached Flutter $FLUTTER_VERSION"
+        else
+          echo "Downloading Flutter $FLUTTER_VERSION..."
+          mkdir -p "$RUNNER_TEMP"
+          
+          if curl -L --fail "$FLUTTER_URL" -o "$RUNNER_TEMP/flutter.${ARCHIVE_EXT}" 2>/dev/null; then
+            echo "${OS_NAME}${ARCH_SUFFIX} archive downloaded successfully"
+          else
+            echo "${OS_NAME}${ARCH_SUFFIX} archive failed to download"
+            if [ "$RUNNER_OS" = "Linux" ] && [ "$RUNNER_ARCH" = "ARM64" ]; then
+              echo "Note: Linux ARM64 builds are not available. Using x64 Linux build on ARM64 runner."
+            fi
+            exit 1
+          fi
+          
+          echo "Extracting Flutter..."
+          rm -rf "$CACHE_PATH"
+          mkdir -p "$RUNNER_TEMP"
+          $EXTRACT_CMD "$RUNNER_TEMP/flutter.${ARCHIVE_EXT}" $EXTRACT_ARGS "$RUNNER_TEMP"
+        fi
+        
+        echo "Setting up Flutter path..."
+        FLUTTER_BIN="$CACHE_PATH/bin"
+        echo "$FLUTTER_BIN" >> $GITHUB_PATH
+        export PATH="$FLUTTER_BIN:$PATH"
+        
+        echo "Configuring Git safe directories for Flutter..."
+        git config --global --add safe.directory "$CACHE_PATH"
+        
+        echo "Checking Flutter binary permissions..."
+        ls -la "$FLUTTER_BIN/flutter"
+        ls -la "$FLUTTER_BIN/cache/dart-sdk/bin/dart"
+        
+        echo "Running flutter doctor to initialize..."
+        "$FLUTTER_BIN/flutter" doctor --verbose || echo "Flutter doctor failed, but continuing..."
+        
+        echo "Verifying Flutter installation..."
+        "$FLUTTER_BIN/flutter" --version
+      shell: bash
+
+    - name: 📦 Cache Flutter Pub Dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pub-cache
+          packages/mobile/.dart_tool
+        key: flutter-pub-${{ runner.os }}-${{ hashFiles('packages/mobile/pubspec.yaml', 'packages/mobile/pubspec.lock') }}
+        restore-keys: |
+          flutter-pub-${{ runner.os }}-
+
+    - name: 📦 Install Flutter Dependencies
+      run: flutter pub get
+      shell: bash
+      working-directory: packages/mobile

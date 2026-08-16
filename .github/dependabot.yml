@@ -1,0 +1,34 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+
+  # Single root-scoped entry: this is an npm-workspaces monorepo with one
+  # shared root package-lock.json, so Dependabot must be pointed at the
+  # workspace root to update dependencies in any package (web, shared,
+  # firebase-utils) against that shared lockfile. Separate per-package
+  # directory entries don't understand the shared lockfile and produce PRs
+  # that fail `npm ci` with a lockfile-sync error.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "pub"
+    directory: "/packages/mobile"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"

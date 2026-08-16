@@ -1,0 +1,38 @@
+{
+  "name": "sprout",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@sprout/web",
+    "build": "npm run build --workspaces --if-present",
+    "build:mobile": "cd packages/mobile && flutter build web --release",
+    "build:all": "npm run build && npm run build:mobile",
+    "test": "npm run test --workspaces --if-present",
+    "test:mobile": "cd packages/mobile && flutter test",
+    "lint": "npm run lint --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "clean": "rm -rf packages/*/node_modules packages/*/dist node_modules",
+    "deploy": "./scripts/deploy.sh deploy-all",
+    "deploy:web": "./scripts/deploy.sh deploy-web",
+    "emulators": "firebase emulators:start --config firebase.dev.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  }
+}

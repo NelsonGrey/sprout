@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // A user's own profile document. Real product collections (classroom
+    // rosters, behaviors, rewards, transactions, etc.) get their own
+    // match blocks as the schema takes shape in packages/shared.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Deny by default — no other collection exists yet.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
