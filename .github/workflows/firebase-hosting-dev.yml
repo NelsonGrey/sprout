@@ -1,7 +1,7 @@
 name: "Deploy Web App to Dev (Hosting)"
 
 # Triggered on every push to develop — deploys the web app to the
-# sprout-dev Firebase Hosting project for review and testing. Business
+# nelsongrey-sprout-dev Firebase Hosting project for review and testing. Business
 # logic lives in Firebase Functions (private, server-side). This workflow
 # publishes only the compiled dist/ bundle; no source is exposed.
 
@@ -67,7 +67,7 @@ jobs:
             exit 1
           fi
           firebase deploy \
-            --project="sprout-dev" \
+            --project="nelsongrey-sprout-dev" \
             --token="$FIREBASE_TOKEN" \
             --only=hosting \
             --message="Dev hosting deploy from develop — ${{ github.sha }}" \

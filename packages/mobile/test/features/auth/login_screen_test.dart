@@ -51,13 +51,13 @@ void main() {
       ),
     );
 
-    // pump() rather than pumpAndSettle(): FakeAuthService resolves
-    // synchronously, and pumpAndSettle can hang waiting for the button's
-    // ink-splash animation to fully settle once onPressed goes null
-    // mid-splash (during _authInProgress).
+    // A single bare pump() rather than pumpAndSettle() or a timed pump():
+    // FakeAuthService resolves synchronously and pump() already drains
+    // pending microtasks, and advancing animation time further risks
+    // triggering the button's ink-splash compositing, which appears to
+    // hang under this environment's software Skia renderer.
     await tester.tap(find.text('Sign in with Google'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
 
     expect(completed, isTrue);
     expect(authService.currentUser, isNotNull);

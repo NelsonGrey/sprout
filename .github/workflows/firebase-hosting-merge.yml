@@ -69,7 +69,7 @@ jobs:
             exit 1
           fi
           firebase deploy \
-            --project="sprout-prod" \
+            --project="nelsongrey-sprout-prod" \
             --token="$FIREBASE_TOKEN" \
             --only=hosting \
             --message="Production hosting deploy from main — ${{ github.sha }}" \

@@ -72,7 +72,7 @@ jobs:
 
       # TODO(infra): replace with this org's real Workload Identity
       # Federation pool/provider + a github-actions-deploy service account
-      # created in sprout-dev, once sprout-dev/staging/prod exist — matches
+      # created in nelsongrey-sprout-dev, once nelsongrey-sprout-dev/staging/prod exist — matches
       # wishlist-wizard-functions' short-lived-credential pattern (no
       # long-lived key, per this org's iam.disableServiceAccountKeyCreation
       # policy). Until then this step will fail; deploy manually with

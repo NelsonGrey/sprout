@@ -1,5 +1,5 @@
 // GENERATED PLACEHOLDER — replace by running `flutterfire configure` once
-// the real sprout-dev/sprout-staging/sprout-prod Firebase projects exist.
+// the real nelsongrey-sprout-dev/nelsongrey-sprout-staging/nelsongrey-sprout-prod Firebase projects exist.
 // Environment is selected at build time via `--dart-define=FIREBASE_ENV=dev
 // |staging|prod` (matches wishlist-wizard's pattern), defaulting to 'dev' so
 // an unconfigured build fails safe toward throwaway data rather than prod.

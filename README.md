@@ -89,9 +89,9 @@ Three environments, one Firebase project each — see `.firebaserc`:
 
 | Alias | Project ID |
 | --- | --- |
-| development (default) | `sprout-dev` |
-| staging | `sprout-staging` |
-| production | `sprout-prod` |
+| development (default) | `nelsongrey-sprout-dev` |
+| staging | `nelsongrey-sprout-staging` |
+| production | `nelsongrey-sprout-prod` |
 
 Config is split across `firebase.json` (staging/prod-strength CSP, used as
 the default) and `firebase.dev.json` (lighter headers, used for local/dev

@@ -1,7 +1,7 @@
 name: "Deploy Web App to Staging (Hosting)"
 
 # Branch promotion path: develop → staging → main. Push to staging deploys
-# the compiled dist/ bundle to Firebase Hosting on sprout-staging. Business
+# the compiled dist/ bundle to Firebase Hosting on nelsongrey-sprout-staging. Business
 # logic lives in Firebase Functions (private, server-side). This workflow
 # publishes only the compiled dist/ bundle; no source is exposed.
 
@@ -67,7 +67,7 @@ jobs:
             exit 1
           fi
           firebase deploy \
-            --project="sprout-staging" \
+            --project="nelsongrey-sprout-staging" \
             --token="$FIREBASE_TOKEN" \
             --only=hosting \
             --message="Staging hosting deploy from staging — ${{ github.sha }}" \

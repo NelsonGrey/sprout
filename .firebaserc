@@ -1,9 +1,9 @@
 {
   "projects": {
-    "default": "sprout-dev",
-    "production": "sprout-prod",
-    "staging": "sprout-staging",
-    "development": "sprout-dev"
+    "default": "nelsongrey-sprout-dev",
+    "production": "nelsongrey-sprout-prod",
+    "staging": "nelsongrey-sprout-staging",
+    "development": "nelsongrey-sprout-dev"
   },
   "targets": {},
   "etags": {}
