@@ -67,4 +67,40 @@ abstract class SchoolRepository {
     required String email,
     String? displayName,
   });
+
+  /// A classroom owner proposing that a colleague (an existing active
+  /// teacher member of the school) get 'award' or 'manage' access to
+  /// specifically their classroom. Grants nothing by itself — only an
+  /// admin/super_admin approving it (see [approveAccessRequest]) actually
+  /// grants access, keeping "only admins/super_admins grant access" intact.
+  Future<void> createAccessRequest({
+    required String schoolId,
+    required String contextId,
+    required String contextName,
+    required String requestedByUid,
+    required String requestedByDisplayName,
+    required String targetUid,
+    required String targetDisplayName,
+    required ClassroomGrantLevel level,
+  });
+
+  Stream<List<AccessRequest>> pendingAccessRequestsForSchool(String schoolId);
+
+  /// A classroom's own request history (any status) — for the owner's view
+  /// on the classroom detail screen.
+  Stream<List<AccessRequest>> accessRequestsForContext(String contextId);
+
+  /// Approving is the only thing that actually grants access: updates the
+  /// request's status and writes the requested level onto the target's
+  /// classroomGrants.
+  Future<void> approveAccessRequest(AccessRequest request, {required String resolvedByUid});
+
+  Future<void> declineAccessRequest(String requestId, {required String resolvedByUid});
+
+  /// The requester cancelling their own still-pending request.
+  Future<void> cancelAccessRequest(String requestId);
+
+  /// Admin-direct revoke — grants shouldn't be permanent with no way back
+  /// short of editing Firestore.
+  Future<void> revokeClassroomGrant(String schoolId, String uid, String contextId);
 }

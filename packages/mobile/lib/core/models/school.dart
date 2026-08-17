@@ -155,6 +155,20 @@ class AccessRequest {
   final AccessRequestStatus status;
   final String? resolvedByUid;
 
+  AccessRequest copyWith({AccessRequestStatus? status, String? resolvedByUid}) => AccessRequest(
+        id: id,
+        schoolId: schoolId,
+        contextId: contextId,
+        contextName: contextName,
+        requestedByUid: requestedByUid,
+        requestedByDisplayName: requestedByDisplayName,
+        targetUid: targetUid,
+        targetDisplayName: targetDisplayName,
+        level: level,
+        status: status ?? this.status,
+        resolvedByUid: resolvedByUid ?? this.resolvedByUid,
+      );
+
   static AccessRequestStatus statusFromJson(String value) => _accessRequestStatusFromJson(value);
   static ClassroomGrantLevel levelFromJson(String value) => _grantLevelFromJson(value);
 }

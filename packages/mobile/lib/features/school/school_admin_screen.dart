@@ -358,10 +358,45 @@ class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
                                     ? member.email
                                     : member.displayName,
                               ),
-                              subtitle: Text(
-                                member.role == MemberRole.teacher
-                                    ? 'Teacher — ${_scopeSummary(member.scope)}'
-                                    : _roleLabel(member.role),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    member.role == MemberRole.teacher
+                                        ? 'Teacher — ${_scopeSummary(member.scope)}'
+                                        : _roleLabel(member.role),
+                                  ),
+                                  ...member.classroomGrants.entries.map(
+                                    (entry) => Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Classroom ${entry.key} — ${entry.value.name}',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        IconButton(
+                                          key: Key(
+                                            'revokeGrantButton-${member.uid}-${entry.key}',
+                                          ),
+                                          icon: const Icon(
+                                            Icons.close,
+                                            size: 14,
+                                          ),
+                                          tooltip:
+                                              'Revoke access to classroom ${entry.key}',
+                                          onPressed: () => widget
+                                              .schoolRepository
+                                              .revokeClassroomGrant(
+                                                widget.schoolId,
+                                                member.uid,
+                                                entry.key,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -405,6 +440,62 @@ class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
+                  StreamBuilder<List<AccessRequest>>(
+                    stream: widget.schoolRepository
+                        .pendingAccessRequestsForSchool(widget.schoolId),
+                    builder: (context, requestsSnapshot) {
+                      final requests =
+                          requestsSnapshot.data ?? const <AccessRequest>[];
+                      if (requests.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Access requests',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          ...requests.map(
+                            (request) => Card(
+                              child: ListTile(
+                                title: Text(
+                                  '${request.requestedByDisplayName} wants ${request.targetDisplayName} to have '
+                                  '${request.level.name} access to ${request.contextName}',
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextButton(
+                                      key: Key(
+                                        'approveRequestButton-${request.id}',
+                                      ),
+                                      onPressed: () => widget.schoolRepository
+                                          .approveAccessRequest(
+                                            request,
+                                            resolvedByUid: widget.user.uid,
+                                          ),
+                                      child: const Text('Approve'),
+                                    ),
+                                    TextButton(
+                                      key: Key(
+                                        'declineRequestButton-${request.id}',
+                                      ),
+                                      onPressed: () => widget.schoolRepository
+                                          .declineAccessRequest(
+                                            request.id,
+                                            resolvedByUid: widget.user.uid,
+                                          ),
+                                      child: const Text('Decline'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      );
+                    },
+                  ),
                   StreamBuilder<List<PendingInvite>>(
                     stream: widget.schoolRepository.pendingInvitesForSchool(
                       widget.schoolId,

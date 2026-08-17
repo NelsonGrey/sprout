@@ -12,6 +12,8 @@ class FirestoreSchoolRepository implements SchoolRepository {
   CollectionReference<Map<String, dynamic>> get _schools => _firestore.collection('schools');
   CollectionReference<Map<String, dynamic>> get _invites =>
       _firestore.collection('pendingInvites');
+  CollectionReference<Map<String, dynamic>> get _accessRequests =>
+      _firestore.collection('accessRequests');
 
   String _normalizeEmail(String email) => email.trim().toLowerCase();
 
@@ -210,6 +212,7 @@ class FirestoreSchoolRepository implements SchoolRepository {
       scope: data['scope'] != null
           ? MemberScope.fromJson(Map<String, dynamic>.from(data['scope'] as Map))
           : null,
+      classroomGrants: SchoolMember.classroomGrantsFromJson(data['classroomGrants']),
     );
   }
 
@@ -222,5 +225,96 @@ class FirestoreSchoolRepository implements SchoolRepository {
           ? MemberScope.fromJson(Map<String, dynamic>.from(data['scope'] as Map))
           : null,
     );
+  }
+
+  AccessRequest _accessRequestFromData(String id, Map<String, dynamic> data) {
+    return AccessRequest(
+      id: id,
+      schoolId: data['schoolId'] as String,
+      contextId: data['contextId'] as String,
+      contextName: data['contextName'] as String,
+      requestedByUid: data['requestedByUid'] as String,
+      requestedByDisplayName: data['requestedByDisplayName'] as String,
+      targetUid: data['targetUid'] as String,
+      targetDisplayName: data['targetDisplayName'] as String,
+      level: AccessRequest.levelFromJson(data['level'] as String),
+      status: AccessRequest.statusFromJson(data['status'] as String),
+      resolvedByUid: data['resolvedByUid'] as String?,
+    );
+  }
+
+  @override
+  Future<void> createAccessRequest({
+    required String schoolId,
+    required String contextId,
+    required String contextName,
+    required String requestedByUid,
+    required String requestedByDisplayName,
+    required String targetUid,
+    required String targetDisplayName,
+    required ClassroomGrantLevel level,
+  }) async {
+    await _accessRequests.doc().set({
+      'schoolId': schoolId,
+      'contextId': contextId,
+      'contextName': contextName,
+      'requestedByUid': requestedByUid,
+      'requestedByDisplayName': requestedByDisplayName,
+      'targetUid': targetUid,
+      'targetDisplayName': targetDisplayName,
+      'level': level.name,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Stream<List<AccessRequest>> pendingAccessRequestsForSchool(String schoolId) {
+    return _accessRequests
+        .where('schoolId', isEqualTo: schoolId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => _accessRequestFromData(doc.id, doc.data())).toList());
+  }
+
+  @override
+  Stream<List<AccessRequest>> accessRequestsForContext(String contextId) {
+    return _accessRequests
+        .where('contextId', isEqualTo: contextId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => _accessRequestFromData(doc.id, doc.data())).toList());
+  }
+
+  @override
+  Future<void> approveAccessRequest(AccessRequest request, {required String resolvedByUid}) async {
+    final batch = _firestore.batch();
+    batch.update(_accessRequests.doc(request.id), {
+      'status': 'approved',
+      'resolvedByUid': resolvedByUid,
+      'resolvedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_schools.doc(request.schoolId).collection('members').doc(request.targetUid), {
+      'classroomGrants.${request.contextId}': request.level.name,
+    });
+    await batch.commit();
+  }
+
+  @override
+  Future<void> declineAccessRequest(String requestId, {required String resolvedByUid}) async {
+    await _accessRequests.doc(requestId).update({
+      'status': 'declined',
+      'resolvedByUid': resolvedByUid,
+      'resolvedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> cancelAccessRequest(String requestId) => _accessRequests.doc(requestId).delete();
+
+  @override
+  Future<void> revokeClassroomGrant(String schoolId, String uid, String contextId) async {
+    await _schools.doc(schoolId).collection('members').doc(uid).update({
+      'classroomGrants.$contextId': FieldValue.delete(),
+    });
   }
 }

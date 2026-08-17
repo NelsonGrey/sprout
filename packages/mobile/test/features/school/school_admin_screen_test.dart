@@ -179,4 +179,77 @@ void main() {
     final member = await repository.myMembership(schoolId, _teacher.uid).first;
     expect(member?.scope?.type, MemberScopeType.school);
   });
+
+  testWidgets('lets an admin approve or decline a pending access request', (tester) async {
+    final repository = FakeSchoolRepository();
+    final schoolId = await _foundSchool(repository, _superAdmin);
+    await _addMember(repository, schoolId, _delegate, MemberRole.admin);
+    await _addMember(repository, schoolId, _teacher, MemberRole.teacher, scope: const MemberScope.own());
+    await repository.createAccessRequest(
+      schoolId: schoolId,
+      contextId: 'ctx-1',
+      contextName: '4th Grade',
+      requestedByUid: 'owner-1',
+      requestedByDisplayName: 'Ms. Owner',
+      targetUid: _teacher.uid,
+      targetDisplayName: _teacher.displayName!,
+      level: ClassroomGrantLevel.manage,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: SchoolAdminScreen(schoolRepository: repository, user: _delegate, schoolId: schoolId),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Ms. Owner wants Ms. Lord to have manage access to 4th Grade'), findsOneWidget);
+
+    final requests = await repository.pendingAccessRequestsForSchool(schoolId).first;
+    final requestId = requests.first.id;
+
+    final approveButton =
+        tester.widget<TextButton>(find.byKey(Key('approveRequestButton-$requestId')));
+    approveButton.onPressed!();
+    await tester.pumpAndSettle();
+
+    final member = await repository.myMembership(schoolId, _teacher.uid).first;
+    expect(member?.classroomGrants['ctx-1'], ClassroomGrantLevel.manage);
+
+    final remaining = await repository.pendingAccessRequestsForSchool(schoolId).first;
+    expect(remaining, isEmpty);
+  });
+
+  testWidgets("lets an admin revoke a teacher's classroom grant", (tester) async {
+    final repository = FakeSchoolRepository();
+    final schoolId = await _foundSchool(repository, _superAdmin);
+    await _addMember(repository, schoolId, _delegate, MemberRole.admin);
+    await _addMember(repository, schoolId, _teacher, MemberRole.teacher, scope: const MemberScope.own());
+    await repository.approveAccessRequest(
+      AccessRequest(
+        id: 'req-1',
+        schoolId: schoolId,
+        contextId: 'ctx-1',
+        contextName: '4th Grade',
+        requestedByUid: 'owner-1',
+        requestedByDisplayName: 'Ms. Owner',
+        targetUid: _teacher.uid,
+        targetDisplayName: _teacher.displayName!,
+        level: ClassroomGrantLevel.manage,
+        status: AccessRequestStatus.pending,
+      ),
+      resolvedByUid: _delegate.uid,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: SchoolAdminScreen(schoolRepository: repository, user: _delegate, schoolId: schoolId),
+    ));
+    await tester.pumpAndSettle();
+
+    final revokeButton =
+        tester.widget<IconButton>(find.byKey(Key('revokeGrantButton-${_teacher.uid}-ctx-1')));
+    revokeButton.onPressed!();
+    await tester.pumpAndSettle();
+
+    final member = await repository.myMembership(schoolId, _teacher.uid).first;
+    expect(member?.classroomGrants.containsKey('ctx-1'), isFalse);
+  });
 }

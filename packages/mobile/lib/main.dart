@@ -75,6 +75,7 @@ class SproutApp extends StatelessWidget {
             if (user == null) return const SizedBox.shrink();
             return ClassroomDetailScreen(
               classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
               user: user,
               contextId: state.pathParameters['contextId']!,
             );
@@ -87,6 +88,7 @@ class SproutApp extends StatelessWidget {
             if (user == null) return const SizedBox.shrink();
             return StudentLedgerScreen(
               classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
               user: user,
               contextId: state.pathParameters['contextId']!,
               studentId: state.pathParameters['studentId']!,

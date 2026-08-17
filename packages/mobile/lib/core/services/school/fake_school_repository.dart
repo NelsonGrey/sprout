@@ -8,6 +8,7 @@ class FakeSchoolRepository implements SchoolRepository {
   final Map<String, Map<String, SchoolMember>> _membersBySchool = {};
   final Map<String, List<String>> _schoolIdsByUser = {};
   final Map<String, PendingInvite> _invitesByEmail = {};
+  final Map<String, AccessRequest> _accessRequestsById = {};
 
   int _nextId = 0;
   String _newId() => 'fake-school-${_nextId++}';
@@ -118,5 +119,84 @@ class FakeSchoolRepository implements SchoolRepository {
     );
     _schoolIdsByUser.putIfAbsent(uid, () => []).add(invite.schoolId);
     _invitesByEmail.remove(normalized);
+  }
+
+  @override
+  Future<void> createAccessRequest({
+    required String schoolId,
+    required String contextId,
+    required String contextName,
+    required String requestedByUid,
+    required String requestedByDisplayName,
+    required String targetUid,
+    required String targetDisplayName,
+    required ClassroomGrantLevel level,
+  }) async {
+    final id = _newId();
+    _accessRequestsById[id] = AccessRequest(
+      id: id,
+      schoolId: schoolId,
+      contextId: contextId,
+      contextName: contextName,
+      requestedByUid: requestedByUid,
+      requestedByDisplayName: requestedByDisplayName,
+      targetUid: targetUid,
+      targetDisplayName: targetDisplayName,
+      level: level,
+      status: AccessRequestStatus.pending,
+    );
+  }
+
+  @override
+  Stream<List<AccessRequest>> pendingAccessRequestsForSchool(String schoolId) {
+    return Stream.value(
+      _accessRequestsById.values
+          .where((r) => r.schoolId == schoolId && r.status == AccessRequestStatus.pending)
+          .toList(),
+    );
+  }
+
+  @override
+  Stream<List<AccessRequest>> accessRequestsForContext(String contextId) {
+    return Stream.value(
+      _accessRequestsById.values.where((r) => r.contextId == contextId).toList(),
+    );
+  }
+
+  @override
+  Future<void> approveAccessRequest(AccessRequest request, {required String resolvedByUid}) async {
+    _accessRequestsById[request.id] = request.copyWith(
+      status: AccessRequestStatus.approved,
+      resolvedByUid: resolvedByUid,
+    );
+    final member = _membersBySchool[request.schoolId]?[request.targetUid];
+    if (member != null) {
+      _membersBySchool[request.schoolId]![request.targetUid] = member.copyWith(
+        classroomGrants: {...member.classroomGrants, request.contextId: request.level},
+      );
+    }
+  }
+
+  @override
+  Future<void> declineAccessRequest(String requestId, {required String resolvedByUid}) async {
+    final request = _accessRequestsById[requestId];
+    if (request == null) return;
+    _accessRequestsById[requestId] = request.copyWith(
+      status: AccessRequestStatus.declined,
+      resolvedByUid: resolvedByUid,
+    );
+  }
+
+  @override
+  Future<void> cancelAccessRequest(String requestId) async {
+    _accessRequestsById.remove(requestId);
+  }
+
+  @override
+  Future<void> revokeClassroomGrant(String schoolId, String uid, String contextId) async {
+    final member = _membersBySchool[schoolId]?[uid];
+    if (member == null) return;
+    final updatedGrants = {...member.classroomGrants}..remove(contextId);
+    _membersBySchool[schoolId]![uid] = member.copyWith(classroomGrants: updatedGrants);
   }
 }
