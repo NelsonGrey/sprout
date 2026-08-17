@@ -53,7 +53,8 @@ export interface Student {
   /** Set when a student leaves the school (graduated) via the Archive
    * Students flow — presence means archived. Balance and transaction
    * history are untouched; archived students just drop out of active
-   * classroom/roster views. No un-archive UI exists yet. */
+   * classroom/roster views. Cleared by restoreStudents when a returning
+   * student is reassigned to a current classroom. */
   archivedAt?: Date;
   createdAt: Date;
 }

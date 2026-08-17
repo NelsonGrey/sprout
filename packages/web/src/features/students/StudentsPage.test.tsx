@@ -13,6 +13,7 @@ vi.mock('../../lib/firestore', () => ({
   bulkMoveStudents: vi.fn(),
   bulkDeleteStudents: vi.fn(),
   bulkArchiveStudents: vi.fn(),
+  restoreStudents: vi.fn(),
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -192,5 +193,51 @@ describe('StudentsPage', () => {
     fireEvent.click(screen.getAllByText('Delete')[1]);
 
     expect(firestoreLib.bulkDeleteStudents).toHaveBeenCalledWith(['student-1']);
+  });
+
+  it('disables Restore… with nothing selected', () => {
+    setup();
+    render(<StudentsPage user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Select Alex Rivera'));
+    expect((screen.getByText('Restore…').closest('button') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('disables Restore… when the selection includes a non-archived student', () => {
+    const archived = { ...student, id: 'student-2', firstName: 'Jamie', lastName: 'Chen', displayName: 'Jamie Chen', studentId: 'STU-2', archivedAt: new Date() };
+    setup({ students: [student, archived] });
+    render(<StudentsPage user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Show archived'));
+    fireEvent.click(screen.getByLabelText('Select Alex Rivera'));
+    fireEvent.click(screen.getByLabelText('Select Jamie Chen'));
+
+    expect((screen.getByText('Restore…').closest('button') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('restores a purely-archived selection into a chosen classroom', async () => {
+    const archived = { ...student, id: 'student-2', firstName: 'Jamie', lastName: 'Chen', displayName: 'Jamie Chen', studentId: 'STU-2', archivedAt: new Date() };
+    setup({ students: [archived] });
+    vi.mocked(firestoreLib.restoreStudents).mockResolvedValue(undefined);
+    render(<StudentsPage user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Show archived'));
+    fireEvent.click(screen.getByLabelText('Select Jamie Chen'));
+
+    const restoreButton = screen.getByText('Restore…').closest('button') as HTMLButtonElement;
+    expect(restoreButton.disabled).toBe(false);
+    fireEvent.click(restoreButton);
+
+    const select = screen.getAllByRole('combobox')[0];
+    fireEvent.change(select, { target: { value: 'ctx-2' } });
+    fireEvent.click(screen.getByText('Restore'));
+
+    expect(firestoreLib.restoreStudents).toHaveBeenCalledWith(['student-2'], {
+      contextId: 'ctx-2',
+      ownerUids: ['teacher-2'],
+      schoolId: 'school-1',
+      gradeLevel: '5',
+      contextName: '5th Grade',
+    });
   });
 });

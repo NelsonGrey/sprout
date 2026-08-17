@@ -5,6 +5,7 @@ import {
   bulkArchiveStudents,
   bulkDeleteStudents,
   bulkMoveStudents,
+  restoreStudents,
   updateStudent,
   useClassroomsInSchool,
   useStudentsInSchool,
@@ -48,6 +49,9 @@ export function StudentsPage({ user }: { user: User }) {
   const [moving, setMoving] = useState(false);
   const [deletingOpen, setDeletingOpen] = useState(false);
   const [archivingOpen, setArchivingOpen] = useState(false);
+  const [restoringOpen, setRestoringOpen] = useState(false);
+  const [restoreTargetContextId, setRestoreTargetContextId] = useState('');
+  const [restoring, setRestoring] = useState(false);
 
   const visibleStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -64,6 +68,12 @@ export function StudentsPage({ user }: { user: User }) {
     });
     return sorted;
   }, [students, search, sortKey, showArchived]);
+
+  const selectedStudents = visibleStudents.filter((s) => selected.has(s.id));
+  // Restore only makes sense for a purely-archived selection — applying it
+  // to an active student would be a harmless no-op reassignment, but a
+  // confusingly-labeled one.
+  const canRestore = selectedStudents.length > 0 && selectedStudents.every((s) => s.archivedAt);
 
   const toggleSelected = (id: string) => {
     setSelected((prev) => {
@@ -117,6 +127,22 @@ export function StudentsPage({ user }: { user: User }) {
   const handleBulkArchive = async () => {
     await bulkArchiveStudents([...selected]);
     setSelected(new Set());
+  };
+
+  const handleBulkRestore = async () => {
+    const target = classrooms.find((c) => c.id === restoreTargetContextId);
+    if (!target || restoring || selected.size === 0) return;
+    setRestoring(true);
+    await restoreStudents([...selected], {
+      contextId: target.id,
+      ownerUids: target.ownerUids,
+      schoolId: target.schoolId,
+      gradeLevel: target.gradeLevel,
+      contextName: target.name,
+    });
+    setSelected(new Set());
+    setRestoringOpen(false);
+    setRestoring(false);
   };
 
   if (!isAtLeastAdmin) {
@@ -185,6 +211,9 @@ export function StudentsPage({ user }: { user: User }) {
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setArchivingOpen(true)}>
               Archive
+            </Button>
+            <Button size="sm" variant="secondary" disabled={!canRestore} onClick={() => setRestoringOpen(true)}>
+              Restore…
             </Button>
             <Button size="sm" variant="danger" onClick={() => setDeletingOpen(true)}>
               Delete
@@ -306,10 +335,36 @@ export function StudentsPage({ user }: { user: User }) {
         open={archivingOpen}
         onOpenChange={setArchivingOpen}
         title={`Archive ${selected.size} student${selected.size === 1 ? '' : 's'}?`}
-        description="Archived students keep their balance and history but leave active classroom/roster views. There's no undo button yet — ask to have it cleared directly if this was a mistake."
+        description="Archived students keep their balance and history but leave active classroom/roster views. Use Restore… to bring one back later."
         confirmLabel="Archive"
         onConfirm={handleBulkArchive}
       />
+
+      <ConfirmDialog
+        open={restoringOpen}
+        onOpenChange={(open) => {
+          setRestoringOpen(open);
+          if (!open) setRestoreTargetContextId('');
+        }}
+        title={`Restore ${selected.size} student${selected.size === 1 ? '' : 's'}?`}
+        description="They'll be reassigned to the classroom you choose below and become active again."
+        confirmLabel="Restore"
+        confirmDisabled={!restoreTargetContextId || restoring}
+        onConfirm={handleBulkRestore}
+      >
+        <select
+          value={restoreTargetContextId}
+          onChange={(e) => setRestoreTargetContextId(e.target.value)}
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink"
+        >
+          <option value="">Choose a classroom…</option>
+          {classrooms.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </ConfirmDialog>
     </div>
   );
 }

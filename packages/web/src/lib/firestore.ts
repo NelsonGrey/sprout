@@ -377,6 +377,31 @@ export async function bulkArchiveStudents(studentIds: string[]): Promise<void> {
   }
 }
 
+/** Un-archives a returning student. Their old classroom is almost always
+ * gone or repurposed by the time they come back, so restoring always
+ * reassigns them to a currently-chosen classroom in the same write that
+ * clears archivedAt — never just a bare flag flip. */
+export async function restoreStudents(
+  studentIds: string[],
+  target: { contextId: string; ownerUids: string[]; schoolId?: string; gradeLevel?: string; contextName?: string },
+): Promise<void> {
+  for (let i = 0; i < studentIds.length; i += BULK_CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
+      batch.update(doc(db, 'students', id), {
+        contextIds: [target.contextId],
+        contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
+        ownerUids: target.ownerUids,
+        ...(target.schoolId ? { schoolId: target.schoolId } : {}),
+        ...(target.gradeLevel ? { gradeLevel: target.gradeLevel } : {}),
+        ...(target.contextName ? { contextName: target.contextName } : {}),
+        archivedAt: deleteField(),
+      });
+    }
+    await batch.commit();
+  }
+}
+
 export function useTransactions(contextId: string, studentId: string): LedgerTransaction[] {
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
 
