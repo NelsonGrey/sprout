@@ -14,8 +14,14 @@ service cloud.firestore {
     // (rather than joined via a per-student `contexts` map lookup) so every
     // rule here is a plain array-contains check — no cross-document get()
     // needed, which keeps rule evaluation cheap even under bulk writes.
+    // get('ownerUids', []), not the bare data.ownerUids: ownerUids is
+    // always set on write, but this helper backs LIST-query read rules
+    // (e.g. a classroom roster filtered by contextIds, not ownerUids) —
+    // for those, direct dot access on a field the query itself doesn't
+    // constrain throws "Property ownerUids is undefined" and silently
+    // denies the whole query, not just this OR-branch.
     function isContextOwner(data) {
-      return isAuthenticated() && request.auth.uid in data.ownerUids;
+      return isAuthenticated() && request.auth.uid in data.get('ownerUids', []);
     }
 
     // ---- School security matrix (BR-1.3.11/1.3.12) ----
@@ -283,9 +289,18 @@ service cloud.firestore {
     // schoolId/gradeLevel fields (every creation path uses exactly one
     // context today).
     match /students/{studentId} {
+      // get('schoolId', null), not the bare .schoolId used elsewhere in
+      // this match block — those are all single-document write rules,
+      // fine with direct field access. This is the read rule, which also
+      // governs LIST queries (e.g. a classroom roster filtered by
+      // contextIds, not by schoolId) — for those, schoolId isn't
+      // constrained by the query itself, and direct dot access throws
+      // "Property schoolId is undefined" for any caller relying on this
+      // second branch (hasAwardAccess) rather than isContextOwner, which
+      // silently denies the whole query instead of just this branch.
       allow read: if isContextOwner(resource.data) || (
-        resource.data.schoolId != null
-          && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, resource.data.contextIds[0])
+        resource.data.get('schoolId', null) != null
+          && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, resource.data.contextIds[0])
       ) || isLinkedStudentSelf(resource.data);
       // Three ways to update, and exactly one of them may ever change
       // linkedUid to a new non-null value:
@@ -343,10 +358,16 @@ service cloud.firestore {
     // is a separate app-layer write to the target's classroomGrants,
     // already permitted by the existing members update rule above.
     match /accessRequests/{requestId} {
+      // get('schoolId', null): schoolId is always set by the create rule
+      // below, but LIST queries here are commonly filtered by contextId
+      // (useAccessRequestsForContext), not schoolId — direct dot access
+      // on a field the query itself doesn't constrain throws "Property
+      // schoolId is undefined" and silently denies the whole query for
+      // this branch, same issue as the students read rule above.
       allow read: if isAuthenticated() && (
-        isAtLeastAdmin(resource.data.schoolId)
-          || resource.data.requestedByUid == request.auth.uid
-          || resource.data.targetUid == request.auth.uid
+        isAtLeastAdmin(resource.data.get('schoolId', null))
+          || resource.data.get('requestedByUid', null) == request.auth.uid
+          || resource.data.get('targetUid', null) == request.auth.uid
       );
       allow create: if isAuthenticated()
         && request.resource.data.requestedByUid == request.auth.uid

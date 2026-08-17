@@ -31,6 +31,14 @@
         { "fieldPath": "schoolId", "order": "ASCENDING" },
         { "fieldPath": "gradeLevel", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contextIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "displayName", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
