@@ -38,14 +38,31 @@ service cloud.firestore {
       return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
         && get(memberPath(schoolId, request.auth.uid)).data.role in ['admin', 'super_admin'];
     }
-    // The CRUD (not just read) visibility a teacher gets beyond the
-    // classrooms they directly own, per the scope an admin configured for
-    // them: every classroom in the school ('school', the PE/art/music
-    // case), classrooms in specific grade levels ('grades'), or nothing
-    // extra ('own', the default — falls through to isContextOwner
-    // instead). Admins/super_admins always have full access across their
-    // whole school, not just a grade match.
-    function hasScopedAccess(schoolId, gradeLevel) {
+    // A specific classroom's delegated access, layered on top of the
+    // grade/whole-school scope below: a teacher can additionally be
+    // granted 'award' (record earn/spend only) or 'manage' (full
+    // rename/delete/roster rights, same as the owner) on one classroom via
+    // classroomGrants on their member doc. The only way that field gets
+    // written is an admin approving an accessRequests doc (see below) or
+    // an admin editing it directly — "only admins/super_admins grant
+    // access" stays true; an owner can only propose. Uses
+    // Map.get(key, default) rather than direct indexing since
+    // classroomGrants is sparse — most teachers have none at all, and
+    // direct indexing would deny (error) if the field is missing entirely,
+    // not just if this one contextId's key is missing.
+    function classroomGrantLevel(schoolId, contextId) {
+      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
+        ? get(memberPath(schoolId, request.auth.uid)).data.get('classroomGrants', {}).get(contextId, null)
+        : null;
+    }
+    // The "record an award" visibility a teacher gets beyond classrooms
+    // they own directly: every classroom in the school ('school', the
+    // PE/art/music case), classrooms in specific grade levels ('grades'),
+    // or one specific classroom they've been delegated ('award' alone is
+    // enough — 'manage' implies it too). Deliberately does NOT include
+    // rename/delete rights — see hasManageAccess below for that narrower
+    // tier. Admins/super_admins always have full access.
+    function hasAwardAccess(schoolId, gradeLevel, contextId) {
       return isAtLeastAdmin(schoolId) || (
         isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)) &&
         get(memberPath(schoolId, request.auth.uid)).data.role == 'teacher' && (
@@ -53,7 +70,16 @@ service cloud.firestore {
           (get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'grades'
             && gradeLevel in get(memberPath(schoolId, request.auth.uid)).data.scope.grades)
         )
-      );
+      ) || classroomGrantLevel(schoolId, contextId) in ['award', 'manage'];
+    }
+    // Full manage rights (rename/delete/roster changes) on one classroom.
+    // Grade/whole-school SCOPE alone never satisfies this — a PE-scope
+    // teacher must never get the same rename/delete rights as the
+    // classroom's real owner. Only true ownership (checked separately via
+    // isContextOwner), an admin, or an explicit 'manage'-level classroom
+    // grant gets this.
+    function hasManageAccess(schoolId, contextId) {
+      return isAtLeastAdmin(schoolId) || classroomGrantLevel(schoolId, contextId) == 'manage';
     }
     // A brand-new user claiming a pending invite that an admin already
     // configured for their (provider-verified) email — the only way a
@@ -107,7 +133,14 @@ service cloud.firestore {
           (request.resource.data.role in ['super_admin', 'admin'] && isSuperAdmin(schoolId)) ||
           (request.resource.data.role == 'teacher' && isAtLeastAdmin(schoolId)) ||
           (request.resource.data.role == 'super_admin' && isFoundingSuperAdmin(schoolId, memberUid)) ||
-          (isOwner(memberUid) && isValidInviteClaim(schoolId, request.resource.data));
+          // classroomGrants is never part of an invite claim — it's only
+          // ever set by an admin approving an accessRequests doc (or
+          // editing it directly). Without this guard, a self-claiming
+          // invitee could attach classroomGrants to their own new member
+          // doc and grant themselves manage rights on any classroom,
+          // bypassing the request/approval flow entirely.
+          (isOwner(memberUid) && isValidInviteClaim(schoolId, request.resource.data)
+            && !('classroomGrants' in request.resource.data));
         allow update: if isAtLeastAdmin(schoolId)
           && resource.data.role == 'teacher' && request.resource.data.role == 'teacher';
         // Removing a super_admin is only allowed while another one exists —
@@ -140,30 +173,39 @@ service cloud.firestore {
     // A classroom or family unit. Only 'classroom' is populated today —
     // 'family' is additive later, not a migration (see TRD §3.2). schoolId
     // is optional: absent for standalone teacher-created classrooms and for
-    // every family context; when present, scoped school members can act on
-    // it (full CRUD, not just read) even without being a direct owner (see
-    // hasScopedAccess above).
+    // every family context; when present, scoped/delegated school members
+    // can read/award without being a direct owner (hasAwardAccess), but
+    // only the owner, an admin, or a 'manage'-level delegate can
+    // rename/delete/create (hasManageAccess) — see both above.
     match /contexts/{contextId} {
-      allow read, update, delete: if isContextOwner(resource.data) || (
+      allow read: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
-          && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
+          && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, contextId)
       );
-      allow create: if isContextOwner(request.resource.data) || (
-        request.resource.data.schoolId != null
-          && hasScopedAccess(request.resource.data.schoolId, request.resource.data.gradeLevel)
+      allow update, delete: if isContextOwner(resource.data) || (
+        resource.data.schoolId != null
+          && hasManageAccess(resource.data.schoolId, contextId)
       );
+      // Narrowed: a grade/whole-school-scoped teacher never spontaneously
+      // creates a classroom — only the owner (naming themselves) or a
+      // school admin. A classroom grant can't apply here either way,
+      // since it names an existing contextId that doesn't exist yet at
+      // create time.
+      allow create: if isContextOwner(request.resource.data)
+        || (request.resource.data.schoolId != null && isAtLeastAdmin(request.resource.data.schoolId));
 
       // An immutable earn/spend ledger entry against one student in this
-      // context — no update/delete once created.
+      // context — no update/delete once created. Recording an earn/spend
+      // IS "granting an award," so award-level access is sufficient.
       match /transactions/{transactionId} {
         allow read: if isContextOwner(resource.data) || (
           resource.data.schoolId != null
-            && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
+            && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, contextId)
         );
         allow create: if (
           isContextOwner(request.resource.data) || (
             request.resource.data.schoolId != null
-              && hasScopedAccess(request.resource.data.schoolId, request.resource.data.gradeLevel)
+              && hasAwardAccess(request.resource.data.schoolId, request.resource.data.gradeLevel, contextId)
           )
         )
           && request.resource.data.amountCents is int
@@ -176,16 +218,71 @@ service cloud.firestore {
     // nested under contexts) so a student can belong to more than one
     // context later (classroom + family) without restructuring. schoolId
     // is denormalized from the owning classroom at creation time so scoped
-    // access doesn't need an extra context lookup.
+    // access doesn't need an extra context lookup. contextIds[0] is used
+    // for the manage/grant check below — same single-context assumption
+    // the rest of this file already makes implicitly via the singular
+    // schoolId/gradeLevel fields (every creation path uses exactly one
+    // context today).
     match /students/{studentId} {
-      allow read, update, delete: if isContextOwner(resource.data) || (
+      allow read: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
-          && hasScopedAccess(resource.data.schoolId, resource.data.gradeLevel)
+          && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, resource.data.contextIds[0])
       );
-      allow create: if isContextOwner(request.resource.data) || (
-        request.resource.data.schoolId != null
-          && hasScopedAccess(request.resource.data.schoolId, request.resource.data.gradeLevel)
+      allow update, delete: if isContextOwner(resource.data) || (
+        resource.data.schoolId != null
+          && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
       );
+      // A manage-level classroom grant lets that teacher add students to
+      // the one classroom they've been delegated (roster management is
+      // exactly what "manage" means) — a bare award grant, or grade/
+      // whole-school scope, does not.
+      allow create: if isContextOwner(request.resource.data)
+        || (request.resource.data.schoolId != null
+          && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextIds[0]));
+    }
+
+    // A classroom owner's request that a colleague (an existing active
+    // teacher member of the school — checked below, not just assumed by
+    // the UI) get 'award' or 'manage' access to specifically their
+    // classroom. Only an admin/super_admin can resolve it (approve or
+    // decline) — the requester can only propose, never grant. Approving
+    // is a separate app-layer write to the target's classroomGrants,
+    // already permitted by the existing members update rule above.
+    match /accessRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        isAtLeastAdmin(resource.data.schoolId)
+          || resource.data.requestedByUid == request.auth.uid
+          || resource.data.targetUid == request.auth.uid
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.requestedByUid == request.auth.uid
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.level in ['award', 'manage']
+        && exists(/databases/$(database)/documents/contexts/$(request.resource.data.contextId))
+        && isContextOwner(get(/databases/$(database)/documents/contexts/$(request.resource.data.contextId)).data)
+        && get(/databases/$(database)/documents/contexts/$(request.resource.data.contextId)).data.schoolId
+          == request.resource.data.schoolId
+        && exists(memberPath(request.resource.data.schoolId, request.resource.data.targetUid))
+        && get(memberPath(request.resource.data.schoolId, request.resource.data.targetUid)).data.role == 'teacher';
+      // Only status (pending -> approved|declined) and resolvedByUid/
+      // resolvedAt may change; every other field is frozen, and a
+      // resolved request can never be re-resolved.
+      allow update: if isAtLeastAdmin(resource.data.schoolId)
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'declined']
+        && request.resource.data.schoolId == resource.data.schoolId
+        && request.resource.data.contextId == resource.data.contextId
+        && request.resource.data.requestedByUid == resource.data.requestedByUid
+        && request.resource.data.targetUid == resource.data.targetUid
+        && request.resource.data.level == resource.data.level
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.resolvedByUid == request.auth.uid;
+      // The requester can cancel their own request while still pending;
+      // an admin can remove any request (pending or resolved) as
+      // housekeeping.
+      allow delete: if isAtLeastAdmin(resource.data.schoolId)
+        || (resource.data.requestedByUid == request.auth.uid && resource.data.status == 'pending');
     }
 
     // Deny by default — no other collection exists yet.

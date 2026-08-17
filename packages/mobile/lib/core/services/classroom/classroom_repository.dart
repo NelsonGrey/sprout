@@ -71,7 +71,10 @@ abstract class ClassroomRepository {
   });
 
   /// Atomically creates the transaction and updates the student's
-  /// [Student.balanceCents] — never two separate writes.
+  /// [Student.balanceCents] — never two separate writes. [schoolId]/
+  /// [gradeLevel] should mirror the student's, if any — denormalized so a
+  /// scoped/delegated (not just owning) teacher's award actually satisfies
+  /// the transactions rule's hasAwardAccess check.
   Future<void> recordTransaction({
     required String contextId,
     required String studentId,
@@ -80,5 +83,7 @@ abstract class ClassroomRepository {
     required String reason,
     required String createdByUid,
     required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
   });
 }

@@ -144,6 +144,8 @@ class FakeClassroomRepository implements ClassroomRepository {
     required String reason,
     required String createdByUid,
     required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
   }) async {
     final transaction = LedgerTransaction(
       id: _newId(),

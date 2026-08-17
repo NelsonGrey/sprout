@@ -311,7 +311,7 @@ describe('firestore.rules — school security matrix', () => {
     await assertSucceeds(deleteDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`)));
   });
 
-  it('lets an admin (not just a super admin) act on any classroom/student in their school', async () => {
+  it('lets an admin (not just a super admin) act on, rename, and delete any classroom/student in their school', async () => {
     await seedSchoolWithAdmins();
     await seedClassroomAndStudent('4');
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
@@ -329,9 +329,18 @@ describe('firestore.rules — school security matrix', () => {
         gradeLevel: '4',
       }),
     );
+    // Full manage rights, unlike a merely award-scoped teacher below.
+    await assertSucceeds(
+      setDoc(
+        doc(delegate, 'students/school-student-1'),
+        { displayName: 'Jamie R.' },
+        { merge: true },
+      ),
+    );
+    await assertSucceeds(deleteDoc(doc(delegate, 'contexts/school-ctx-1')));
   });
 
-  it('lets a grade-scoped teacher CRUD classrooms/students in that grade but not other grades', async () => {
+  it('gives a grade-scoped teacher award-only access in that grade (read + record, never rename/delete) and nothing outside it', async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
     await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
@@ -347,8 +356,8 @@ describe('firestore.rules — school security matrix', () => {
     const gradeTeacher = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
     await assertSucceeds(getDoc(doc(gradeTeacher, 'contexts/school-ctx-1')));
     await assertSucceeds(getDoc(doc(gradeTeacher, 'students/school-student-1')));
-    // CRUD, not just read: can record a transaction for a student they
-    // don't own but whose grade is in scope.
+    // Award access: can record a transaction for a student they don't own
+    // but whose grade is in scope.
     await assertSucceeds(
       setDoc(doc(gradeTeacher, 'contexts/school-ctx-1/transactions/tx-scoped'), {
         studentId: 'school-student-1',
@@ -359,6 +368,27 @@ describe('firestore.rules — school security matrix', () => {
         createdAt: new Date(),
         schoolId: SCHOOL_ID,
         gradeLevel: '4',
+      }),
+    );
+    // But never manage rights — grade scope alone must not let them
+    // rename/delete a classroom or student they don't own, and must not
+    // let them create a new one in that grade either.
+    await assertFails(
+      setDoc(doc(gradeTeacher, 'students/school-student-1'), { displayName: 'Hacked' }, { merge: true }),
+    );
+    await assertFails(deleteDoc(doc(gradeTeacher, 'contexts/school-ctx-1')));
+    // Naming themselves as owner would still succeed (that's the ordinary
+    // "create my own classroom" path, unrelated to scope) — the narrowed
+    // rule specifically blocks using grade scope to create a classroom
+    // for someone else, which admin/super_admin creation would use.
+    await assertFails(
+      setDoc(doc(gradeTeacher, 'contexts/school-new-ctx'), {
+        type: 'classroom',
+        name: 'Spontaneous Classroom',
+        ownerUids: [OWNER_UID],
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+        createdAt: new Date(),
       }),
     );
 
@@ -376,7 +406,7 @@ describe('firestore.rules — school security matrix', () => {
     await assertFails(getDoc(doc(gradeTeacher, 'contexts/school-ctx-1')));
   });
 
-  it('lets a whole-school-scoped teacher (PE/art/music) CRUD any classroom/student', async () => {
+  it('gives a whole-school-scoped teacher (PE/art/music) award-only access everywhere, never rename/delete', async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
     await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${SPECIALIST_UID}`), {
@@ -404,6 +434,94 @@ describe('firestore.rules — school security matrix', () => {
         gradeLevel: 'K',
       }),
     );
+    await assertFails(
+      setDoc(doc(specialist, 'students/school-student-1'), { displayName: 'Renamed' }, { merge: true }),
+    );
+    await assertFails(deleteDoc(doc(specialist, 'students/school-student-1')));
+  });
+
+  it("lets a teacher with a 'manage' classroom grant rename/delete/add-students on exactly that classroom, and nothing else", async () => {
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Mr. Delegate-Teacher',
+      email: 'delegate-teacher@example.com',
+      scope: { type: 'own' },
+      classroomGrants: { 'school-ctx-1': 'manage' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+    await seedClassroomAndStudent('4');
+    // A second, ungranted classroom to prove the grant doesn't leak.
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await setDoc(doc(owner, 'contexts/school-ctx-2'), {
+      type: 'classroom',
+      name: 'Grade 4 Other Room',
+      ownerUids: [OWNER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+
+    const grantee = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(grantee, 'students/school-student-1'), { displayName: 'Jamie R.' }, { merge: true }),
+    );
+    await assertSucceeds(
+      setDoc(doc(grantee, 'students/granted-new-student'), {
+        displayName: 'New Kid',
+        balanceCents: 0,
+        contexts: { 'school-ctx-1': { type: 'classroom', role: 'member' } },
+        contextIds: ['school-ctx-1'],
+        ownerUids: [OWNER_UID],
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+        createdAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(grantee, 'contexts/school-ctx-1'), { name: 'Renamed' }, { merge: true }),
+    );
+    // Not the other classroom, even though it's the same grade/school.
+    await assertFails(getDoc(doc(grantee, 'contexts/school-ctx-2')));
+    await assertFails(
+      setDoc(doc(grantee, 'contexts/school-ctx-2'), { name: 'Hijacked' }, { merge: true }),
+    );
+  });
+
+  it("lets a teacher with an 'award' classroom grant record transactions but never rename/delete", async () => {
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Ms. Award-Only',
+      email: 'award-only@example.com',
+      scope: { type: 'own' },
+      classroomGrants: { 'school-ctx-1': 'award' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+    await seedClassroomAndStudent('4');
+
+    const grantee = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
+    await assertSucceeds(getDoc(doc(grantee, 'contexts/school-ctx-1')));
+    await assertSucceeds(
+      setDoc(doc(grantee, 'contexts/school-ctx-1/transactions/tx-award-grant'), {
+        studentId: 'school-student-1',
+        type: 'earn',
+        amountCents: 150,
+        reason: 'Nice work',
+        createdByUid: GRADE_TEACHER_UID,
+        createdAt: new Date(),
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(grantee, 'students/school-student-1'), { displayName: 'Nope' }, { merge: true }),
+    );
+    await assertFails(deleteDoc(doc(grantee, 'contexts/school-ctx-1')));
   });
 
   it('denies an own-scope teacher reading a classroom they do not own, even in the same school', async () => {
@@ -450,6 +568,59 @@ describe('firestore.rules — school security matrix', () => {
       }),
     );
     await assertSucceeds(deleteDoc(doc(newTeacher, `pendingInvites/${NEW_TEACHER_EMAIL}`)));
+  });
+
+  it('denies a self-claiming invitee from attaching classroomGrants to their own new member doc', async () => {
+    // Regression test for a real hole found during review: without the
+    // explicit guard on the invite-claim branch, a new teacher could grant
+    // themselves manage rights on any classroom the moment they sign up,
+    // completely bypassing the owner-request/admin-approval flow.
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `pendingInvites/${NEW_TEACHER_EMAIL}`), {
+      schoolId: SCHOOL_ID,
+      role: 'teacher',
+      scope: { type: 'own' },
+      invitedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+
+    const newTeacherUid = 'self-escalating-teacher';
+    const newTeacher = testEnv
+      .authenticatedContext(newTeacherUid, { email: NEW_TEACHER_EMAIL })
+      .firestore();
+    await assertFails(
+      setDoc(doc(newTeacher, `schools/${SCHOOL_ID}/members/${newTeacherUid}`), {
+        role: 'teacher',
+        displayName: 'Self Escalator',
+        email: NEW_TEACHER_EMAIL,
+        scope: { type: 'own' },
+        classroomGrants: { 'some-classroom': 'manage' },
+        addedByUid: newTeacherUid,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it("lets an admin directly edit a teacher's classroomGrants (e.g. approving an access request)", async () => {
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'own' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+
+    await assertSucceeds(
+      setDoc(
+        doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`),
+        { classroomGrants: { 'school-ctx-1': 'manage' } },
+        { merge: true },
+      ),
+    );
   });
 
   it('lets a school admin read and cancel a pending invite they created', async () => {
@@ -504,5 +675,230 @@ describe('firestore.rules — school security matrix', () => {
         createdAt: new Date(),
       }),
     );
+  });
+});
+
+describe('firestore.rules — accessRequests', () => {
+  const SUPER_ADMIN_UID = 'ar-super-admin-1';
+  const DELEGATE_UID = 'ar-delegate-1';
+  const OWNER_TEACHER_UID = 'ar-owner-teacher-1';
+  const TARGET_TEACHER_UID = 'ar-target-teacher-1';
+  const OUTSIDER_UID = 'ar-outsider-1';
+  const SCHOOL_ID = 'ar-school-1';
+  const CONTEXT_ID = 'ar-ctx-1';
+
+  async function seedSchoolOwnerAndTarget() {
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}`), {
+      name: 'Riverside Elementary',
+      founderUid: SUPER_ADMIN_UID,
+      superAdminCount: 1,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`), {
+      role: 'super_admin',
+      displayName: 'Principal',
+      email: 'principal@example.com',
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${DELEGATE_UID}`), {
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'delegate@example.com',
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${OWNER_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Owning Teacher',
+      email: 'owner-teacher@example.com',
+      scope: { type: 'own' },
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${TARGET_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Target Teacher',
+      email: 'target-teacher@example.com',
+      scope: { type: 'own' },
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, `contexts/${CONTEXT_ID}`), {
+      type: 'classroom',
+      name: '4th Grade',
+      ownerUids: [OWNER_TEACHER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+  }
+
+  function pendingRequestData(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      schoolId: SCHOOL_ID,
+      contextId: CONTEXT_ID,
+      contextName: '4th Grade',
+      requestedByUid: OWNER_TEACHER_UID,
+      requestedByDisplayName: 'Owning Teacher',
+      targetUid: TARGET_TEACHER_UID,
+      targetDisplayName: 'Target Teacher',
+      level: 'manage',
+      status: 'pending',
+      createdAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  it('lets the classroom owner create a pending request naming an existing teacher', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertSucceeds(setDoc(doc(owner, 'accessRequests/req-1'), pendingRequestData()));
+  });
+
+  it('denies creating a request for a classroom the caller does not own', async () => {
+    await seedSchoolOwnerAndTarget();
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(outsider, 'accessRequests/req-2'),
+        pendingRequestData({ requestedByUid: OUTSIDER_UID }),
+      ),
+    );
+  });
+
+  it('denies spoofing requestedByUid as someone else', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(owner, 'accessRequests/req-3'),
+        pendingRequestData({ requestedByUid: DELEGATE_UID }),
+      ),
+    );
+  });
+
+  it("denies a request whose schoolId doesn't match the classroom's real school", async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(owner, 'accessRequests/req-4'),
+        pendingRequestData({ schoolId: 'some-other-school' }),
+      ),
+    );
+  });
+
+  it("denies a request targeting a uid that isn't an existing teacher member", async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(owner, 'accessRequests/req-5'),
+        pendingRequestData({ targetUid: 'not-a-member' }),
+      ),
+    );
+  });
+
+  it('denies an owner naming themselves as the target', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(owner, 'accessRequests/req-6'),
+        pendingRequestData({ targetUid: OWNER_TEACHER_UID }),
+      ),
+    );
+  });
+
+  it('lets an admin approve a pending request, but denies the requester (non-admin) resolving it themselves', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, 'accessRequests/req-7'), pendingRequestData());
+
+    await assertFails(
+      setDoc(
+        doc(owner, 'accessRequests/req-7'),
+        { status: 'approved', resolvedByUid: OWNER_TEACHER_UID, resolvedAt: new Date() },
+        { merge: true },
+      ),
+    );
+
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(delegate, 'accessRequests/req-7'),
+        { status: 'approved', resolvedByUid: DELEGATE_UID, resolvedAt: new Date() },
+        { merge: true },
+      ),
+    );
+  });
+
+  it('denies re-resolving an already-resolved request', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, 'accessRequests/req-8'), pendingRequestData());
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(
+      doc(delegate, 'accessRequests/req-8'),
+      { status: 'declined', resolvedByUid: DELEGATE_UID, resolvedAt: new Date() },
+      { merge: true },
+    );
+
+    await assertFails(
+      setDoc(
+        doc(delegate, 'accessRequests/req-8'),
+        { status: 'approved', resolvedByUid: DELEGATE_UID, resolvedAt: new Date() },
+        { merge: true },
+      ),
+    );
+  });
+
+  it('denies an admin changing a frozen field (level) alongside the status update', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, 'accessRequests/req-9'), pendingRequestData());
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+
+    await assertFails(
+      setDoc(
+        doc(delegate, 'accessRequests/req-9'),
+        { status: 'approved', level: 'award', resolvedByUid: DELEGATE_UID, resolvedAt: new Date() },
+        { merge: true },
+      ),
+    );
+  });
+
+  it('lets the requester cancel their own pending request, but not once resolved', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, 'accessRequests/req-10'), pendingRequestData());
+    await assertSucceeds(deleteDoc(doc(owner, 'accessRequests/req-10')));
+
+    await setDoc(doc(owner, 'accessRequests/req-11'), pendingRequestData());
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(
+      doc(delegate, 'accessRequests/req-11'),
+      { status: 'approved', resolvedByUid: DELEGATE_UID, resolvedAt: new Date() },
+      { merge: true },
+    );
+    await assertFails(deleteDoc(doc(owner, 'accessRequests/req-11')));
+    await assertSucceeds(deleteDoc(doc(delegate, 'accessRequests/req-11')));
+  });
+
+  it('lets an admin, the requester, and the target read a request; denies an outsider', async () => {
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, 'accessRequests/req-12'), pendingRequestData());
+
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    const target = testEnv.authenticatedContext(TARGET_TEACHER_UID).firestore();
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertSucceeds(getDoc(doc(delegate, 'accessRequests/req-12')));
+    await assertSucceeds(getDoc(doc(owner, 'accessRequests/req-12')));
+    await assertSucceeds(getDoc(doc(target, 'accessRequests/req-12')));
+    await assertFails(getDoc(doc(outsider, 'accessRequests/req-12')));
   });
 });

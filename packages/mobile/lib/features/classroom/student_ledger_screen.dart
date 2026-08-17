@@ -42,7 +42,7 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
     super.dispose();
   }
 
-  Future<void> _record(TransactionType type, List<String> ownerUids) async {
+  Future<void> _record(TransactionType type, List<String> ownerUids, Student? student) async {
     final amount = double.tryParse(_amountController.text.trim());
     final reason = _reasonController.text.trim();
     if (amount == null || amount <= 0 || reason.isEmpty || _recording) return;
@@ -55,6 +55,8 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
       reason: reason,
       createdByUid: widget.user.uid,
       ownerUids: ownerUids,
+      schoolId: student?.schoolId,
+      gradeLevel: student?.gradeLevel,
     );
     _amountController.clear();
     _reasonController.clear();
@@ -190,8 +192,9 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
                         Expanded(
                           child: ElevatedButton(
                             key: const Key('earnButton'),
-                            onPressed:
-                                _recording ? null : () => _record(TransactionType.earn, ownerUids),
+                            onPressed: _recording
+                                ? null
+                                : () => _record(TransactionType.earn, ownerUids, student),
                             child: const Text('Earn'),
                           ),
                         ),
@@ -201,7 +204,7 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
                             key: const Key('spendButton'),
                             onPressed: _recording
                                 ? null
-                                : () => _record(TransactionType.spend, ownerUids),
+                                : () => _record(TransactionType.spend, ownerUids, student),
                             child: const Text('Spend'),
                           ),
                         ),

@@ -174,6 +174,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     required String reason,
     required String createdByUid,
     required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
   }) async {
     // A WriteBatch (not runTransaction) is enough here: FieldValue.increment
     // is itself atomic and this write doesn't depend on reading the current
@@ -190,6 +192,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       'createdByUid': createdByUid,
       'createdAt': FieldValue.serverTimestamp(),
       'ownerUids': ownerUids,
+      if (schoolId != null) 'schoolId': schoolId,
+      if (gradeLevel != null) 'gradeLevel': gradeLevel,
     });
 
     final delta = type == TransactionType.earn ? amountCents : -amountCents;

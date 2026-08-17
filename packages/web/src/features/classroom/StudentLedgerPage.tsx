@@ -50,6 +50,8 @@ export function StudentLedgerPage({
       reason: reason.trim(),
       createdByUid: user.uid,
       ownerUids,
+      schoolId: student?.schoolId,
+      gradeLevel: student?.gradeLevel,
     });
     setAmount('');
     setReason('');

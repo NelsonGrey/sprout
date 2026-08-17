@@ -249,6 +249,8 @@ export async function recordTransaction({
   reason,
   createdByUid,
   ownerUids,
+  schoolId,
+  gradeLevel,
 }: {
   contextId: string;
   studentId: string;
@@ -257,6 +259,12 @@ export async function recordTransaction({
   reason: string;
   createdByUid: string;
   ownerUids: string[];
+  // Denormalized from the student, so a scoped/delegated (not just
+  // owning) teacher's award actually satisfies the transactions rule's
+  // hasAwardAccess check — without these, only direct owners could ever
+  // record a transaction, regardless of scope/classroomGrants.
+  schoolId?: string;
+  gradeLevel?: string;
 }): Promise<void> {
   // A batch (not a runTransaction) is enough: increment() is itself atomic
   // and this write doesn't depend on reading the current balance first.
@@ -271,6 +279,8 @@ export async function recordTransaction({
     createdByUid,
     createdAt: serverTimestamp(),
     ownerUids,
+    ...(schoolId ? { schoolId } : {}),
+    ...(gradeLevel ? { gradeLevel } : {}),
   });
 
   const delta = type === 'earn' ? amountCents : -amountCents;

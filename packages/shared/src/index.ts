@@ -69,12 +69,21 @@ export type MemberRole = 'super_admin' | 'admin' | 'teacher';
  * classroom in the school (the PE/art/music case). */
 export type MemberScope = { type: 'own' } | { type: 'grades'; grades: string[] } | { type: 'school' };
 
+/** 'award' = record earn/spend transactions only; 'manage' = full
+ * rename/delete/roster rights, same as the classroom's owner. Only ever
+ * set via an admin approving an AccessRequest (or an admin editing it
+ * directly) — an owner can only propose, never grant directly. */
+export type ClassroomGrantLevel = 'award' | 'manage';
+
 export interface SchoolMember {
   uid: string;
   role: MemberRole;
   displayName: string;
   email: string;
   scope?: MemberScope;
+  /** contextId -> grant level, for classrooms this member doesn't own and
+   * whose grade/scope wouldn't otherwise cover (see ClassroomGrantLevel). */
+  classroomGrants?: Record<string, ClassroomGrantLevel>;
   addedByUid: string;
   createdAt: Date;
 }
@@ -88,4 +97,28 @@ export interface PendingInvite {
   scope?: MemberScope;
   invitedByUid: string;
   createdAt: Date;
+}
+
+export type AccessRequestStatus = 'pending' | 'approved' | 'declined';
+
+/** A classroom owner's request that a colleague (an existing active
+ * teacher member of the school) get 'award' or 'manage' access to
+ * specifically their classroom — fulfilled only by an admin/super_admin,
+ * who writes the resulting grant onto the target's classroomGrants. Keeps
+ * "only admins/super_admins grant access" intact: an owner can only
+ * propose. */
+export interface AccessRequest {
+  id: string;
+  schoolId: string;
+  contextId: string;
+  contextName: string;
+  requestedByUid: string;
+  requestedByDisplayName: string;
+  targetUid: string;
+  targetDisplayName: string;
+  level: ClassroomGrantLevel;
+  status: AccessRequestStatus;
+  createdAt: Date;
+  resolvedByUid?: string;
+  resolvedAt?: Date;
 }
