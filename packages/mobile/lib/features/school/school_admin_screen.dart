@@ -44,10 +44,15 @@ String _roleLabel(MemberRole role) {
 /// Mirrors web's ScopePicker: own/grades/school radios, grade chips when
 /// "Specific grades" is selected.
 class _ScopePicker extends StatelessWidget {
-  const _ScopePicker({required this.value, required this.onChanged});
+  const _ScopePicker({
+    required this.value,
+    required this.onChanged,
+    required this.gradeOptions,
+  });
 
   final MemberScope value;
   final ValueChanged<MemberScope> onChanged;
+  final List<String> gradeOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +79,7 @@ class _ScopePicker extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16, bottom: 8),
             child: Wrap(
               spacing: 6,
-              children: _gradeOptions.map((grade) {
+              children: gradeOptions.map((grade) {
                 final checked = value.grades.contains(grade);
                 return FilterChip(
                   label: Text(grade),
@@ -127,6 +132,7 @@ class SchoolAdminScreen extends StatefulWidget {
 
 class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
   String? _schoolName;
+  List<String>? _schoolEnabledGrades;
 
   final _inviteEmailController = TextEditingController();
   MemberScope _inviteScope = const MemberScope.own();
@@ -143,7 +149,12 @@ class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
   void initState() {
     super.initState();
     widget.schoolRepository.getSchool(widget.schoolId).then((school) {
-      if (mounted) setState(() => _schoolName = school?.name);
+      if (mounted) {
+        setState(() {
+          _schoolName = school?.name;
+          _schoolEnabledGrades = school?.enabledGrades;
+        });
+      }
     });
   }
 
@@ -329,6 +340,8 @@ class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
                                       value: _scopeDraft,
                                       onChanged: (v) =>
                                           setState(() => _scopeDraft = v),
+                                      gradeOptions:
+                                          _schoolEnabledGrades ?? _gradeOptions,
                                     ),
                                     Row(
                                       children: [
@@ -554,6 +567,7 @@ class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
                           _ScopePicker(
                             value: _inviteScope,
                             onChanged: (v) => setState(() => _inviteScope = v),
+                            gradeOptions: _schoolEnabledGrades ?? _gradeOptions,
                           ),
                           ElevatedButton(
                             key: const Key('sendTeacherInviteButton'),

@@ -37,7 +37,15 @@ function roleLabel(role: MemberRole): string {
   return 'Teacher';
 }
 
-function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: MemberScope) => void }) {
+function ScopePicker({
+  value,
+  onChange,
+  gradeOptions,
+}: {
+  value: MemberScope;
+  onChange: (v: MemberScope) => void;
+  gradeOptions: string[];
+}) {
   return (
     <div className="flex flex-col gap-2 text-left text-sm">
       <label className="flex items-center gap-2">
@@ -58,7 +66,7 @@ function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: Me
       </label>
       {value.type === 'grades' && (
         <div className="ml-6 flex flex-wrap gap-2">
-          {GRADE_OPTIONS.map((grade) => {
+          {gradeOptions.map((grade) => {
             const checked = value.grades.includes(grade);
             return (
               <button
@@ -100,6 +108,7 @@ function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: Me
 export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: string }) {
   const [, navigate] = useLocation();
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [schoolEnabledGrades, setSchoolEnabledGrades] = useState<string[] | undefined>(undefined);
   const membership = useMyMembership(schoolId, user.uid);
   const members = useMembersOfSchool(schoolId);
   const invites = usePendingInvitesForSchool(schoolId);
@@ -117,10 +126,19 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
   const [schoolNameDraft, setSchoolNameDraft] = useState('');
   const [editingScopeUid, setEditingScopeUid] = useState<string | null>(null);
   const [scopeDraft, setScopeDraft] = useState<MemberScope>({ type: 'own' });
+  const [editingGrades, setEditingGrades] = useState(false);
+  const [gradesDraft, setGradesDraft] = useState<string[]>(GRADE_OPTIONS);
 
   useEffect(() => {
-    getSchool(schoolId).then((school) => setSchoolName(school?.name ?? null));
+    getSchool(schoolId).then((school) => {
+      setSchoolName(school?.name ?? null);
+      setSchoolEnabledGrades(school?.enabledGrades);
+    });
   }, [schoolId]);
+
+  const activeGrades = schoolEnabledGrades
+    ? GRADE_OPTIONS.filter((g) => schoolEnabledGrades.includes(g))
+    : GRADE_OPTIONS;
 
   const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
   const isSuperAdmin = membership?.role === 'super_admin';
@@ -189,6 +207,18 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
     setEditingScopeUid(null);
   };
 
+  const startEditingGrades = () => {
+    setGradesDraft(activeGrades);
+    setEditingGrades(true);
+  };
+
+  const saveGrades = async () => {
+    const ordered = GRADE_OPTIONS.filter((g) => gradesDraft.includes(g));
+    await updateSchool(schoolId, { enabledGrades: ordered });
+    setSchoolEnabledGrades(ordered);
+    setEditingGrades(false);
+  };
+
   return (
     <div className="flex min-h-full flex-col text-ink">
       {renamingSchool ? (
@@ -255,7 +285,7 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                   editingScopeUid === member.uid ? (
                     <li key={member.uid} className="rounded-lg border border-border px-4 py-3">
                       <p className="mb-2">{member.displayName || member.email}</p>
-                      <ScopePicker value={scopeDraft} onChange={setScopeDraft} />
+                      <ScopePicker value={scopeDraft} onChange={setScopeDraft} gradeOptions={activeGrades} />
                       <div className="mt-3 flex gap-2">
                         <Button size="sm" onClick={() => saveScope(member.uid)}>
                           Save
@@ -384,11 +414,57 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Email"
                 />
-                <ScopePicker value={inviteScope} onChange={setInviteScope} />
+                <ScopePicker value={inviteScope} onChange={setInviteScope} gradeOptions={activeGrades} />
                 <Button onClick={handleInviteTeacher} disabled={inviting}>
                   Send Invite
                 </Button>
               </div>
+            </section>
+
+            <section className="rounded-lg border border-border p-4">
+              <h2 className="mb-3 text-sm font-semibold text-ink-muted">Grades offered</h2>
+              {editingGrades ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {GRADE_OPTIONS.map((grade) => {
+                      const checked = gradesDraft.includes(grade);
+                      return (
+                        <button
+                          key={grade}
+                          type="button"
+                          onClick={() =>
+                            setGradesDraft((prev) =>
+                              checked ? prev.filter((g) => g !== grade) : [...prev, grade],
+                            )
+                          }
+                          className={`rounded border px-2 py-1 text-xs ${checked ? 'border-brand bg-brand/20' : 'border-border'}`}
+                        >
+                          {grade}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" onClick={saveGrades}>
+                      Save
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setEditingGrades(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-ink-muted">
+                    {activeGrades.length === GRADE_OPTIONS.length ? 'All grades' : activeGrades.join(', ')}
+                  </p>
+                  {isSuperAdmin && (
+                    <Button size="sm" variant="secondary" className="mt-3" onClick={startEditingGrades}>
+                      Edit
+                    </Button>
+                  )}
+                </>
+              )}
             </section>
 
             {isSuperAdmin && (

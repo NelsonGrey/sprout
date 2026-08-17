@@ -43,10 +43,14 @@ class FakeSchoolRepository implements SchoolRepository {
   Future<School?> getSchool(String schoolId) async => _schools[schoolId];
 
   @override
-  Future<void> updateSchool(String schoolId, {String? name}) async {
+  Future<void> updateSchool(String schoolId, {String? name, List<String>? enabledGrades}) async {
     final existing = _schools[schoolId];
     if (existing == null) return;
-    _schools[schoolId] = School(id: existing.id, name: name ?? existing.name);
+    _schools[schoolId] = School(
+      id: existing.id,
+      name: name ?? existing.name,
+      enabledGrades: enabledGrades ?? existing.enabledGrades,
+    );
   }
 
   @override

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { ClassroomsPage } from './ClassroomsPage';
 import * as firestoreLib from '../../lib/firestore';
@@ -14,6 +14,7 @@ vi.mock('../../lib/firestore', () => ({
 vi.mock('../../lib/school', () => ({
   useSchoolIdsForUser: vi.fn(),
   useMyMembership: vi.fn(),
+  getSchool: vi.fn(),
 }));
 
 vi.mock('wouter', () => ({
@@ -23,6 +24,11 @@ vi.mock('wouter', () => ({
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
 
 describe('ClassroomsPage', () => {
+  beforeEach(() => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue(null);
+  });
+
+
   it('shows empty state with no classrooms', () => {
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
@@ -162,6 +168,30 @@ describe('ClassroomsPage', () => {
         gradeLevel: undefined,
       }),
     );
+  });
+
+  it("limits the grade select to the school's enabled grades", async () => {
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'admin@example.com',
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({
+      id: 'school-1',
+      name: 'Riverside Elementary',
+      createdAt: new Date(),
+      enabledGrades: ['PK', 'K', '1', '2', '3', '4', '5'],
+    });
+    render(<ClassroomsPage user={user} />);
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '5' })).toBeTruthy());
+    expect(screen.queryByRole('option', { name: '6' })).toBeNull();
   });
 
   it('gives a plain admin whole-school visibility despite having no scope field', () => {

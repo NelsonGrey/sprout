@@ -20,9 +20,9 @@ abstract class SchoolRepository {
 
   Future<School?> getSchool(String schoolId);
 
-  /// Name only — no delete (rules permit it, but there's no cascade-delete
-  /// for the school's contexts/students/members/invites).
-  Future<void> updateSchool(String schoolId, {String? name});
+  /// Name and enabledGrades only — no delete (rules permit it, but there's
+  /// no cascade-delete for the school's contexts/students/members/invites).
+  Future<void> updateSchool(String schoolId, {String? name, List<String>? enabledGrades});
 
   /// Null if [uid] isn't a member of [schoolId].
   Stream<SchoolMember?> myMembership(String schoolId, String uid);

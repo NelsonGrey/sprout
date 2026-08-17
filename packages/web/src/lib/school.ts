@@ -173,14 +173,18 @@ export async function getSchool(schoolId: string): Promise<School | null> {
     id: snapshot.id,
     name: data.name,
     ...(data.nces ? { nces: data.nces } : {}),
+    ...(data.enabledGrades ? { enabledGrades: data.enabledGrades } : {}),
     createdAt: data.createdAt?.toDate() ?? new Date(),
   };
 }
 
-/** Name only — no nces edit (no UI surface displays those fields for
- * editing today) and no delete (rules permit it, but there's no
+/** Name and enabledGrades only — no nces edit (no UI surface displays those
+ * fields for editing today) and no delete (rules permit it, but there's no
  * cascade-delete for the school's contexts/students/members/invites). */
-export async function updateSchool(schoolId: string, updates: { name?: string }): Promise<void> {
+export async function updateSchool(
+  schoolId: string,
+  updates: { name?: string; enabledGrades?: string[] },
+): Promise<void> {
   await updateDoc(doc(db, 'schools', schoolId), { ...updates });
 }
 

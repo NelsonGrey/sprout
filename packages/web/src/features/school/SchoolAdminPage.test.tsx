@@ -314,6 +314,92 @@ describe('SchoolAdminPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/students/archive');
   });
 
+  it('shows "All grades" for an admin, but only a super admin can Edit', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByText('All grades')).toBeTruthy());
+
+    // firestore.rules gates schools/{schoolId} updates to isSuperAdmin, not
+    // isAtLeastAdmin — a plain admin must not see an Edit control that
+    // would fail server-side.
+    expect(screen.queryByText('Edit')).toBeNull();
+  });
+
+  it('lets a super admin disable grades and saves the enabled subset', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({
+      id: 'school-1',
+      name: 'Riverside Elementary',
+      createdAt: new Date(),
+      enabledGrades: ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+    });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'super-admin-1',
+      role: 'super_admin',
+      displayName: 'Principal Lee',
+      email: 'lee@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.updateSchool).mockResolvedValue(undefined);
+
+    render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByText('All grades')).toBeTruthy());
+
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('9'));
+    fireEvent.click(screen.getByText('10'));
+    fireEvent.click(screen.getByText('11'));
+    fireEvent.click(screen.getByText('12'));
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(schoolLib.updateSchool).toHaveBeenCalledWith('school-1', {
+      enabledGrades: ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8'],
+    });
+    await waitFor(() => expect(screen.getByText('PK, K, 1, 2, 3, 4, 5, 6, 7, 8')).toBeTruthy());
+  });
+
+  it("only offers the school's enabled grades in the teacher scope picker", async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({
+      id: 'school-1',
+      name: 'Riverside Elementary',
+      createdAt: new Date(),
+      enabledGrades: ['PK', 'K', '1', '2', '3', '4', '5'],
+    });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText('Specific grades'));
+    expect(screen.getByText('5')).toBeTruthy();
+    expect(screen.queryByText('6')).toBeNull();
+  });
+
   it('lets a delegate admin edit a teacher scope', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({

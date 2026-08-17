@@ -84,6 +84,13 @@ export interface School {
   /** Set when the founder picked a match from the NCES public-school
    * lookup rather than typing a name manually — informational only. */
   nces?: { ncesId: string; street: string; city: string; state: string; zip: string };
+  /** Which of the full PK-12 grade range this school actually offers —
+   * filters the grade chips/dropdowns shown to admins for this school
+   * (teacher scope picker, classroom creation). Absent means all grades
+   * are enabled, so every existing school's behavior is unchanged until
+   * an admin explicitly trims it. Not a security boundary — gradeLevel
+   * stays free-text and unenforced at the rules layer regardless. */
+  enabledGrades?: string[];
   createdAt: Date;
 }
 

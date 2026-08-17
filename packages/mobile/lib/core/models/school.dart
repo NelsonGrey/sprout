@@ -3,10 +3,15 @@
 /// are rules bootstrap/invariant plumbing, not app-facing — deliberately
 /// not modeled here; [SchoolRepository] writes them directly.
 class School {
-  const School({required this.id, required this.name});
+  const School({required this.id, required this.name, this.enabledGrades});
 
   final String id;
   final String name;
+
+  /// Which of the full PK-12 grade range this school offers — filters the
+  /// grade chips shown in the teacher scope picker. Null means all grades
+  /// are enabled. Set only via the web admin UI today.
+  final List<String>? enabledGrades;
 }
 
 /// Hierarchical delegation: only a super_admin can create/remove another

@@ -104,12 +104,20 @@ class FirestoreSchoolRepository implements SchoolRepository {
     final snapshot = await _schools.doc(schoolId).get();
     final data = snapshot.data();
     if (data == null) return null;
-    return School(id: snapshot.id, name: data['name'] as String);
+    return School(
+      id: snapshot.id,
+      name: data['name'] as String,
+      enabledGrades:
+          data['enabledGrades'] != null ? List<String>.from(data['enabledGrades'] as List) : null,
+    );
   }
 
   @override
-  Future<void> updateSchool(String schoolId, {String? name}) async {
-    await _schools.doc(schoolId).update({if (name != null) 'name': name});
+  Future<void> updateSchool(String schoolId, {String? name, List<String>? enabledGrades}) async {
+    await _schools.doc(schoolId).update({
+      if (name != null) 'name': name,
+      if (enabledGrades != null) 'enabledGrades': enabledGrades,
+    });
   }
 
   @override

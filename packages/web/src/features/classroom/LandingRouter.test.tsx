@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { LandingRouter } from './LandingRouter';
 import * as firestoreLib from '../../lib/firestore';
@@ -16,6 +16,7 @@ vi.mock('../../lib/firestore', () => ({
 vi.mock('../../lib/school', () => ({
   useSchoolIdsForUser: vi.fn(),
   useMyMembership: vi.fn(),
+  getSchool: vi.fn(),
 }));
 
 vi.mock('../../lib/firebase', () => ({
@@ -42,6 +43,10 @@ const linkedStudent = {
 };
 
 describe('LandingRouter', () => {
+  beforeEach(() => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue(null);
+  });
+
   it('shows the balance view for a linked student with no staff access', () => {
     vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue(linkedStudent);
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);

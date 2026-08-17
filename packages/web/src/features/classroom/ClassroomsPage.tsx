@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { createClassroom, useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
-import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
+import { getSchool, useMyMembership, useSchoolIdsForUser } from '../../lib/school';
 import { GRADE_OPTIONS } from '../school/SchoolAdminPage';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
@@ -40,7 +40,18 @@ export function ClassroomsPage({ user }: { user: User }) {
   const [creating, setCreating] = useState(false);
   const [addToSchool, setAddToSchool] = useState(true);
   const [gradeLevel, setGradeLevel] = useState('');
+  const [schoolGrades, setSchoolGrades] = useState<string[] | undefined>(undefined);
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!schoolId) {
+      setSchoolGrades(undefined);
+      return;
+    }
+    getSchool(schoolId).then((school) => setSchoolGrades(school?.enabledGrades));
+  }, [schoolId]);
+
+  const gradeOptions = schoolGrades ?? GRADE_OPTIONS;
 
   const handleCreate = async () => {
     const trimmed = name.trim();
@@ -109,7 +120,7 @@ export function ClassroomsPage({ user }: { user: User }) {
                 className="ml-2 rounded-lg border border-border bg-surface px-2 py-1 text-ink"
               >
                 <option value="">— Grade —</option>
-                {GRADE_OPTIONS.map((grade) => (
+                {gradeOptions.map((grade) => (
                   <option key={grade} value={grade}>
                     {grade}
                   </option>
