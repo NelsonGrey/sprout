@@ -10,6 +10,7 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -86,7 +87,18 @@ function inviteFromDoc(d: QueryDocumentSnapshot<DocumentData>): PendingInvite {
 
 /** The caller becomes the school's founding super_admin. Also upserts
  * `users/{founderUid}` and adds the school to `users/{founderUid}.schoolIds`
- * — mirrors createClassroom's first-write-creates-profile pattern. */
+ * — mirrors createClassroom's first-write-creates-profile pattern.
+ *
+ * The school doc is created in its own write, awaited BEFORE the member
+ * doc — not batched together. firestore.rules' isFoundingSuperAdmin reads
+ * the school doc via get() to verify founderUid; within a single atomic
+ * batch/transaction, get()/exists() calls see the pre-commit snapshot for
+ * every write in that batch, so a member-doc write bundled into the same
+ * batch as the school-doc write can never see the school as existing yet
+ * — the create is unconditionally denied. Splitting them is the fix, not
+ * a stylistic choice (found via real end-to-end testing, not caught by
+ * rules-unit-testing, which happens to exercise these as two independently
+ * awaited setDoc calls rather than a real batch). */
 export async function createSchool({
   name,
   founderUid,
@@ -103,12 +115,10 @@ export async function createSchool({
    * the school page), not consulted by rules or anything else. */
   nces?: { ncesId: string; street: string; city: string; state: string; zip: string };
 }): Promise<string> {
-  const batch = writeBatch(db);
-
   const schoolRef = doc(collection(db, 'schools'));
   // founderUid/superAdminCount are rules bootstrap/invariant plumbing (see
   // firestore.rules' isFoundingSuperAdmin) — not modeled on School.
-  batch.set(schoolRef, {
+  await setDoc(schoolRef, {
     name,
     founderUid,
     superAdminCount: 1,
@@ -116,6 +126,11 @@ export async function createSchool({
     createdAt: serverTimestamp(),
   });
 
+  // These two don't depend on seeing each other mid-batch (the member
+  // create only needs the already-committed school doc above; the users/
+  // {uid} write is always allowed via isOwner regardless), so they're
+  // safe to batch together.
+  const batch = writeBatch(db);
   batch.set(doc(db, 'schools', schoolRef.id, 'members', founderUid), {
     role: 'super_admin',
     displayName: founderDisplayName ?? null,
@@ -123,7 +138,6 @@ export async function createSchool({
     addedByUid: founderUid,
     createdAt: serverTimestamp(),
   });
-
   batch.set(
     doc(db, 'users', founderUid),
     {
@@ -134,8 +148,8 @@ export async function createSchool({
     },
     { merge: true },
   );
-
   await batch.commit();
+
   return schoolRef.id;
 }
 

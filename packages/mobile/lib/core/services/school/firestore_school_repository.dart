@@ -40,24 +40,37 @@ class FirestoreSchoolRepository implements SchoolRepository {
   }
 
   @override
+  // The school doc is created in its own write, awaited BEFORE the member
+  // doc — not batched together. firestore.rules' isFoundingSuperAdmin
+  // reads the school doc via get() to verify founderUid; within a single
+  // atomic batch, get()/exists() calls see the pre-commit snapshot for
+  // every write in that batch, so a member-doc write bundled into the
+  // same batch as the school-doc write can never see the school as
+  // existing yet — the create is unconditionally denied. Splitting them
+  // is the fix, not a stylistic choice (found via real end-to-end
+  // testing on the web platform, same bug, same repository pattern).
+  @override
   Future<School> createSchool({
     required String name,
     required String founderUid,
     String? founderDisplayName,
     String? founderEmail,
   }) async {
-    final batch = _firestore.batch();
-
     final schoolRef = _schools.doc();
     // founderUid/superAdminCount are rules bootstrap/invariant plumbing —
     // see firestore.rules' isFoundingSuperAdmin — not modeled on School.
-    batch.set(schoolRef, {
+    await schoolRef.set({
       'name': name,
       'founderUid': founderUid,
       'superAdminCount': 1,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
+    // These two don't depend on seeing each other mid-batch (the member
+    // create only needs the already-committed school doc above; the
+    // users/{uid} write is always allowed via isOwner regardless), so
+    // they're safe to batch together.
+    final batch = _firestore.batch();
     batch.set(schoolRef.collection('members').doc(founderUid), {
       'role': 'super_admin',
       'displayName': founderDisplayName,
@@ -65,7 +78,6 @@ class FirestoreSchoolRepository implements SchoolRepository {
       'addedByUid': founderUid,
       'createdAt': FieldValue.serverTimestamp(),
     });
-
     final userRef = _firestore.collection('users').doc(founderUid);
     batch.set(userRef, {
       'displayName': founderDisplayName,
@@ -73,8 +85,8 @@ class FirestoreSchoolRepository implements SchoolRepository {
       'schoolIds': FieldValue.arrayUnion([schoolRef.id]),
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-
     await batch.commit();
+
     return School(id: schoolRef.id, name: name);
   }
 
