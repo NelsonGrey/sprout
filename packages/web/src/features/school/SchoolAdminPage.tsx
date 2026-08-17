@@ -69,7 +69,7 @@ function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: Me
                     grades: checked ? value.grades.filter((g) => g !== grade) : [...value.grades, grade],
                   })
                 }
-                className={`rounded border px-2 py-1 text-xs ${checked ? 'border-green-500 bg-green-600/30' : 'border-white/20'}`}
+                className={`rounded border px-2 py-1 text-xs ${checked ? 'border-brand bg-brand/20' : 'border-border'}`}
               >
                 {grade}
               </button>
@@ -188,9 +188,9 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
+    <div className="flex min-h-full flex-col text-ink">
       {renamingSchool ? (
-        <header className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+        <header className="flex items-center gap-3 border-b border-border px-6 py-4">
           <Input
             value={schoolNameDraft}
             onChange={(e) => setSchoolNameDraft(e.target.value)}
@@ -219,8 +219,8 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
       )}
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 overflow-y-auto px-6 py-6">
-        <section className="rounded-lg border border-white/10 p-4">
-          <h2 className="text-sm font-semibold text-white/60">Your access</h2>
+        <section className="rounded-lg border border-border p-4">
+          <h2 className="text-sm font-semibold text-ink-muted">Your access</h2>
           <p className="mt-1">
             {membership && roleLabel(membership.role)}
             {membership?.role === 'teacher' && ` — ${scopeSummary(membership.scope)}`}
@@ -230,11 +230,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
         {isAtLeastAdmin && (
           <>
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-white/60">Staff</h2>
+              <h2 className="mb-3 text-sm font-semibold text-ink-muted">Staff</h2>
               <ul className="flex flex-col gap-2">
                 {members.map((member) =>
                   editingScopeUid === member.uid ? (
-                    <li key={member.uid} className="rounded-lg border border-white/10 px-4 py-3">
+                    <li key={member.uid} className="rounded-lg border border-border px-4 py-3">
                       <p className="mb-2">{member.displayName || member.email}</p>
                       <ScopePicker value={scopeDraft} onChange={setScopeDraft} />
                       <div className="mt-3 flex gap-2">
@@ -249,11 +249,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                   ) : (
                     <li
                       key={member.uid}
-                      className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                     >
                       <div>
                         <p>{member.displayName || member.email}</p>
-                        <p className="text-xs text-white/50">
+                        <p className="text-xs text-ink-muted">
                           {member.role === 'teacher'
                             ? `Teacher — ${scopeSummary(member.scope)}`
                             : roleLabel(member.role)}
@@ -261,13 +261,13 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                         {member.classroomGrants && Object.keys(member.classroomGrants).length > 0 && (
                           <ul className="mt-1 flex flex-col gap-0.5">
                             {Object.entries(member.classroomGrants).map(([contextId, level]) => (
-                              <li key={contextId} className="flex items-center gap-1 text-xs text-white/40">
+                              <li key={contextId} className="flex items-center gap-1 text-xs text-ink-muted">
                                 Classroom {contextId} — {level}
                                 <button
                                   type="button"
                                   onClick={() => revokeClassroomGrant(schoolId, member.uid, contextId)}
                                   aria-label={`Revoke access to classroom ${contextId}`}
-                                  className="text-white/40 hover:text-red-400"
+                                  className="text-ink-muted hover:text-red-500"
                                 >
                                   <X size={12} />
                                 </button>
@@ -300,12 +300,12 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
 
             {accessRequests.length > 0 && (
               <section>
-                <h2 className="mb-3 text-sm font-semibold text-white/60">Access requests</h2>
+                <h2 className="mb-3 text-sm font-semibold text-ink-muted">Access requests</h2>
                 <ul className="flex flex-col gap-2">
                   {accessRequests.map((request) => (
                     <li
                       key={request.id}
-                      className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                     >
                       <div>
                         <p>
@@ -333,16 +333,16 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
 
             {invites.length > 0 && (
               <section>
-                <h2 className="mb-3 text-sm font-semibold text-white/60">Pending invites</h2>
+                <h2 className="mb-3 text-sm font-semibold text-ink-muted">Pending invites</h2>
                 <ul className="flex flex-col gap-2">
                   {invites.map((invite) => (
                     <li
                       key={invite.email}
-                      className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                     >
                       <div>
                         <p>{invite.email}</p>
-                        <p className="text-xs text-white/50">
+                        <p className="text-xs text-ink-muted">
                           {invite.role === 'teacher'
                             ? `Teacher — ${scopeSummary(invite.scope)} (pending)`
                             : `${roleLabel(invite.role)} (pending)`}
@@ -357,8 +357,8 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
               </section>
             )}
 
-            <section className="rounded-lg border border-white/10 p-4">
-              <h2 className="mb-3 text-sm font-semibold text-white/60">Invite a teacher</h2>
+            <section className="rounded-lg border border-border p-4">
+              <h2 className="mb-3 text-sm font-semibold text-ink-muted">Invite a teacher</h2>
               <div className="flex flex-col gap-3">
                 <Input
                   value={inviteEmail}
@@ -373,11 +373,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
             </section>
 
             {isSuperAdmin && (
-              <section className="rounded-lg border border-white/10 p-4">
-                <h2 className="mb-3 text-sm font-semibold text-white/60">
+              <section className="rounded-lg border border-border p-4">
+                <h2 className="mb-3 text-sm font-semibold text-ink-muted">
                   Delegate admin access
                 </h2>
-                <p className="mb-3 text-xs text-white/50">
+                <p className="mb-3 text-xs text-ink-muted">
                   Only a super admin can grant or revoke admin (or super admin) access.
                 </p>
                 <div className="flex flex-col gap-3">
@@ -414,8 +414,8 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
           </>
         )}
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
-    </main>
+    </div>
   );
 }

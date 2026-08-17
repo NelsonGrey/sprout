@@ -7,10 +7,6 @@ vi.mock('../../lib/firestore', () => ({
   useTransactions: vi.fn(),
 }));
 
-vi.mock('../../lib/firebase', () => ({
-  firebaseClient: { auth: { signOut: vi.fn() } },
-}));
-
 const student = {
   id: 'student-1',
   firstName: 'Alex',
@@ -61,13 +57,5 @@ describe('MyBalancePage', () => {
     render(<MyBalancePage student={student} />);
 
     expect(screen.getByText('No transactions yet.')).toBeTruthy();
-  });
-
-  it('has a sign-out action', () => {
-    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
-
-    render(<MyBalancePage student={student} />);
-
-    expect(screen.getByText('Sign out')).toBeTruthy();
   });
 });

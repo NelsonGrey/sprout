@@ -3,7 +3,6 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { createClassroom, useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
 import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
-import { firebaseClient } from '../../lib/firebase';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -55,24 +54,19 @@ export function ClassroomsPage({ user }: { user: User }) {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
+    <div className="flex min-h-full flex-col">
       <PageHeader
         title="My Classrooms"
         actions={
-          <>
-            <Button variant="secondary" onClick={() => navigate('/school')}>
-              School
-            </Button>
-            <Button variant="secondary" onClick={() => firebaseClient.auth.signOut()}>
-              Sign out
-            </Button>
-          </>
+          <Button variant="secondary" onClick={() => navigate('/school')}>
+            School
+          </Button>
         }
       />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {classrooms.length === 0 ? (
-          <p className="text-white/60">No classrooms yet — add one below.</p>
+          <p className="text-ink-muted">No classrooms yet — add one below.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {classrooms.map((classroom) => (
@@ -80,11 +74,11 @@ export function ClassroomsPage({ user }: { user: User }) {
                 <button
                   type="button"
                   onClick={() => navigate(`/classrooms/${classroom.id}`)}
-                  className="w-full rounded-lg border border-white/10 px-4 py-3 text-left hover:bg-white/5"
+                  className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-left text-ink hover:bg-bg"
                 >
                   {classroom.name}
                   {classroom.gradeLevel && (
-                    <span className="ml-2 text-xs text-white/40">Grade {classroom.gradeLevel}</span>
+                    <span className="ml-2 text-xs text-ink-muted">Grade {classroom.gradeLevel}</span>
                   )}
                 </button>
               </li>
@@ -93,7 +87,7 @@ export function ClassroomsPage({ user }: { user: User }) {
         )}
       </div>
 
-      <div className="flex gap-2 border-t border-white/10 px-6 py-4">
+      <div className="flex gap-2 border-t border-border px-6 py-4">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -104,6 +98,6 @@ export function ClassroomsPage({ user }: { user: User }) {
           Create
         </Button>
       </div>
-    </main>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import { LandingRouter } from './features/classroom/LandingRouter';
 import { ClassroomDetailPage } from './features/classroom/ClassroomDetailPage';
 import { StudentLedgerPage } from './features/classroom/StudentLedgerPage';
 import { SchoolPage } from './features/school/SchoolPage';
+import { Layout } from './components/layout/Layout';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -32,25 +33,33 @@ function App() {
   }, []);
 
   if (loading) return null;
-  if (!user) return <LoginPage />;
+  if (!user) {
+    return (
+      <Layout user={null}>
+        <LoginPage />
+      </Layout>
+    );
+  }
 
   return (
-    <Switch>
-      <Route path="/classrooms/:contextId/students/:studentId">
-        {(params) => (
-          <StudentLedgerPage user={user} contextId={params.contextId} studentId={params.studentId} />
-        )}
-      </Route>
-      <Route path="/classrooms/:contextId">
-        {(params) => <ClassroomDetailPage user={user} contextId={params.contextId} />}
-      </Route>
-      <Route path="/school">
-        <SchoolPage user={user} />
-      </Route>
-      <Route path="/">
-        <LandingRouter user={user} />
-      </Route>
-    </Switch>
+    <Layout user={user}>
+      <Switch>
+        <Route path="/classrooms/:contextId/students/:studentId">
+          {(params) => (
+            <StudentLedgerPage user={user} contextId={params.contextId} studentId={params.studentId} />
+          )}
+        </Route>
+        <Route path="/classrooms/:contextId">
+          {(params) => <ClassroomDetailPage user={user} contextId={params.contextId} />}
+        </Route>
+        <Route path="/school">
+          <SchoolPage user={user} />
+        </Route>
+        <Route path="/">
+          <LandingRouter user={user} />
+        </Route>
+      </Switch>
+    </Layout>
   );
 }
 

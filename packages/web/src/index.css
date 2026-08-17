@@ -1,1 +1,45 @@
 @import 'tailwindcss';
+
+/* Two comparison palettes — see /assets/brand-concepts. "path" (default)
+ * is the One Path direction (navy/teal/coral); "balance" is Growing
+ * Balance (evergreen/mint/gold). ThemeToggle flips data-theme on <html>
+ * so both can be compared live before one is picked; this whole block is
+ * temporary comparison scaffolding, not a permanent multi-theme system. */
+:root {
+  --bg: #f4f8fd;
+  --surface: #ffffff;
+  --header-bg: #ffffff;
+  --footer-bg: #16264d;
+  --ink: #16264d;
+  --ink-muted: #5a6b8c;
+  --border: #e1e8f2;
+  --brand: #14b8a6;
+  --brand-hover: #0f9c8c;
+  --accent: #ff6f5e;
+}
+
+:root[data-theme='balance'] {
+  --bg: #fffbf0;
+  --surface: #ffffff;
+  --header-bg: #ffffff;
+  --footer-bg: #1b4332;
+  --ink: #1b4332;
+  --ink-muted: #5c7a6c;
+  --border: #ede6d3;
+  --brand: #16a34a;
+  --brand-hover: #15803d;
+  --accent: #f5a623;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-header-bg: var(--header-bg);
+  --color-footer-bg: var(--footer-bg);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-accent: var(--accent);
+}

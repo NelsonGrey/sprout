@@ -123,9 +123,9 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
+    <div className="flex min-h-full flex-col text-ink">
       {renamingClassroom ? (
-        <header className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+        <header className="flex items-center gap-3 border-b border-border px-6 py-4">
           <Input
             value={classroomNameDraft}
             onChange={(e) => setClassroomNameDraft(e.target.value)}
@@ -160,14 +160,14 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {students.length === 0 ? (
-          <p className="text-white/60">No students yet — create one below.</p>
+          <p className="text-ink-muted">No students yet — create one below.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {students.map((student) =>
               renamingStudentId === student.id ? (
                 <li
                   key={student.id}
-                  className="flex items-center gap-2 rounded-lg border border-white/10 px-4 py-3"
+                  className="flex items-center gap-2 rounded-lg border border-border px-4 py-3"
                 >
                   <Input
                     value={studentNameDraft}
@@ -185,7 +185,7 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
               ) : (
                 <li
                   key={student.id}
-                  className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3 hover:bg-white/5"
+                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3 hover:bg-bg"
                 >
                   <button
                     type="button"
@@ -221,7 +221,7 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
       </div>
 
       {canManage && (
-        <div className="flex gap-2 border-t border-white/10 px-6 py-4">
+        <div className="flex gap-2 border-t border-border px-6 py-4">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -235,16 +235,16 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
       )}
 
       {isOwner && schoolTeachers.length > 0 && (
-        <section className="mx-6 mb-6 rounded-lg border border-white/10 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-white/60">Request access for a colleague</h2>
-          <p className="mb-3 text-xs text-white/50">
+        <section className="mx-6 mb-6 rounded-lg border border-border p-4">
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted">Request access for a colleague</h2>
+          <p className="mb-3 text-xs text-ink-muted">
             An admin will need to approve this before your colleague gets access.
           </p>
           <div className="flex flex-col gap-3">
             <select
               value={requestTargetUid}
               onChange={(e) => setRequestTargetUid(e.target.value)}
-              className="rounded-lg border border-white/20 bg-neutral-950 px-3 py-2 text-white"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-ink"
             >
               <option value="">Choose a teacher…</option>
               {schoolTeachers.map((m) => (
@@ -276,7 +276,7 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
             </Button>
           </div>
           {contextRequests.length > 0 && (
-            <ul className="mt-4 flex flex-col gap-1 text-xs text-white/50">
+            <ul className="mt-4 flex flex-col gap-1 text-xs text-ink-muted">
               {contextRequests.map((r) => (
                 <li key={r.id}>
                   {r.targetDisplayName} — {r.level} — {r.status}
@@ -310,6 +310,6 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
           if (deletingStudentId) await deleteStudent(deletingStudentId);
         }}
       />
-    </main>
+    </div>
   );
 }

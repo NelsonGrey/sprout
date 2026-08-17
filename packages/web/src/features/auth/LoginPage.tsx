@@ -58,12 +58,12 @@ function PasswordInput({
         placeholder={placeholder}
         required
         minLength={6}
-        className="w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 pr-16 text-left"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-16 text-left text-ink"
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-white/60 hover:underline"
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-muted hover:underline"
       >
         {visible ? 'Hide' : 'Show'}
       </button>
@@ -134,13 +134,13 @@ export function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-neutral-950 px-8 text-center text-white">
-      <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-green-600 text-4xl">
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 px-8 py-16 text-center text-ink">
+      <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-brand text-4xl">
         🌱
       </div>
       <div>
         <h1 className="text-3xl font-bold">Sprout Streak</h1>
-        <p className="mt-1 text-white/60">Grow good habits together</p>
+        <p className="mt-1 text-ink-muted">Grow good habits together</p>
       </div>
 
       <div className="flex w-full max-w-xs flex-col gap-3">
@@ -148,7 +148,7 @@ export function LoginPage() {
           type="button"
           onClick={signInWithGoogle}
           disabled={busy}
-          className="w-full rounded-lg bg-green-600 px-4 py-3 font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand px-4 py-3 font-medium text-white hover:bg-brand-hover disabled:opacity-50"
         >
           Sign in with Google
         </button>
@@ -156,15 +156,15 @@ export function LoginPage() {
           type="button"
           onClick={signInWithApple}
           disabled={busy}
-          className="w-full rounded-lg border border-white/20 px-4 py-3 font-medium text-white hover:bg-white/10 disabled:opacity-50"
+          className="w-full rounded-lg border border-border px-4 py-3 font-medium text-ink hover:bg-bg disabled:opacity-50"
         >
           Sign in with Apple
         </button>
 
-        <div className="my-1 flex items-center gap-3 text-xs text-white/40">
-          <div className="h-px flex-1 bg-white/10" />
+        <div className="my-1 flex items-center gap-3 text-xs text-ink-muted">
+          <div className="h-px flex-1 bg-border" />
           or
-          <div className="h-px flex-1 bg-white/10" />
+          <div className="h-px flex-1 bg-border" />
         </div>
 
         <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3">
@@ -174,7 +174,7 @@ export function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             required
-            className="rounded-lg border border-white/20 bg-transparent px-3 py-2 text-left"
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-left text-ink"
           />
           <PasswordInput value={password} onChange={setPassword} placeholder="Password" />
           {mode === 'sign-up' && (
@@ -187,13 +187,13 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-lg border border-white/20 px-4 py-3 font-medium text-white hover:bg-white/10 disabled:opacity-50"
+            className="w-full rounded-lg border border-border px-4 py-3 font-medium text-ink hover:bg-bg disabled:opacity-50"
           >
             {mode === 'sign-in' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 
-        <div className="flex justify-between text-xs text-white/60">
+        <div className="flex justify-between text-xs text-ink-muted">
           <button
             type="button"
             onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}
@@ -207,12 +207,12 @@ export function LoginPage() {
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-red-400">
+          <p role="alert" className="text-sm text-red-500">
             {error}
           </p>
         )}
-        {info && <p className="text-sm text-green-400">{info}</p>}
+        {info && <p className="text-sm text-brand">{info}</p>}
       </div>
-    </main>
+    </div>
   );
 }

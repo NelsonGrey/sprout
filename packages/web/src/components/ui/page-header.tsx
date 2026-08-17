@@ -19,7 +19,7 @@ export function PageHeader({
   const [, navigate] = useLocation();
 
   return (
-    <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+    <header className="flex items-center justify-between border-b border-border px-6 py-4">
       <div className="flex items-center gap-3">
         {backTo && (
           <IconButton
@@ -30,7 +30,7 @@ export function PageHeader({
             <ArrowLeft size={18} />
           </IconButton>
         )}
-        <h1 className="text-xl font-bold">{title}</h1>
+        <h1 className="text-xl font-bold text-ink">{title}</h1>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </header>

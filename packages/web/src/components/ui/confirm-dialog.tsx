@@ -22,9 +22,9 @@ export function ConfirmDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-white/10 bg-neutral-900 p-6 text-white">
+        <Dialog.Content className="fixed top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface p-6 text-ink shadow-xl">
           <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
-          {description && <Dialog.Description className="mt-2 text-sm text-white/60">{description}</Dialog.Description>}
+          {description && <Dialog.Description className="mt-2 text-sm text-ink-muted">{description}</Dialog.Description>}
           <div className="mt-6 flex justify-end gap-2">
             <Dialog.Close asChild>
               <Button variant="secondary">Cancel</Button>

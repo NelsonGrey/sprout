@@ -16,10 +16,6 @@ vi.mock('../../lib/school', () => ({
   useMyMembership: vi.fn(),
 }));
 
-vi.mock('../../lib/firebase', () => ({
-  firebaseClient: { auth: { signOut: vi.fn() } },
-}));
-
 vi.mock('wouter', () => ({
   useLocation: () => ['/', vi.fn()],
 }));

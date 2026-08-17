@@ -109,9 +109,9 @@ export function StudentLedgerPage({
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
+    <div className="flex min-h-full flex-col text-ink">
       {renaming ? (
-        <header className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+        <header className="flex items-center gap-3 border-b border-border px-6 py-4">
           <Input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus className="flex-1" />
           <Button size="sm" onClick={saveName}>
             Save
@@ -141,18 +141,18 @@ export function StudentLedgerPage({
       <p className="px-6 pt-4 text-3xl font-bold">${((student?.balanceCents ?? 0) / 100).toFixed(2)}</p>
 
       {canManage && (
-        <section className="mx-6 mt-4 rounded-lg border border-white/10 p-4">
-          <h2 className="mb-2 text-sm font-semibold text-white/60">Student account</h2>
+        <section className="mx-6 mt-4 rounded-lg border border-border bg-surface p-4">
+          <h2 className="mb-2 text-sm font-semibold text-ink-muted">Student account</h2>
           {student?.linkedUid ? (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-green-400">Linked — the student can sign in and see this on their own</span>
+              <span className="text-sm text-brand">Linked — the student can sign in and see this on their own</span>
               <Button size="sm" variant="secondary" onClick={() => unlinkStudentAccount(studentId)}>
                 Unlink
               </Button>
             </div>
           ) : pendingLink ? (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-white/70">Invite sent to {pendingLink.email}</span>
+              <span className="text-sm text-ink-muted">Invite sent to {pendingLink.email}</span>
               <Button size="sm" variant="secondary" onClick={() => cancelStudentLink(pendingLink.email)}>
                 Cancel invite
               </Button>
@@ -175,13 +175,13 @@ export function StudentLedgerPage({
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {transactions.length === 0 ? (
-          <p className="text-white/60">No transactions yet.</p>
+          <p className="text-ink-muted">No transactions yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {transactions.map((transaction) => (
               <li
                 key={transaction.id}
-                className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3"
               >
                 <span>{transaction.reason}</span>
                 <span>
@@ -194,7 +194,7 @@ export function StudentLedgerPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-white/10 px-6 py-4">
+      <div className="flex flex-col gap-2 border-t border-border px-6 py-4">
         <div className="flex gap-2">
           <Input
             value={amount}
@@ -232,6 +232,6 @@ export function StudentLedgerPage({
           navigate(`/classrooms/${contextId}`);
         }}
       />
-    </main>
+    </div>
   );
 }
