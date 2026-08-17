@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   increment,
   onSnapshot,
@@ -9,6 +10,7 @@ import {
   query,
   serverTimestamp,
   Timestamp,
+  updateDoc,
   where,
   writeBatch,
   type DocumentData,
@@ -159,6 +161,20 @@ export async function createClassroom({
   await batch.commit();
 }
 
+/** Rename or re-grade a classroom. Not cascading — students' contextIds
+ * pointing at a since-deleted classroom aren't cleaned up by deleteClassroom
+ * below; there's no batch/cascade infrastructure for that yet. */
+export async function updateClassroom(
+  contextId: string,
+  updates: { name?: string; gradeLevel?: string },
+): Promise<void> {
+  await updateDoc(doc(db, 'contexts', contextId), { ...updates });
+}
+
+export async function deleteClassroom(contextId: string): Promise<void> {
+  await deleteDoc(doc(db, 'contexts', contextId));
+}
+
 export function useStudents(contextId: string): Student[] {
   const [students, setStudents] = useState<Student[]>([]);
 
@@ -197,6 +213,17 @@ export async function addStudent({
     ...(gradeLevel ? { gradeLevel } : {}),
     createdAt: serverTimestamp(),
   });
+}
+
+/** Not cascading — a deleted student's transactions subcollection (owned by
+ * the context, not the student) is orphaned but inert, never queried
+ * without a studentId filter that would now just return nothing new. */
+export async function updateStudent(studentId: string, updates: { displayName?: string }): Promise<void> {
+  await updateDoc(doc(db, 'students', studentId), { ...updates });
+}
+
+export async function deleteStudent(studentId: string): Promise<void> {
+  await deleteDoc(doc(db, 'students', studentId));
 }
 
 export function useTransactions(contextId: string, studentId: string): LedgerTransaction[] {

@@ -8,7 +8,17 @@ vi.mock('../../lib/firestore', () => ({
   useClassroom: vi.fn(),
   useStudents: vi.fn(),
   addStudent: vi.fn(),
+  updateClassroom: vi.fn(),
+  deleteClassroom: vi.fn(),
+  updateStudent: vi.fn(),
+  deleteStudent: vi.fn(),
 }));
+
+const navigateMock = vi.fn();
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/classrooms/ctx-1', navigateMock] };
+});
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
 const classroom = { id: 'ctx-1', type: 'classroom' as const, name: '4th Grade', ownerUids: ['teacher-1'], createdAt: new Date() };
@@ -20,7 +30,7 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     expect(screen.getByText('4th Grade')).toBeTruthy();
-    expect(screen.getByText('No students yet — add one below.')).toBeTruthy();
+    expect(screen.getByText('No students yet — create one below.')).toBeTruthy();
   });
 
   it('calls addStudent with the classroom owners', async () => {
@@ -30,7 +40,7 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     fireEvent.change(screen.getByPlaceholderText('Student name'), { target: { value: 'Alex' } });
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() =>
       expect(firestoreLib.addStudent).toHaveBeenCalledWith({
@@ -51,7 +61,7 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     fireEvent.change(screen.getByPlaceholderText('Student name'), { target: { value: 'Alex' } });
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() =>
       expect(firestoreLib.addStudent).toHaveBeenCalledWith({
@@ -62,5 +72,43 @@ describe('ClassroomDetailPage', () => {
         gradeLevel: '4',
       }),
     );
+  });
+
+  it('has a back button to the classroom list', () => {
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
+
+    fireEvent.click(screen.getByLabelText('Back'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
+  });
+
+  it('renames the classroom', async () => {
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    vi.mocked(firestoreLib.updateClassroom).mockResolvedValue(undefined);
+    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
+
+    fireEvent.click(screen.getByLabelText('Rename classroom'));
+    const input = screen.getByDisplayValue('4th Grade');
+    fireEvent.change(input, { target: { value: '5th Grade' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(firestoreLib.updateClassroom).toHaveBeenCalledWith('ctx-1', { name: '5th Grade' }));
+  });
+
+  it('requires confirming before deleting the classroom', async () => {
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    vi.mocked(firestoreLib.deleteClassroom).mockResolvedValue(undefined);
+    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
+
+    fireEvent.click(screen.getByLabelText('Delete classroom'));
+    expect(firestoreLib.deleteClassroom).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Delete'));
+
+    await waitFor(() => expect(firestoreLib.deleteClassroom).toHaveBeenCalledWith('ctx-1'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
   });
 });

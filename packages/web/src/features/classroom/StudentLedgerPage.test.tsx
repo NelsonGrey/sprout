@@ -8,7 +8,15 @@ vi.mock('../../lib/firestore', () => ({
   useStudents: vi.fn(),
   useTransactions: vi.fn(),
   recordTransaction: vi.fn(),
+  updateStudent: vi.fn(),
+  deleteStudent: vi.fn(),
 }));
+
+const navigateMock = vi.fn();
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/classrooms/ctx-1/students/student-1', navigateMock] };
+});
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
 const student = {
@@ -66,5 +74,42 @@ describe('StudentLedgerPage', () => {
         ownerUids: ['teacher-1'],
       }),
     );
+  });
+
+  it('has a back button to the classroom', () => {
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    render(<StudentLedgerPage user={user} contextId="ctx-1" studentId="student-1" />);
+
+    fireEvent.click(screen.getByLabelText('Back'));
+    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1');
+  });
+
+  it('renames the student', async () => {
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.updateStudent).mockResolvedValue(undefined);
+    render(<StudentLedgerPage user={user} contextId="ctx-1" studentId="student-1" />);
+
+    fireEvent.click(screen.getByLabelText('Rename student'));
+    fireEvent.change(screen.getByDisplayValue('Alex'), { target: { value: 'Alexis' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(firestoreLib.updateStudent).toHaveBeenCalledWith('student-1', { displayName: 'Alexis' }));
+  });
+
+  it('requires confirming before deleting the student', async () => {
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.deleteStudent).mockResolvedValue(undefined);
+    render(<StudentLedgerPage user={user} contextId="ctx-1" studentId="student-1" />);
+
+    fireEvent.click(screen.getByLabelText('Delete student'));
+    expect(firestoreLib.deleteStudent).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Delete'));
+
+    await waitFor(() => expect(firestoreLib.deleteStudent).toHaveBeenCalledWith('student-1'));
+    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1');
   });
 });

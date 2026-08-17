@@ -4,6 +4,9 @@ import { useLocation } from 'wouter';
 import { createClassroom, useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
 import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
 import { firebaseClient } from '../../lib/firebase';
+import { PageHeader } from '../../components/ui/page-header';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 
 /** Post-login landing page: a teacher's classroom list plus "create a
  * classroom". The list is classrooms this user owns directly, merged with
@@ -53,25 +56,19 @@ export function ClassroomsPage({ user }: { user: User }) {
 
   return (
     <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
-      <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-        <h1 className="text-xl font-bold">My Classrooms</h1>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate('/school')}
-            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
-          >
-            School
-          </button>
-          <button
-            type="button"
-            onClick={() => firebaseClient.auth.signOut()}
-            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title="My Classrooms"
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => navigate('/school')}>
+              School
+            </Button>
+            <Button variant="secondary" onClick={() => firebaseClient.auth.signOut()}>
+              Sign out
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {classrooms.length === 0 ? (
@@ -97,20 +94,15 @@ export function ClassroomsPage({ user }: { user: User }) {
       </div>
 
       <div className="flex gap-2 border-t border-white/10 px-6 py-4">
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Classroom name"
-          className="flex-1 rounded-lg border border-white/20 bg-transparent px-3 py-2"
+          className="flex-1"
         />
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={creating}
-          className="rounded-lg bg-green-600 px-4 py-2 font-medium hover:bg-green-700 disabled:opacity-50"
-        >
+        <Button onClick={handleCreate} disabled={creating}>
           Create
-        </button>
+        </Button>
       </div>
     </main>
   );

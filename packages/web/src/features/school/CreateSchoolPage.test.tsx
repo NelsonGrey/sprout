@@ -30,7 +30,7 @@ describe('CreateSchoolPage', () => {
     fireEvent.change(screen.getByPlaceholderText('School name'), {
       target: { value: 'Riverside Elementary' },
     });
-    fireEvent.click(screen.getByText('Found School'));
+    fireEvent.click(screen.getByText('Create School'));
 
     await waitFor(() =>
       expect(schoolLib.createSchool).toHaveBeenCalledWith({
@@ -57,7 +57,7 @@ describe('CreateSchoolPage', () => {
       target: { value: 'Lincoln' },
     });
     fireEvent.click(screen.getByText('Lincoln Elementary'));
-    fireEvent.click(screen.getByText('Found School'));
+    fireEvent.click(screen.getByText('Create School'));
 
     await waitFor(() =>
       expect(schoolLib.createSchool).toHaveBeenCalledWith({
@@ -68,5 +68,13 @@ describe('CreateSchoolPage', () => {
         nces: { ncesId: '123456', street: '1 Main St', city: 'Lincoln', state: 'AL', zip: '35096' },
       }),
     );
+  });
+
+  it('has a back button to the classroom list', () => {
+    vi.mocked(ncesLib.useNcesSchoolSearch).mockReturnValue({ results: [], loading: false });
+    render(<CreateSchoolPage user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Back'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
   });
 });

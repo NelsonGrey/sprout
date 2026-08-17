@@ -9,6 +9,7 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch,
   type DocumentData,
@@ -127,6 +128,13 @@ export async function getSchool(schoolId: string): Promise<School | null> {
   };
 }
 
+/** Name only — no nces edit (no UI surface displays those fields for
+ * editing today) and no delete (rules permit it, but there's no
+ * cascade-delete for the school's contexts/students/members/invites). */
+export async function updateSchool(schoolId: string, updates: { name?: string }): Promise<void> {
+  await updateDoc(doc(db, 'schools', schoolId), { ...updates });
+}
+
 /** Undefined while loading, null once loaded if the user isn't a member. */
 export function useMyMembership(schoolId: string | undefined, uid: string): SchoolMember | null | undefined {
   const [member, setMember] = useState<SchoolMember | null | undefined>(undefined);
@@ -164,6 +172,14 @@ export async function removeMember(schoolId: string, uid: string): Promise<void>
   } else {
     await deleteDoc(memberRef);
   }
+}
+
+/** Changes an existing teacher's scope only — never role. Role changes
+ * (promoting/demoting across teacher/admin/super_admin) stay a two-step
+ * remove-then-reinvite flow; firestore.rules' members update rule only
+ * permits writes that leave role as 'teacher'. */
+export async function updateMemberScope(schoolId: string, uid: string, scope: MemberScope): Promise<void> {
+  await updateDoc(doc(db, 'schools', schoolId, 'members', uid), { scope });
 }
 
 export function useMembersOfSchool(schoolId: string | undefined): SchoolMember[] {

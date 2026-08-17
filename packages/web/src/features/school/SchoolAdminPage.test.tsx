@@ -4,8 +4,9 @@ import type { User } from 'firebase/auth';
 import { SchoolAdminPage } from './SchoolAdminPage';
 import * as schoolLib from '../../lib/school';
 
+const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school', vi.fn()],
+  useLocation: () => ['/school', navigateMock],
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -13,6 +14,8 @@ vi.mock('../../lib/school', () => ({
   inviteMember: vi.fn(),
   cancelInvite: vi.fn(),
   removeMember: vi.fn(),
+  updateMemberScope: vi.fn(),
+  updateSchool: vi.fn(),
   useMyMembership: vi.fn(),
   useMembersOfSchool: vi.fn(),
   usePendingInvitesForSchool: vi.fn(),
@@ -192,5 +195,105 @@ describe('SchoolAdminPage', () => {
     // Only one Remove button — for the admin, not the sole super admin
     // (including the current user, who also can't remove themselves).
     expect(screen.getAllByText('Remove')).toHaveLength(1);
+  });
+
+  it('has a back button to the classroom list', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={teacher} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText('Back'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
+  });
+
+  it('lets a super admin rename the school', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'super-admin-1',
+      role: 'super_admin',
+      displayName: 'Principal Lee',
+      email: 'lee@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.updateSchool).mockResolvedValue(undefined);
+
+    render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByLabelText('Rename school')).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText('Rename school'));
+    fireEvent.change(screen.getByDisplayValue('Riverside Elementary'), { target: { value: 'Lakeside Elementary' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(schoolLib.updateSchool).toHaveBeenCalledWith('school-1', { name: 'Lakeside Elementary' }));
+  });
+
+  it('does not let a plain admin rename the school', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
+
+    expect(screen.queryByLabelText('Rename school')).toBeNull();
+  });
+
+  it('lets a delegate admin edit a teacher scope', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([
+      {
+        uid: 'teacher-1',
+        role: 'teacher',
+        displayName: 'Ms. Lord',
+        email: 'lord@example.com',
+        scope: { type: 'own' },
+        addedByUid: 'delegate-1',
+        createdAt: new Date(),
+      },
+    ]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.updateMemberScope).mockResolvedValue(undefined);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+
+    fireEvent.click(screen.getByLabelText('Edit scope'));
+    // Two ScopePickers render at once (the Staff row editor + the Invite
+    // section) — the first is the one we just opened.
+    fireEvent.click(screen.getAllByText('Whole school (PE, art, music, etc.)')[0]);
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() =>
+      expect(schoolLib.updateMemberScope).toHaveBeenCalledWith('school-1', 'teacher-1', { type: 'school' }),
+    );
   });
 });

@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { useLocation } from 'wouter';
+import { Pencil } from 'lucide-react';
 import type { MemberRole, MemberScope } from '@sprout/shared';
 import {
   cancelInvite,
   getSchool,
   inviteMember,
   removeMember,
+  updateMemberScope,
+  updateSchool,
   useMembersOfSchool,
   useMyMembership,
   usePendingInvitesForSchool,
 } from '../../lib/school';
+import { PageHeader } from '../../components/ui/page-header';
+import { Button } from '../../components/ui/button';
+import { IconButton } from '../../components/ui/icon-button';
+import { Input } from '../../components/ui/input';
 
 const GRADE_OPTIONS = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -87,7 +93,6 @@ function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: Me
  * school is never left without at least one super_admin (enforced in
  * firestore.rules, not just this UI's disabled-button state). */
 export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: string }) {
-  const [, navigate] = useLocation();
   const [schoolName, setSchoolName] = useState<string | null>(null);
   const membership = useMyMembership(schoolId, user.uid);
   const members = useMembersOfSchool(schoolId);
@@ -100,6 +105,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
   const [adminRole, setAdminRole] = useState<'admin' | 'super_admin'>('admin');
   const [invitingAdmin, setInvitingAdmin] = useState(false);
   const [error, setError] = useState('');
+
+  const [renamingSchool, setRenamingSchool] = useState(false);
+  const [schoolNameDraft, setSchoolNameDraft] = useState('');
+  const [editingScopeUid, setEditingScopeUid] = useState<string | null>(null);
+  const [scopeDraft, setScopeDraft] = useState<MemberScope>({ type: 'own' });
 
   useEffect(() => {
     getSchool(schoolId).then((school) => setSchoolName(school?.name ?? null));
@@ -148,18 +158,60 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
     return isSuperAdmin && superAdminCount > 1;
   };
 
+  const startRenamingSchool = () => {
+    setSchoolNameDraft(schoolName ?? '');
+    setRenamingSchool(true);
+  };
+
+  const saveSchoolName = async () => {
+    const trimmed = schoolNameDraft.trim();
+    if (trimmed) {
+      await updateSchool(schoolId, { name: trimmed });
+      setSchoolName(trimmed);
+    }
+    setRenamingSchool(false);
+  };
+
+  const startEditingScope = (member: { uid: string; scope?: MemberScope }) => {
+    setScopeDraft(member.scope ?? { type: 'own' });
+    setEditingScopeUid(member.uid);
+  };
+
+  const saveScope = async (uid: string) => {
+    await updateMemberScope(schoolId, uid, scopeDraft);
+    setEditingScopeUid(null);
+  };
+
   return (
     <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
-      <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-        <h1 className="text-xl font-bold">{schoolName ?? 'School'}</h1>
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
-        >
-          My Classrooms
-        </button>
-      </header>
+      {renamingSchool ? (
+        <header className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+          <Input
+            value={schoolNameDraft}
+            onChange={(e) => setSchoolNameDraft(e.target.value)}
+            autoFocus
+            className="flex-1"
+          />
+          <Button size="sm" onClick={saveSchoolName}>
+            Save
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setRenamingSchool(false)}>
+            Cancel
+          </Button>
+        </header>
+      ) : (
+        <PageHeader
+          title={schoolName ?? 'School'}
+          backTo="/"
+          actions={
+            isSuperAdmin && (
+              <IconButton label="Rename school" variant="secondary" onClick={startRenamingSchool}>
+                <Pencil size={16} />
+              </IconButton>
+            )
+          }
+        />
+      )}
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 overflow-y-auto px-6 py-6">
         <section className="rounded-lg border border-white/10 p-4">
@@ -175,30 +227,52 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
             <section>
               <h2 className="mb-3 text-sm font-semibold text-white/60">Staff</h2>
               <ul className="flex flex-col gap-2">
-                {members.map((member) => (
-                  <li
-                    key={member.uid}
-                    className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
-                  >
-                    <div>
-                      <p>{member.displayName || member.email}</p>
-                      <p className="text-xs text-white/50">
-                        {member.role === 'teacher'
-                          ? `Teacher — ${scopeSummary(member.scope)}`
-                          : roleLabel(member.role)}
-                      </p>
-                    </div>
-                    {canRemove(member.role, member.uid) && (
-                      <button
-                        type="button"
-                        onClick={() => removeMember(schoolId, member.uid)}
-                        className="text-xs text-red-400 hover:underline"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </li>
-                ))}
+                {members.map((member) =>
+                  editingScopeUid === member.uid ? (
+                    <li key={member.uid} className="rounded-lg border border-white/10 px-4 py-3">
+                      <p className="mb-2">{member.displayName || member.email}</p>
+                      <ScopePicker value={scopeDraft} onChange={setScopeDraft} />
+                      <div className="mt-3 flex gap-2">
+                        <Button size="sm" onClick={() => saveScope(member.uid)}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => setEditingScopeUid(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </li>
+                  ) : (
+                    <li
+                      key={member.uid}
+                      className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                    >
+                      <div>
+                        <p>{member.displayName || member.email}</p>
+                        <p className="text-xs text-white/50">
+                          {member.role === 'teacher'
+                            ? `Teacher — ${scopeSummary(member.scope)}`
+                            : roleLabel(member.role)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {member.role === 'teacher' && isAtLeastAdmin && (
+                          <IconButton
+                            label="Edit scope"
+                            variant="secondary"
+                            onClick={() => startEditingScope(member)}
+                          >
+                            <Pencil size={14} />
+                          </IconButton>
+                        )}
+                        {canRemove(member.role, member.uid) && (
+                          <Button variant="ghost" size="sm" onClick={() => removeMember(schoolId, member.uid)}>
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ),
+                )}
               </ul>
             </section>
 
@@ -219,13 +293,9 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                             : `${roleLabel(invite.role)} (pending)`}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => cancelInvite(invite.email)}
-                        className="text-xs text-red-400 hover:underline"
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => cancelInvite(invite.email)}>
                         Cancel
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -235,21 +305,15 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
             <section className="rounded-lg border border-white/10 p-4">
               <h2 className="mb-3 text-sm font-semibold text-white/60">Invite a teacher</h2>
               <div className="flex flex-col gap-3">
-                <input
+                <Input
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Email"
-                  className="rounded-lg border border-white/20 bg-transparent px-3 py-2"
                 />
                 <ScopePicker value={inviteScope} onChange={setInviteScope} />
-                <button
-                  type="button"
-                  onClick={handleInviteTeacher}
-                  disabled={inviting}
-                  className="rounded-lg bg-green-600 px-4 py-2 font-medium hover:bg-green-700 disabled:opacity-50"
-                >
+                <Button onClick={handleInviteTeacher} disabled={inviting}>
                   Send Invite
-                </button>
+                </Button>
               </div>
             </section>
 
@@ -262,11 +326,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                   Only a super admin can grant or revoke admin (or super admin) access.
                 </p>
                 <div className="flex flex-col gap-3">
-                  <input
+                  <Input
                     value={adminEmail}
                     onChange={(e) => setAdminEmail(e.target.value)}
                     placeholder="Email"
-                    className="rounded-lg border border-white/20 bg-transparent px-3 py-2 text-left"
+                    className="text-left"
                   />
                   <div className="flex gap-4 text-left text-sm">
                     <label className="flex items-center gap-2">
@@ -286,14 +350,9 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                       Super Admin
                     </label>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleInviteAdmin}
-                    disabled={invitingAdmin}
-                    className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10 disabled:opacity-50"
-                  >
+                  <Button variant="secondary" onClick={handleInviteAdmin} disabled={invitingAdmin}>
                     Send Invite
-                  </button>
+                  </Button>
                 </div>
               </section>
             )}
