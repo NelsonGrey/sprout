@@ -50,6 +50,11 @@ export interface Student {
    * claim; cleared only by staff (unlink) — the normal staff update path
    * cannot change it (see firestore.rules). */
   linkedUid?: string;
+  /** Set when a student leaves the school (graduated) via the Archive
+   * Students flow — presence means archived. Balance and transaction
+   * history are untouched; archived students just drop out of active
+   * classroom/roster views. No un-archive UI exists yet. */
+  archivedAt?: Date;
   createdAt: Date;
 }
 

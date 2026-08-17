@@ -222,6 +222,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                   Promote Students
                 </Button>
               )}
+              {isAtLeastAdmin && (
+                <Button variant="secondary" size="sm" onClick={() => navigate('/students/archive')}>
+                  Archive Students
+                </Button>
+              )}
               {isSuperAdmin && (
                 <IconButton label="Rename school" variant="secondary" onClick={startRenamingSchool}>
                   <Pencil size={16} />

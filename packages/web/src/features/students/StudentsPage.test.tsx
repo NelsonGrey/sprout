@@ -12,6 +12,7 @@ vi.mock('../../lib/firestore', () => ({
   updateStudent: vi.fn(),
   bulkMoveStudents: vi.fn(),
   bulkDeleteStudents: vi.fn(),
+  bulkArchiveStudents: vi.fn(),
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -138,15 +139,47 @@ describe('StudentsPage', () => {
     });
   });
 
-  it('navigates to Promote Students and Import CSV', () => {
+  it('navigates to Promote Students, Archive Students, and Import CSV', () => {
     setup();
     render(<StudentsPage user={user} />);
 
     fireEvent.click(screen.getByText('Promote Students'));
     expect(navigateMock).toHaveBeenCalledWith('/students/promote');
 
+    fireEvent.click(screen.getByText('Archive Students'));
+    expect(navigateMock).toHaveBeenCalledWith('/students/archive');
+
     fireEvent.click(screen.getByText('Import CSV'));
     expect(navigateMock).toHaveBeenCalledWith('/students/import');
+  });
+
+  it('hides an archived student by default and reveals it via "Show archived"', () => {
+    setup({
+      students: [
+        student,
+        { ...student, id: 'student-2', firstName: 'Jamie', lastName: 'Chen', displayName: 'Jamie Chen', studentId: 'STU-2', archivedAt: new Date() },
+      ],
+    });
+    render(<StudentsPage user={user} />);
+
+    expect(screen.getByText('Alex Rivera')).toBeTruthy();
+    expect(screen.queryByText('Jamie Chen')).toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Show archived'));
+
+    expect(screen.getByText('Jamie Chen')).toBeTruthy();
+  });
+
+  it('bulk-archives selected students after confirming', async () => {
+    setup();
+    vi.mocked(firestoreLib.bulkArchiveStudents).mockResolvedValue(undefined);
+    render(<StudentsPage user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Select Alex Rivera'));
+    fireEvent.click(screen.getByText('Archive'));
+    fireEvent.click(screen.getAllByText('Archive')[1]);
+
+    expect(firestoreLib.bulkArchiveStudents).toHaveBeenCalledWith(['student-1']);
   });
 
   it('bulk-deletes selected students after confirming', async () => {

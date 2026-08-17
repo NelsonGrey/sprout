@@ -12,6 +12,7 @@ import { SchoolPage } from './features/school/SchoolPage';
 import { StudentsPage } from './features/students/StudentsPage';
 import { StudentImportPage } from './features/students/StudentImportPage';
 import { PromoteStudentsPage } from './features/students/PromoteStudentsPage';
+import { ArchiveStudentsPage } from './features/students/ArchiveStudentsPage';
 import { Layout } from './components/layout/Layout';
 
 function App() {
@@ -63,6 +64,9 @@ function App() {
         </Route>
         <Route path="/students/promote">
           <PromoteStudentsPage user={user} />
+        </Route>
+        <Route path="/students/archive">
+          <ArchiveStudentsPage user={user} />
         </Route>
         <Route path="/students">
           <StudentsPage user={user} />

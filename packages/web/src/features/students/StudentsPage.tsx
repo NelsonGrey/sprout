@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import {
+  bulkArchiveStudents,
   bulkDeleteStudents,
   bulkMoveStudents,
   updateStudent,
@@ -33,6 +34,7 @@ export function StudentsPage({ user }: { user: User }) {
 
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [showArchived, setShowArchived] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,21 +47,23 @@ export function StudentsPage({ user }: { user: User }) {
   const [moveTargetContextId, setMoveTargetContextId] = useState('');
   const [moving, setMoving] = useState(false);
   const [deletingOpen, setDeletingOpen] = useState(false);
+  const [archivingOpen, setArchivingOpen] = useState(false);
 
   const visibleStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const base = showArchived ? students : students.filter((s) => !s.archivedAt);
     const filtered = term
-      ? students.filter(
+      ? base.filter(
           (s) => s.displayName.toLowerCase().includes(term) || (s.studentId ?? '').toLowerCase().includes(term),
         )
-      : students;
+      : base;
     const sorted = [...filtered].sort((a, b) => {
       if (sortKey === 'grade') return (a.gradeLevel ?? '').localeCompare(b.gradeLevel ?? '');
       if (sortKey === 'classroom') return (a.contextName ?? '').localeCompare(b.contextName ?? '');
       return a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName);
     });
     return sorted;
-  }, [students, search, sortKey]);
+  }, [students, search, sortKey, showArchived]);
 
   const toggleSelected = (id: string) => {
     setSelected((prev) => {
@@ -110,6 +114,11 @@ export function StudentsPage({ user }: { user: User }) {
     setSelected(new Set());
   };
 
+  const handleBulkArchive = async () => {
+    await bulkArchiveStudents([...selected]);
+    setSelected(new Set());
+  };
+
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
@@ -129,6 +138,9 @@ export function StudentsPage({ user }: { user: User }) {
             <Button variant="secondary" onClick={() => navigate('/students/promote')}>
               Promote Students
             </Button>
+            <Button variant="secondary" onClick={() => navigate('/students/archive')}>
+              Archive Students
+            </Button>
             <Button variant="secondary" onClick={() => navigate('/students/import')}>
               Import CSV
             </Button>
@@ -143,18 +155,24 @@ export function StudentsPage({ user }: { user: User }) {
           placeholder="Search by name or student ID"
           className="sm:w-72"
         />
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-ink-muted">Sort by</span>
-          {(['name', 'grade', 'classroom'] as const).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSortKey(key)}
-              className={`rounded-full px-3 py-1 ${sortKey === key ? 'bg-brand text-white' : 'border border-border text-ink-muted hover:text-ink'}`}
-            >
-              {key === 'name' ? 'Name' : key === 'grade' ? 'Grade' : 'Classroom'}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-ink-muted">
+            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+            Show archived
+          </label>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-ink-muted">Sort by</span>
+            {(['name', 'grade', 'classroom'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSortKey(key)}
+                className={`rounded-full px-3 py-1 ${sortKey === key ? 'bg-brand text-white' : 'border border-border text-ink-muted hover:text-ink'}`}
+              >
+                {key === 'name' ? 'Name' : key === 'grade' ? 'Grade' : 'Classroom'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -164,6 +182,9 @@ export function StudentsPage({ user }: { user: User }) {
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => setMovingOpen(true)}>
               Move to classroom…
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setArchivingOpen(true)}>
+              Archive
             </Button>
             <Button size="sm" variant="danger" onClick={() => setDeletingOpen(true)}>
               Delete
@@ -232,6 +253,7 @@ export function StudentsPage({ user }: { user: User }) {
                   >
                     <span className="font-medium">{student.displayName}</span>
                     <span className="flex gap-3 text-xs text-ink-muted">
+                      {student.archivedAt && <span>Archived</span>}
                       {student.studentId && <span>ID {student.studentId}</span>}
                       {student.gradeLevel && <span>Grade {student.gradeLevel}</span>}
                       {student.contextName && <span>{student.contextName}</span>}
@@ -278,6 +300,15 @@ export function StudentsPage({ user }: { user: User }) {
         confirmLabel="Delete"
         destructive
         onConfirm={handleBulkDelete}
+      />
+
+      <ConfirmDialog
+        open={archivingOpen}
+        onOpenChange={setArchivingOpen}
+        title={`Archive ${selected.size} student${selected.size === 1 ? '' : 's'}?`}
+        description="Archived students keep their balance and history but leave active classroom/roster views. There's no undo button yet — ask to have it cleared directly if this was a mistake."
+        confirmLabel="Archive"
+        onConfirm={handleBulkArchive}
       />
     </div>
   );

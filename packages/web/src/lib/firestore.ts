@@ -61,6 +61,7 @@ export function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student 
     gradeLevel: data.gradeLevel,
     contextName: data.contextName,
     linkedUid: data.linkedUid,
+    archivedAt: (data.archivedAt as Timestamp | undefined)?.toDate(),
     createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
   };
 }
@@ -214,7 +215,10 @@ export function useStudents(contextId: string): Student[] {
       where('contextIds', 'array-contains', contextId),
       orderBy('displayName'),
     );
-    return onSnapshot(q, (snapshot) => setStudents(snapshot.docs.map(studentFromDoc)));
+    // Archived (graduated) students never belong in an active classroom
+    // roster — that's an admin-level lookup via StudentsPage's "Show
+    // archived" toggle instead.
+    return onSnapshot(q, (snapshot) => setStudents(snapshot.docs.map(studentFromDoc).filter((s) => !s.archivedAt)));
   }, [contextId]);
 
   return students;
@@ -353,6 +357,21 @@ export async function bulkDeleteStudents(studentIds: string[]): Promise<void> {
     const batch = writeBatch(db);
     for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
       batch.delete(doc(db, 'students', id));
+    }
+    await batch.commit();
+  }
+}
+
+/** Graduated/left-the-school students — a field flip, not a delete, so
+ * balance and transaction history (contexts/{contextId}/transactions,
+ * untouched by this) are preserved. Archived students drop out of active
+ * classroom/roster views (see useStudents/StudentsPage's "Show archived"
+ * toggle) but the doc itself, and everything it references, stays intact. */
+export async function bulkArchiveStudents(studentIds: string[]): Promise<void> {
+  for (let i = 0; i < studentIds.length; i += BULK_CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
+      batch.update(doc(db, 'students', id), { archivedAt: serverTimestamp() });
     }
     await batch.commit();
   }
