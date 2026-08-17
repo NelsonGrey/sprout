@@ -32,6 +32,11 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
+  Stream<ClassroomContext?> classroom(String contextId) {
+    return Stream.value(_contexts[contextId]);
+  }
+
+  @override
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,

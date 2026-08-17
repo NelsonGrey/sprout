@@ -35,6 +35,21 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   }
 
   @override
+  Stream<ClassroomContext?> classroom(String contextId) {
+    return _contexts.doc(contextId).snapshots().map((snapshot) {
+      if (!snapshot.exists) return null;
+      final data = snapshot.data()!;
+      return ClassroomContext(
+        id: snapshot.id,
+        name: data['name'] as String,
+        ownerUids: List<String>.from(data['ownerUids'] as List),
+        schoolId: data['schoolId'] as String?,
+        gradeLevel: data['gradeLevel'] as String?,
+      );
+    });
+  }
+
+  @override
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,

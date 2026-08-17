@@ -34,7 +34,7 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _addStudent(List<String> ownerUids) async {
+  Future<void> _addStudent(List<String> ownerUids, ClassroomContext? classroom) async {
     final name = _nameController.text.trim();
     if (name.isEmpty || _adding) return;
     setState(() => _adding = true);
@@ -42,6 +42,8 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
       contextId: widget.contextId,
       displayName: name,
       ownerUids: ownerUids,
+      schoolId: classroom?.schoolId,
+      gradeLevel: classroom?.gradeLevel,
     );
     _nameController.clear();
     if (mounted) setState(() => _adding = false);
@@ -49,10 +51,10 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<ClassroomContext>>(
-      stream: widget.classroomRepository.myClassrooms(widget.user.uid),
+    return StreamBuilder<ClassroomContext?>(
+      stream: widget.classroomRepository.classroom(widget.contextId),
       builder: (context, classroomSnapshot) {
-        final classroom = _findClassroom(classroomSnapshot.data, widget.contextId);
+        final classroom = classroomSnapshot.data;
         final ownerUids = classroom?.ownerUids ?? [widget.user.uid];
 
         return Scaffold(
@@ -99,7 +101,7 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       key: const Key('addStudentButton'),
-                      onPressed: _adding ? null : () => _addStudent(ownerUids),
+                      onPressed: _adding ? null : () => _addStudent(ownerUids, classroom),
                       child: const Text('Add'),
                     ),
                   ],
@@ -110,13 +112,5 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
         );
       },
     );
-  }
-
-  ClassroomContext? _findClassroom(List<ClassroomContext>? classrooms, String contextId) {
-    if (classrooms == null) return null;
-    for (final classroom in classrooms) {
-      if (classroom.id == contextId) return classroom;
-    }
-    return null;
   }
 }

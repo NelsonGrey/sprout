@@ -15,6 +15,15 @@ abstract class ClassroomRepository {
   /// school); non-null filters to those specific grades.
   Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels});
 
+  /// A single classroom by id, regardless of ownership — for a classroom's
+  /// detail screen, where the viewer may be an admin/super_admin or a
+  /// scoped-but-non-owning teacher rather than the direct owner. Relies on
+  /// the same firestore.rules read permission (isContextOwner ||
+  /// hasScopedAccess) that already governs [myClassrooms]/
+  /// [classroomsInSchool]; emits null if the doc doesn't exist/isn't
+  /// visible to this viewer.
+  Stream<ClassroomContext?> classroom(String contextId);
+
   /// Also upserts `users/{ownerUid}` with [ownerDisplayName]/[ownerEmail] —
   /// the first classroom a teacher creates is when their profile doc is
   /// written. [schoolId]/[gradeLevel] are optional — omit for a standalone

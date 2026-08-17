@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
-import { addStudent, useClassrooms, useStudents } from '../../lib/firestore';
+import { addStudent, useClassroom, useStudents } from '../../lib/firestore';
 
 export function ClassroomDetailPage({ user, contextId }: { user: User; contextId: string }) {
-  const classrooms = useClassrooms(user.uid);
-  const classroom = classrooms.find((c) => c.id === contextId);
+  const classroom = useClassroom(contextId);
   const ownerUids = classroom?.ownerUids ?? [user.uid];
 
   const students = useStudents(contextId);
@@ -17,7 +16,13 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
     const trimmed = name.trim();
     if (!trimmed || adding) return;
     setAdding(true);
-    await addStudent({ contextId, displayName: trimmed, ownerUids });
+    await addStudent({
+      contextId,
+      displayName: trimmed,
+      ownerUids,
+      schoolId: classroom?.schoolId,
+      gradeLevel: classroom?.gradeLevel,
+    });
     setName('');
     setAdding(false);
   };

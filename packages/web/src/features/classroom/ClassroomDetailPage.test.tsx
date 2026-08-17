@@ -5,7 +5,7 @@ import { ClassroomDetailPage } from './ClassroomDetailPage';
 import * as firestoreLib from '../../lib/firestore';
 
 vi.mock('../../lib/firestore', () => ({
-  useClassrooms: vi.fn(),
+  useClassroom: vi.fn(),
   useStudents: vi.fn(),
   addStudent: vi.fn(),
 }));
@@ -15,7 +15,7 @@ const classroom = { id: 'ctx-1', type: 'classroom' as const, name: '4th Grade', 
 
 describe('ClassroomDetailPage', () => {
   it('shows empty state with no students', () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([classroom]);
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
@@ -24,7 +24,7 @@ describe('ClassroomDetailPage', () => {
   });
 
   it('calls addStudent with the classroom owners', async () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([classroom]);
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
     vi.mocked(firestoreLib.addStudent).mockResolvedValue(undefined);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
@@ -37,6 +37,29 @@ describe('ClassroomDetailPage', () => {
         contextId: 'ctx-1',
         displayName: 'Alex',
         ownerUids: ['teacher-1'],
+        schoolId: undefined,
+        gradeLevel: undefined,
+      }),
+    );
+  });
+
+  it('scopes a newly added student to the classroom school/grade when set', async () => {
+    const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '4' };
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    vi.mocked(firestoreLib.addStudent).mockResolvedValue(undefined);
+    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
+
+    fireEvent.change(screen.getByPlaceholderText('Student name'), { target: { value: 'Alex' } });
+    fireEvent.click(screen.getByText('Add'));
+
+    await waitFor(() =>
+      expect(firestoreLib.addStudent).toHaveBeenCalledWith({
+        contextId: 'ctx-1',
+        displayName: 'Alex',
+        ownerUids: ['other-teacher'],
+        schoolId: 'school-1',
+        gradeLevel: '4',
       }),
     );
   });

@@ -12,6 +12,7 @@ import {
   where,
   writeBatch,
   type DocumentData,
+  type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { ClassroomContext, LedgerTransaction, Student, TransactionType } from '@sprout/shared';
@@ -19,8 +20,8 @@ import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
 
-function contextFromDoc(d: QueryDocumentSnapshot<DocumentData>): ClassroomContext {
-  const data = d.data();
+function contextFromDoc(d: DocumentSnapshot<DocumentData>): ClassroomContext {
+  const data = d.data()!;
   return {
     id: d.id,
     type: data.type,
@@ -76,6 +77,24 @@ export function useClassrooms(ownerUid: string): ClassroomContext[] {
   }, [ownerUid]);
 
   return classrooms;
+}
+
+/** A single classroom by id, regardless of ownership — for a classroom's
+ * detail page, where the viewer may be an admin/super_admin or a
+ * scoped-but-non-owning teacher rather than the direct owner. Relies on the
+ * same firestore.rules read permission (isContextOwner || hasScopedAccess)
+ * that already governs the list queries above; undefined while loading or
+ * if the doc doesn't exist/isn't visible to this viewer. */
+export function useClassroom(contextId: string): ClassroomContext | undefined {
+  const [classroom, setClassroom] = useState<ClassroomContext | undefined>(undefined);
+
+  useEffect(() => {
+    return onSnapshot(doc(db, 'contexts', contextId), (snapshot) => {
+      setClassroom(snapshot.exists() ? contextFromDoc(snapshot) : undefined);
+    });
+  }, [contextId]);
+
+  return classroom;
 }
 
 /** Classrooms visible via a school-wide or grade-level scope grant
