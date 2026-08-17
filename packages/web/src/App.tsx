@@ -9,6 +9,8 @@ import { LandingRouter } from './features/classroom/LandingRouter';
 import { ClassroomDetailPage } from './features/classroom/ClassroomDetailPage';
 import { StudentLedgerPage } from './features/classroom/StudentLedgerPage';
 import { SchoolPage } from './features/school/SchoolPage';
+import { StudentsPage } from './features/students/StudentsPage';
+import { StudentImportPage } from './features/students/StudentImportPage';
 import { Layout } from './components/layout/Layout';
 
 function App() {
@@ -54,6 +56,12 @@ function App() {
         </Route>
         <Route path="/school">
           <SchoolPage user={user} />
+        </Route>
+        <Route path="/students/import">
+          <StudentImportPage user={user} />
+        </Route>
+        <Route path="/students">
+          <StudentsPage user={user} />
         </Route>
         <Route path="/">
           <LandingRouter user={user} />

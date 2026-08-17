@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
+import { useLocation } from 'wouter';
 import { Pencil, X } from 'lucide-react';
 import type { MemberRole, MemberScope } from '@sprout/shared';
 import {
@@ -97,6 +98,7 @@ function ScopePicker({ value, onChange }: { value: MemberScope; onChange: (v: Me
  * school is never left without at least one super_admin (enforced in
  * firestore.rules, not just this UI's disabled-button state). */
 export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: string }) {
+  const [, navigate] = useLocation();
   const [schoolName, setSchoolName] = useState<string | null>(null);
   const membership = useMyMembership(schoolId, user.uid);
   const members = useMembersOfSchool(schoolId);
@@ -209,11 +211,18 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
           title={schoolName ?? 'School'}
           backTo="/"
           actions={
-            isSuperAdmin && (
-              <IconButton label="Rename school" variant="secondary" onClick={startRenamingSchool}>
-                <Pencil size={16} />
-              </IconButton>
-            )
+            <>
+              {isAtLeastAdmin && (
+                <Button variant="secondary" size="sm" onClick={() => navigate('/students')}>
+                  Manage Students
+                </Button>
+              )}
+              {isSuperAdmin && (
+                <IconButton label="Rename school" variant="secondary" onClick={startRenamingSchool}>
+                  <Pencil size={16} />
+                </IconButton>
+              )}
+            </>
           }
         />
       )}

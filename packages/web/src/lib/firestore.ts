@@ -269,6 +269,64 @@ export async function deleteStudent(studentId: string): Promise<void> {
   await deleteDoc(doc(db, 'students', studentId));
 }
 
+/** Every student in a school, independent of which classroom owns them —
+ * for the school-wide Students admin list. Mirrors useClassroomsInSchool's
+ * exact query shape (no server-side orderBy — sort client-side, same
+ * convention that already avoids needing a composite index there). */
+export function useStudentsInSchool(schoolId: string | undefined, gradeLevels?: string[]): Student[] {
+  const [students, setStudents] = useState<Student[]>([]);
+  const gradeLevelsKey = gradeLevels?.join(',');
+
+  useEffect(() => {
+    if (!schoolId) {
+      setStudents([]);
+      return;
+    }
+    const constraints = [where('schoolId', '==', schoolId)];
+    if (gradeLevelsKey !== undefined) {
+      constraints.push(where('gradeLevel', 'in', gradeLevelsKey.split(',')));
+    }
+    const q = query(collection(db, 'students'), ...constraints);
+    return onSnapshot(q, (snapshot) => setStudents(snapshot.docs.map(studentFromDoc)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gradeLevelsKey stands in for gradeLevels (array identity would re-fire every render)
+  }, [schoolId, gradeLevelsKey]);
+
+  return students;
+}
+
+/** Reassigns a student to a different classroom — contextIds/ownerUids/
+ * schoolId/gradeLevel/contextName, never touches name/studentId.
+ * ownerUids must be the destination classroom's actual owner(s), not left
+ * stale from the old one: otherwise a non-admin teacher whose classroom
+ * gains this student via reassignment would have no direct (isContextOwner)
+ * access to them, only admins would. Callers are expected to already have
+ * manage access on both the source and destination classroom
+ * (firestore.rules enforces this regardless). */
+export async function moveStudentToClassroom(
+  studentId: string,
+  target: { contextId: string; ownerUids: string[]; schoolId?: string; gradeLevel?: string; contextName?: string },
+): Promise<void> {
+  await updateDoc(doc(db, 'students', studentId), {
+    contextIds: [target.contextId],
+    contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
+    ownerUids: target.ownerUids,
+    ...(target.schoolId ? { schoolId: target.schoolId } : {}),
+    ...(target.gradeLevel ? { gradeLevel: target.gradeLevel } : {}),
+    ...(target.contextName ? { contextName: target.contextName } : {}),
+  });
+}
+
+export async function bulkMoveStudents(
+  studentIds: string[],
+  target: { contextId: string; ownerUids: string[]; schoolId?: string; gradeLevel?: string; contextName?: string },
+): Promise<void> {
+  await Promise.all(studentIds.map((id) => moveStudentToClassroom(id, target)));
+}
+
+export async function bulkDeleteStudents(studentIds: string[]): Promise<void> {
+  await Promise.all(studentIds.map((id) => deleteStudent(id)));
+}
+
 export function useTransactions(contextId: string, studentId: string): LedgerTransaction[] {
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
 
@@ -431,4 +489,60 @@ export function useLinkedStudent(uid: string): Student | null | undefined {
   }, [uid]);
 
   return student;
+}
+
+/** One parsed+validated CSV row, ready to commit. `existingId` is the
+ * Firestore doc id of the student this row updates (matched by studentId
+ * within the school, computed by the caller against useStudentsInSchool's
+ * already-loaded data) — absent means create new. Reassignment is never
+ * an implicit side effect of importing: a matched row updates
+ * name/studentId/gradeLevel only, never contextIds/ownerUids, even if the
+ * chosen destination classroom differs from where the student already is. */
+export interface StudentImportRow {
+  firstName: string;
+  lastName: string;
+  studentId?: string;
+  gradeLevel?: string;
+  existingId?: string;
+}
+
+/** Chunked at 400 rows/batch — Firestore's writeBatch caps at 500
+ * operations and each row is exactly 1 (a single set or update). */
+export async function commitStudentImport(
+  rows: StudentImportRow[],
+  target: { contextId: string; ownerUids: string[]; schoolId: string; gradeLevel?: string; contextName: string },
+): Promise<void> {
+  const CHUNK_SIZE = 400;
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    for (const row of rows.slice(i, i + CHUNK_SIZE)) {
+      const displayName = combineDisplayName(row.firstName, row.lastName);
+      const gradeLevel = row.gradeLevel || target.gradeLevel;
+      if (row.existingId) {
+        batch.update(doc(db, 'students', row.existingId), {
+          firstName: row.firstName,
+          lastName: row.lastName,
+          displayName,
+          ...(row.studentId ? { studentId: row.studentId } : {}),
+          ...(gradeLevel ? { gradeLevel } : {}),
+        });
+      } else {
+        batch.set(doc(collection(db, 'students')), {
+          firstName: row.firstName,
+          lastName: row.lastName,
+          displayName,
+          ...(row.studentId ? { studentId: row.studentId } : {}),
+          balanceCents: 0,
+          contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
+          contextIds: [target.contextId],
+          ownerUids: target.ownerUids,
+          schoolId: target.schoolId,
+          ...(gradeLevel ? { gradeLevel } : {}),
+          contextName: target.contextName,
+          createdAt: serverTimestamp(),
+        });
+      }
+    }
+    await batch.commit();
+  }
 }
