@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { createClassroom, useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
 import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
+import { GRADE_OPTIONS } from '../school/SchoolAdminPage';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -37,6 +38,8 @@ export function ClassroomsPage({ user }: { user: User }) {
 
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [addToSchool, setAddToSchool] = useState(true);
+  const [gradeLevel, setGradeLevel] = useState('');
   const [, navigate] = useLocation();
 
   const handleCreate = async () => {
@@ -48,8 +51,11 @@ export function ClassroomsPage({ user }: { user: User }) {
       ownerUid: user.uid,
       ownerDisplayName: user.displayName,
       ownerEmail: user.email,
+      schoolId: isAtLeastAdmin && addToSchool ? schoolId : undefined,
+      gradeLevel: isAtLeastAdmin && addToSchool ? gradeLevel || undefined : undefined,
     });
     setName('');
+    setGradeLevel('');
     setCreating(false);
   };
 
@@ -87,16 +93,42 @@ export function ClassroomsPage({ user }: { user: User }) {
         )}
       </div>
 
-      <div className="flex gap-2 border-t border-border px-6 py-4">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Classroom name"
-          className="flex-1"
-        />
-        <Button onClick={handleCreate} disabled={creating}>
-          Create
-        </Button>
+      <div className="flex flex-col gap-2 border-t border-border px-6 py-4">
+        {isAtLeastAdmin && schoolId && (
+          <label className="flex items-center gap-2 text-sm text-ink-muted">
+            <input
+              type="checkbox"
+              checked={addToSchool}
+              onChange={(e) => setAddToSchool(e.target.checked)}
+            />
+            Add to school roster
+            {addToSchool && (
+              <select
+                value={gradeLevel}
+                onChange={(e) => setGradeLevel(e.target.value)}
+                className="ml-2 rounded-lg border border-border bg-surface px-2 py-1 text-ink"
+              >
+                <option value="">— Grade —</option>
+                {GRADE_OPTIONS.map((grade) => (
+                  <option key={grade} value={grade}>
+                    {grade}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+        )}
+        <div className="flex gap-2">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Classroom name"
+            className="flex-1"
+          />
+          <Button onClick={handleCreate} disabled={creating}>
+            Create
+          </Button>
+        </div>
       </div>
     </div>
   );

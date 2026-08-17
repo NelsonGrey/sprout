@@ -272,6 +272,27 @@ describe('SchoolAdminPage', () => {
     expect(screen.queryByLabelText('Rename school')).toBeNull();
   });
 
+  it('shows Promote Students for an admin and navigates to /students/promote', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+    await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
+
+    fireEvent.click(screen.getByText('Promote Students'));
+    expect(navigateMock).toHaveBeenCalledWith('/students/promote');
+  });
+
   it('lets a delegate admin edit a teacher scope', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({

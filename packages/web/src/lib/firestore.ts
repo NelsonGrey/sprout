@@ -323,15 +323,39 @@ export async function moveStudentToClassroom(
   });
 }
 
+// Chunked at 400 ids/batch — Firestore's writeBatch caps at 500 operations
+// and each id is exactly 1 (a single update/delete) — same convention as
+// commitStudentImport.
+const BULK_CHUNK_SIZE = 400;
+
 export async function bulkMoveStudents(
   studentIds: string[],
   target: { contextId: string; ownerUids: string[]; schoolId?: string; gradeLevel?: string; contextName?: string },
 ): Promise<void> {
-  await Promise.all(studentIds.map((id) => moveStudentToClassroom(id, target)));
+  for (let i = 0; i < studentIds.length; i += BULK_CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
+      batch.update(doc(db, 'students', id), {
+        contextIds: [target.contextId],
+        contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
+        ownerUids: target.ownerUids,
+        ...(target.schoolId ? { schoolId: target.schoolId } : {}),
+        ...(target.gradeLevel ? { gradeLevel: target.gradeLevel } : {}),
+        ...(target.contextName ? { contextName: target.contextName } : {}),
+      });
+    }
+    await batch.commit();
+  }
 }
 
 export async function bulkDeleteStudents(studentIds: string[]): Promise<void> {
-  await Promise.all(studentIds.map((id) => deleteStudent(id)));
+  for (let i = 0; i < studentIds.length; i += BULK_CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
+      batch.delete(doc(db, 'students', id));
+    }
+    await batch.commit();
+  }
 }
 
 export function useTransactions(contextId: string, studentId: string): LedgerTransaction[] {

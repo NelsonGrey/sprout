@@ -138,6 +138,17 @@ describe('StudentsPage', () => {
     });
   });
 
+  it('navigates to Promote Students and Import CSV', () => {
+    setup();
+    render(<StudentsPage user={user} />);
+
+    fireEvent.click(screen.getByText('Promote Students'));
+    expect(navigateMock).toHaveBeenCalledWith('/students/promote');
+
+    fireEvent.click(screen.getByText('Import CSV'));
+    expect(navigateMock).toHaveBeenCalledWith('/students/import');
+  });
+
   it('bulk-deletes selected students after confirming', async () => {
     setup();
     vi.mocked(firestoreLib.bulkDeleteStudents).mockResolvedValue(undefined);

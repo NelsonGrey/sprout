@@ -23,7 +23,7 @@ import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 
-const GRADE_OPTIONS = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+export const GRADE_OPTIONS = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 function scopeSummary(scope: MemberScope | undefined): string {
   if (!scope || scope.type === 'own') return 'Own classrooms only';
@@ -215,6 +215,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
               {isAtLeastAdmin && (
                 <Button variant="secondary" size="sm" onClick={() => navigate('/students')}>
                   Manage Students
+                </Button>
+              )}
+              {isAtLeastAdmin && (
+                <Button variant="secondary" size="sm" onClick={() => navigate('/students/promote')}>
+                  Promote Students
                 </Button>
               )}
               {isSuperAdmin && (

@@ -125,9 +125,14 @@ export function StudentsPage({ user }: { user: User }) {
         title="Students"
         backTo="/school"
         actions={
-          <Button variant="secondary" onClick={() => navigate('/students/import')}>
-            Import CSV
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => navigate('/students/promote')}>
+              Promote Students
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/students/import')}>
+              Import CSV
+            </Button>
+          </>
         }
       />
 

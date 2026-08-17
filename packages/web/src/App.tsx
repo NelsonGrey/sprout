@@ -11,6 +11,7 @@ import { StudentLedgerPage } from './features/classroom/StudentLedgerPage';
 import { SchoolPage } from './features/school/SchoolPage';
 import { StudentsPage } from './features/students/StudentsPage';
 import { StudentImportPage } from './features/students/StudentImportPage';
+import { PromoteStudentsPage } from './features/students/PromoteStudentsPage';
 import { Layout } from './components/layout/Layout';
 
 function App() {
@@ -59,6 +60,9 @@ function App() {
         </Route>
         <Route path="/students/import">
           <StudentImportPage user={user} />
+        </Route>
+        <Route path="/students/promote">
+          <PromoteStudentsPage user={user} />
         </Route>
         <Route path="/students">
           <StudentsPage user={user} />
