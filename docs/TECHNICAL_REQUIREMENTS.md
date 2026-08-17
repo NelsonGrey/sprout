@@ -285,7 +285,7 @@ A widget test that manually creates a raw `StreamSubscription` on `AuthService.a
 
 ### 7.2 Data Security 🔴 NOT STARTED
 - Firestore security rules: not written (§3.2's proposed model above is the design target).
-- No sensitive PII beyond what auth providers give (name, email) — students should not require their own email/password credential at all if a teacher/parent-managed model can avoid it (reduces COPPA surface area; needs a product decision before implementation).
+- No sensitive PII beyond what auth providers give (name, email). **Resolved** (was previously an open question): students DO sign in with a real account, the same Google/Apple/email providers teachers use — most K-12 students already have a school-managed Google Workspace for Education account, and school-directed ed-tech use under those accounts is exactly the pattern COPPA's school-official consent exception covers (district-level consent, not per-parent-per-app — this is how ClassBank, Clever, and ClassDojo actually operate). A student's account is *linked* to their existing roster record via the same invite-and-claim pattern already used for teacher accounts (`pendingStudentLinks`/`claimPendingStudentLinkIfAny`), rather than provisioned separately — see §3.2's student self-access rules (`isLinkedStudentSelf`/`isValidStudentLinkClaim`) for the enforcement side. A linked student's access is strictly read-only and scoped to exactly their own balance/history — never the classroom roster, other students, or any admin tooling.
 
 ### 7.3 Privacy Compliance 🔴 NOT STARTED — HIGHER BAR THAN THE ORG'S OTHER APPS
 | Regulation | Status | Notes |

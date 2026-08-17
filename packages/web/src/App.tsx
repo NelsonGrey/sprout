@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { Route, Switch } from 'wouter';
 import { firebaseClient } from './lib/firebase';
+import { claimPendingStudentLinkIfAny } from './lib/firestore';
 import { claimPendingInviteIfAny } from './lib/school';
 import { LoginPage } from './features/auth/LoginPage';
-import { ClassroomsPage } from './features/classroom/ClassroomsPage';
+import { LandingRouter } from './features/classroom/LandingRouter';
 import { ClassroomDetailPage } from './features/classroom/ClassroomDetailPage';
 import { StudentLedgerPage } from './features/classroom/StudentLedgerPage';
 import { SchoolPage } from './features/school/SchoolPage';
@@ -25,6 +26,7 @@ function App() {
           email: nextUser.email,
           displayName: nextUser.displayName,
         });
+        claimPendingStudentLinkIfAny({ uid: nextUser.uid, email: nextUser.email });
       }
     });
   }, []);
@@ -46,7 +48,7 @@ function App() {
         <SchoolPage user={user} />
       </Route>
       <Route path="/">
-        <ClassroomsPage user={user} />
+        <LandingRouter user={user} />
       </Route>
     </Switch>
   );

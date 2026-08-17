@@ -961,3 +961,230 @@ describe('firestore.rules — accessRequests', () => {
     await assertFails(getDoc(doc(outsider, 'accessRequests/req-12')));
   });
 });
+
+describe('firestore.rules — student self-access (BR-1.3.3/1.4.1)', () => {
+  const SUPER_ADMIN_UID = 'sa-super-admin-1';
+  const OWNER_TEACHER_UID = 'sa-owner-teacher-1';
+  const OTHER_TEACHER_UID = 'sa-other-teacher-1';
+  const OUTSIDER_UID = 'sa-outsider-1';
+  const SCHOOL_ID = 'sa-school-1';
+  const CONTEXT_ID = 'sa-ctx-1';
+  const STUDENT_ID = 'sa-student-1';
+  const OTHER_STUDENT_ID = 'sa-student-2';
+  const STUDENT_EMAIL = 'student@example.com';
+
+  async function seedSchoolClassroomAndStudents() {
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}`), {
+      name: 'Riverside Elementary',
+      founderUid: SUPER_ADMIN_UID,
+      superAdminCount: 1,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`), {
+      role: 'super_admin',
+      displayName: 'Principal',
+      email: 'principal@example.com',
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${OWNER_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Owning Teacher',
+      email: 'owner-teacher@example.com',
+      scope: { type: 'own' },
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${OTHER_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Unrelated Teacher',
+      email: 'other-teacher@example.com',
+      scope: { type: 'own' },
+      addedByUid: SUPER_ADMIN_UID,
+      createdAt: new Date(),
+    });
+
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, `contexts/${CONTEXT_ID}`), {
+      type: 'classroom',
+      name: '4th Grade',
+      ownerUids: [OWNER_TEACHER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+    await setDoc(doc(owner, `students/${STUDENT_ID}`), {
+      firstName: 'Alex',
+      lastName: 'Rivera',
+      displayName: 'Alex Rivera',
+      balanceCents: 500,
+      contexts: { [CONTEXT_ID]: { type: 'classroom', role: 'member' } },
+      contextIds: [CONTEXT_ID],
+      ownerUids: [OWNER_TEACHER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+    await setDoc(doc(owner, `students/${OTHER_STUDENT_ID}`), {
+      firstName: 'Jamie',
+      lastName: 'Chen',
+      displayName: 'Jamie Chen',
+      balanceCents: 200,
+      contexts: { [CONTEXT_ID]: { type: 'classroom', role: 'member' } },
+      contextIds: [CONTEXT_ID],
+      ownerUids: [OWNER_TEACHER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+    await setDoc(doc(owner, `contexts/${CONTEXT_ID}/transactions/tx-1`), {
+      studentId: STUDENT_ID,
+      type: 'earn',
+      amountCents: 500,
+      reason: 'Starting balance',
+      createdByUid: OWNER_TEACHER_UID,
+      createdAt: new Date(),
+      ownerUids: [OWNER_TEACHER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+    });
+  }
+
+  async function linkStudent() {
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`), {
+      studentId: STUDENT_ID,
+      invitedByUid: OWNER_TEACHER_UID,
+      createdAt: new Date(),
+    });
+    const student = testEnv.authenticatedContext('sa-student-uid', { email: STUDENT_EMAIL }).firestore();
+    await setDoc(doc(student, `students/${STUDENT_ID}`), { linkedUid: 'sa-student-uid' }, { merge: true });
+    await deleteDoc(doc(student, `pendingStudentLinks/${STUDENT_EMAIL}`));
+  }
+
+  it('lets the classroom owner create a pending student link for a student they manage, but denies an unrelated teacher', async () => {
+    await seedSchoolClassroomAndStudents();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`), {
+        studentId: STUDENT_ID,
+        invitedByUid: OWNER_TEACHER_UID,
+        createdAt: new Date(),
+      }),
+    );
+    await deleteDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`));
+
+    const otherTeacher = testEnv.authenticatedContext(OTHER_TEACHER_UID).firestore();
+    await assertFails(
+      setDoc(doc(otherTeacher, `pendingStudentLinks/${STUDENT_EMAIL}`), {
+        studentId: STUDENT_ID,
+        invitedByUid: OTHER_TEACHER_UID,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies spoofing invitedByUid on a pending student link', async () => {
+    await seedSchoolClassroomAndStudents();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await assertFails(
+      setDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`), {
+        studentId: STUDENT_ID,
+        invitedByUid: OTHER_TEACHER_UID,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('lets a student claim a pending link matching their verified email, exactly once', async () => {
+    await seedSchoolClassroomAndStudents();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`), {
+      studentId: STUDENT_ID,
+      invitedByUid: OWNER_TEACHER_UID,
+      createdAt: new Date(),
+    });
+
+    const student = testEnv.authenticatedContext('sa-student-uid', { email: STUDENT_EMAIL }).firestore();
+    await assertSucceeds(
+      setDoc(doc(student, `students/${STUDENT_ID}`), { linkedUid: 'sa-student-uid' }, { merge: true }),
+    );
+    // The real claim flow deletes the pending link once claimed (see
+    // claimPendingStudentLinkIfAny) — do the same here before recreating it
+    // below, or the recreate would be an update (no rule permits) rather
+    // than a fresh create.
+    await deleteDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`));
+
+    // First-claim-wins: a second claimant (even with a fresh pending link
+    // re-created for a different uid) is denied — the record is already linked.
+    await setDoc(doc(owner, `pendingStudentLinks/${STUDENT_EMAIL}`), {
+      studentId: STUDENT_ID,
+      invitedByUid: OWNER_TEACHER_UID,
+      createdAt: new Date(),
+    });
+    const impersonator = testEnv.authenticatedContext('sa-impersonator-uid', { email: STUDENT_EMAIL }).firestore();
+    await assertFails(
+      setDoc(doc(impersonator, `students/${STUDENT_ID}`), { linkedUid: 'sa-impersonator-uid' }, { merge: true }),
+    );
+  });
+
+  it('lets a linked student read their own student doc and transactions, but nothing else', async () => {
+    await seedSchoolClassroomAndStudents();
+    await linkStudent();
+    const student = testEnv.authenticatedContext('sa-student-uid', { email: STUDENT_EMAIL }).firestore();
+
+    await assertSucceeds(getDoc(doc(student, `students/${STUDENT_ID}`)));
+    await assertSucceeds(getDoc(doc(student, `contexts/${CONTEXT_ID}/transactions/tx-1`)));
+
+    await assertFails(getDoc(doc(student, `students/${OTHER_STUDENT_ID}`)));
+    await assertFails(getDoc(doc(student, `contexts/${CONTEXT_ID}`)));
+  });
+
+  it('denies a linked student any write on their own student doc or a new transaction', async () => {
+    await seedSchoolClassroomAndStudents();
+    await linkStudent();
+    const student = testEnv.authenticatedContext('sa-student-uid', { email: STUDENT_EMAIL }).firestore();
+
+    await assertFails(setDoc(doc(student, `students/${STUDENT_ID}`), { displayName: 'Hacked' }, { merge: true }));
+    await assertFails(deleteDoc(doc(student, `students/${STUDENT_ID}`)));
+    await assertFails(
+      setDoc(doc(student, `contexts/${CONTEXT_ID}/transactions/tx-self`), {
+        studentId: STUDENT_ID,
+        type: 'earn',
+        amountCents: 1000000,
+        reason: 'Self-serve',
+        createdByUid: 'sa-student-uid',
+        createdAt: new Date(),
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+      }),
+    );
+  });
+
+  it('lets staff clear linkedUid (unlink) but never set it to an arbitrary uid via the normal update path', async () => {
+    await seedSchoolClassroomAndStudents();
+    await linkStudent();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+
+    // A normal field edit must leave linkedUid untouched — implicitly
+    // verified by this succeeding at all under the restructured update
+    // rule's first branch — and explicitly verified by reading it back.
+    await assertSucceeds(
+      setDoc(doc(owner, `students/${STUDENT_ID}`), { lastName: 'Riviera' }, { merge: true }),
+    );
+    const afterRename = await getDoc(doc(owner, `students/${STUDENT_ID}`));
+    if (afterRename.data()?.linkedUid !== 'sa-student-uid') {
+      throw new Error('linkedUid was unexpectedly altered by an unrelated field edit');
+    }
+
+    // Staff CAN unlink (clear to null)...
+    await assertSucceeds(
+      setDoc(doc(owner, `students/${STUDENT_ID}`), { linkedUid: null }, { merge: true }),
+    );
+    // ...but cannot directly hijack it to an arbitrary uid.
+    await assertFails(
+      setDoc(doc(owner, `students/${STUDENT_ID}`), { linkedUid: 'sa-hijacker-uid' }, { merge: true }),
+    );
+  });
+});

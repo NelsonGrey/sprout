@@ -25,6 +25,9 @@ class Student {
     this.studentId,
     this.schoolId,
     this.gradeLevel,
+    this.contextId,
+    this.contextName,
+    this.linkedUid,
   });
 
   final String id;
@@ -49,4 +52,26 @@ class Student {
   /// [ClassroomContext.schoolId]/[ClassroomContext.gradeLevel].
   final String? schoolId;
   final String? gradeLevel;
+
+  /// The classroom this student belongs to — mirrors Firestore's
+  /// `contextIds` array, but as a single field: mobile (unlike the web
+  /// model) has never needed to carry more than one, since every screen
+  /// that reads a Student already knows its contextId from route params.
+  /// Only needed as a field at all for contexts (like the student's own
+  /// balance view) that don't have a route-supplied contextId to fall
+  /// back on.
+  final String? contextId;
+
+  /// Denormalized from the owning classroom's name at creation time — lets
+  /// the student's own read-only view (see [linkedUid]) show a classroom
+  /// name without ever needing a contexts/{contextId} read, which a linked
+  /// student must never have access to.
+  final String? contextName;
+
+  /// The real Firebase Auth account (same Google/Apple/email providers
+  /// teachers use) linked to this roster entry, once claimed via
+  /// pendingStudentLinks. Absent until linked. Set only by the student's
+  /// own verified-email claim; cleared only by staff (unlink) — the normal
+  /// staff update path cannot change it (see firestore.rules).
+  final String? linkedUid;
 }

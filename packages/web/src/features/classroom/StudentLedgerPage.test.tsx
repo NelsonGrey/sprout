@@ -11,6 +11,10 @@ vi.mock('../../lib/firestore', () => ({
   recordTransaction: vi.fn(),
   updateStudent: vi.fn(),
   deleteStudent: vi.fn(),
+  usePendingStudentLinkForStudent: vi.fn(),
+  linkStudentAccount: vi.fn(),
+  cancelStudentLink: vi.fn(),
+  unlinkStudentAccount: vi.fn(),
   // Real implementation is a trivial last-whitespace split with no
   // dependency on Firebase — safe to inline here rather than
   // importOriginal (which would pull in the real ./firebase module and

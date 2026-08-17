@@ -130,6 +130,26 @@ class PendingInvite {
   final String? staffId;
 }
 
+/// Doc ID is the target student's real school email, lowercased. Created
+/// by staff with manage access to the named student's classroom; claimed
+/// automatically the first time that email signs in — mirrors
+/// [PendingInvite], except the claim writes onto an EXISTING
+/// students/{studentId} doc rather than creating a new doc under the
+/// claimant's own uid. Deliberately carries no contextId/schoolId — those
+/// are derived from studentId itself so there's no spoofable field for a
+/// caller to lie about which classroom they manage.
+class PendingStudentLink {
+  const PendingStudentLink({
+    required this.email,
+    required this.studentId,
+    required this.invitedByUid,
+  });
+
+  final String email;
+  final String studentId;
+  final String invitedByUid;
+}
+
 enum AccessRequestStatus { pending, approved, declined }
 
 AccessRequestStatus _accessRequestStatusFromJson(String value) {

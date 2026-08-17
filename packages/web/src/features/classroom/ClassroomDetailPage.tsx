@@ -73,6 +73,7 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
       ownerUids,
       schoolId: classroom?.schoolId,
       gradeLevel: classroom?.gradeLevel,
+      contextName: classroom?.name,
     });
     setName('');
     setAdding(false);

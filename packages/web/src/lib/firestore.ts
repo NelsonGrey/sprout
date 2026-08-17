@@ -3,12 +3,15 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
+  getDoc,
   increment,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
@@ -17,7 +20,7 @@ import {
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { ClassroomContext, LedgerTransaction, Student, TransactionType } from '@sprout/shared';
+import type { ClassroomContext, LedgerTransaction, PendingStudentLink, Student, TransactionType } from '@sprout/shared';
 import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
@@ -35,7 +38,7 @@ function contextFromDoc(d: DocumentSnapshot<DocumentData>): ClassroomContext {
   };
 }
 
-function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
+export function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
   const data = d.data();
   return {
     id: d.id,
@@ -49,6 +52,8 @@ function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
     ownerUids: data.ownerUids,
     schoolId: data.schoolId,
     gradeLevel: data.gradeLevel,
+    contextName: data.contextName,
+    linkedUid: data.linkedUid,
     createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
   };
 }
@@ -216,6 +221,7 @@ export async function addStudent({
   ownerUids,
   schoolId,
   gradeLevel,
+  contextName,
 }: {
   contextId: string;
   firstName: string;
@@ -224,6 +230,7 @@ export async function addStudent({
   ownerUids: string[];
   schoolId?: string;
   gradeLevel?: string;
+  contextName?: string;
 }): Promise<void> {
   await addDoc(collection(db, 'students'), {
     firstName,
@@ -236,6 +243,7 @@ export async function addStudent({
     ownerUids,
     ...(schoolId ? { schoolId } : {}),
     ...(gradeLevel ? { gradeLevel } : {}),
+    ...(contextName ? { contextName } : {}),
     createdAt: serverTimestamp(),
   });
 }
@@ -322,4 +330,105 @@ export async function recordTransaction({
   batch.update(doc(db, 'students', studentId), { balanceCents: increment(delta) });
 
   await batch.commit();
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function pendingStudentLinkFromDoc(d: QueryDocumentSnapshot<DocumentData>): PendingStudentLink {
+  const data = d.data();
+  return {
+    email: d.id,
+    studentId: data.studentId,
+    invitedByUid: data.invitedByUid,
+    createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
+  };
+}
+
+/** Records that [email] should be linked to [studentId] the first time
+ * that email signs in — see claimPendingStudentLinkIfAny. Only a staff
+ * member with manage access to the student's classroom may call this
+ * (enforced by firestore.rules' canManageStudentLink, not just this UI). */
+export async function linkStudentAccount({
+  studentId,
+  email,
+  invitedByUid,
+}: {
+  studentId: string;
+  email: string;
+  invitedByUid: string;
+}): Promise<void> {
+  await setDoc(doc(db, 'pendingStudentLinks', normalizeEmail(email)), {
+    studentId,
+    invitedByUid,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function cancelStudentLink(email: string): Promise<void> {
+  await deleteDoc(doc(db, 'pendingStudentLinks', normalizeEmail(email)));
+}
+
+export function usePendingStudentLinkForStudent(studentId: string | undefined): PendingStudentLink | null {
+  const [invite, setInvite] = useState<PendingStudentLink | null>(null);
+
+  useEffect(() => {
+    if (!studentId) {
+      setInvite(null);
+      return;
+    }
+    const q = query(collection(db, 'pendingStudentLinks'), where('studentId', '==', studentId));
+    return onSnapshot(q, (snapshot) => setInvite(snapshot.empty ? null : pendingStudentLinkFromDoc(snapshot.docs[0])));
+  }, [studentId]);
+
+  return invite;
+}
+
+/** Staff clearing a linked account — the only way to free up a mis-linked
+ * record for relinking (firestore.rules enforces first-claim-wins, so a
+ * second claim attempt is denied without this). */
+export async function unlinkStudentAccount(studentId: string): Promise<void> {
+  await updateDoc(doc(db, 'students', studentId), { linkedUid: deleteField() });
+}
+
+/** Runs once after every sign-in, alongside claimPendingInviteIfAny: if a
+ * pending student link exists for [email], links this account to that
+ * student's roster record (sets students/{studentId}.linkedUid) and
+ * deletes the pending link. No-op if there's no matching pending link —
+ * the normal case for every non-student user. */
+export async function claimPendingStudentLinkIfAny({
+  uid,
+  email,
+}: {
+  uid: string;
+  email: string;
+}): Promise<void> {
+  const normalized = normalizeEmail(email);
+  const linkRef = doc(db, 'pendingStudentLinks', normalized);
+  const linkSnapshot = await getDoc(linkRef);
+  const link = linkSnapshot.data();
+  if (!link) return;
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'students', link.studentId), { linkedUid: uid });
+  batch.delete(linkRef);
+  await batch.commit();
+}
+
+/** The student roster record linked to [uid], if any — undefined while
+ * loading, null once loaded if this account isn't linked to a student.
+ * Queries `where linkedUid == uid` rather than reading a classroom's full
+ * roster (useStudents), since firestore.rules' isLinkedStudentSelf only
+ * ever matches the caller's own doc — any broader query would be denied
+ * outright the moment a classroom has more than one student. */
+export function useLinkedStudent(uid: string): Student | null | undefined {
+  const [student, setStudent] = useState<Student | null | undefined>(undefined);
+
+  useEffect(() => {
+    const q = query(collection(db, 'students'), where('linkedUid', '==', uid));
+    return onSnapshot(q, (snapshot) => setStudent(snapshot.empty ? null : studentFromDoc(snapshot.docs[0])));
+  }, [uid]);
+
+  return student;
 }

@@ -272,4 +272,71 @@ void main() {
     expect(find.byKey(const Key('renameStudentButton')), findsOneWidget);
     expect(find.byKey(const Key('deleteStudentButton')), findsOneWidget);
   });
+
+  testWidgets('lets the owner send a link invite, then shows it as pending', (tester) async {
+    final repository = FakeClassroomRepository();
+    final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
+    final student = await repository.addStudent(
+      contextId: classroom.id,
+      firstName: 'Alex',
+      lastName: '',
+      ownerUids: classroom.ownerUids,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: StudentLedgerScreen(
+        classroomRepository: repository,
+        schoolRepository: FakeSchoolRepository(),
+        user: _user,
+        contextId: classroom.id,
+        studentId: student.id,
+      ),
+    ));
+    await tester.pump();
+
+    tester.widget<TextField>(find.byKey(const Key('linkStudentEmailField'))).controller!.text =
+        'alex@example.com';
+    final sendButton = tester.widget<ElevatedButton>(find.byKey(const Key('sendLinkInviteButton')));
+    sendButton.onPressed!();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Invite sent to alex@example.com'), findsOneWidget);
+  });
+
+  testWidgets('shows a linked badge and lets the owner unlink', (tester) async {
+    final repository = FakeClassroomRepository();
+    final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
+    final student = await repository.addStudent(
+      contextId: classroom.id,
+      firstName: 'Alex',
+      lastName: '',
+      ownerUids: classroom.ownerUids,
+    );
+    await repository.linkStudentAccount(
+      studentId: student.id,
+      email: 'alex@example.com',
+      invitedByUid: _user.uid,
+    );
+    await repository.claimPendingStudentLinkIfAny(uid: 'student-uid', email: 'alex@example.com');
+
+    await tester.pumpWidget(MaterialApp(
+      home: StudentLedgerScreen(
+        classroomRepository: repository,
+        schoolRepository: FakeSchoolRepository(),
+        user: _user,
+        contextId: classroom.id,
+        studentId: student.id,
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.textContaining('Linked'), findsOneWidget);
+
+    final unlinkButton = tester.widget<TextButton>(find.byKey(const Key('unlinkStudentButton')));
+    unlinkButton.onPressed!();
+    await tester.pumpAndSettle();
+
+    final updated = await repository.linkedStudentForUser('student-uid').first;
+    expect(updated, isNull);
+  });
 }

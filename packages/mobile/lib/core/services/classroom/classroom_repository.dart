@@ -1,5 +1,6 @@
 import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
+import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
 
 /// Firestore-backed classroom data access, behind an interface so screens
@@ -51,6 +52,8 @@ abstract class ClassroomRepository {
   /// denormalized at creation time for scoped reads (see
   /// [classroomsInSchool]). [studentId] is a plain admin/CSV-entered
   /// school/district ID string, distinct from the returned [Student.id].
+  /// [contextName] denormalizes the owning classroom's name so a linked
+  /// student's own read-only view can show it without a contexts read.
   Future<Student> addStudent({
     required String contextId,
     required String firstName,
@@ -59,6 +62,7 @@ abstract class ClassroomRepository {
     String? studentId,
     String? schoolId,
     String? gradeLevel,
+    String? contextName,
   });
 
   /// Not cascading — a deleted student's transactions subcollection (owned
@@ -98,4 +102,41 @@ abstract class ClassroomRepository {
     String? schoolId,
     String? gradeLevel,
   });
+
+  // ---- Student self-service linking (BR-1.3.3/1.4.1) ----
+
+  /// Records that [email] should be linked to [studentId] the first time
+  /// that email signs in — see [claimPendingStudentLinkIfAny]. Only a
+  /// staff member with manage access to the student's classroom may call
+  /// this (enforced by firestore.rules' canManageStudentLink, not just
+  /// this UI).
+  Future<void> linkStudentAccount({
+    required String studentId,
+    required String email,
+    required String invitedByUid,
+  });
+
+  Future<void> cancelStudentLink(String email);
+
+  Stream<PendingStudentLink?> pendingStudentLinkForStudent(String studentId);
+
+  /// Staff clearing a linked account — the only way to free up a
+  /// mis-linked record for relinking (firestore.rules enforces
+  /// first-claim-wins, so a second claim attempt is denied without this).
+  Future<void> unlinkStudentAccount(String studentId);
+
+  /// Runs once after every sign-in, alongside claimPendingInviteIfAny: if
+  /// a pending student link exists for [email], links this account to
+  /// that student's roster record and deletes the pending link. No-op if
+  /// there's no matching pending link — the normal case for every
+  /// non-student user.
+  Future<void> claimPendingStudentLinkIfAny({required String uid, required String email});
+
+  /// The student roster record linked to [uid], if any — null once loaded
+  /// if this account isn't linked to a student. Queries `linkedUid == uid`
+  /// rather than reading a classroom's full roster, since
+  /// firestore.rules' isLinkedStudentSelf only ever matches the caller's
+  /// own doc — any broader query would be denied outright the moment a
+  /// classroom has more than one student.
+  Stream<Student?> linkedStudentForUser(String uid);
 }

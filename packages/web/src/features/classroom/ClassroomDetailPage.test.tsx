@@ -76,6 +76,7 @@ describe('ClassroomDetailPage', () => {
         ownerUids: ['teacher-1'],
         schoolId: undefined,
         gradeLevel: undefined,
+        contextName: '4th Grade',
       }),
     );
   });
@@ -110,6 +111,7 @@ describe('ClassroomDetailPage', () => {
         ownerUids: ['other-teacher'],
         schoolId: 'school-1',
         gradeLevel: '4',
+        contextName: '4th Grade',
       }),
     );
   });

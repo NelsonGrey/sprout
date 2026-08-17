@@ -111,6 +111,46 @@ service cloud.firestore {
         && get(schoolPath(schoolId)).data.founderUid == request.auth.uid;
     }
 
+    // ---- Student self-service linking (BR-1.3.3/1.4.1) ----
+    // A student's own real Firebase Auth account (same Google/Apple/email
+    // providers teachers use), linked to their students/{id} roster entry
+    // via a pendingStudentLinks claim — see below. True only for the exact
+    // document being evaluated, never for any other student's data.
+    function isLinkedStudentSelf(data) {
+      return isAuthenticated() && data.get('linkedUid', null) == request.auth.uid;
+    }
+    // Manage/owner access to the classroom that actually owns [studentId] —
+    // derived by reading students/{studentId} directly (which already
+    // denormalizes schoolId/gradeLevel/contextIds) rather than trusting a
+    // caller-supplied contextId/schoolId, so a pendingStudentLinks create
+    // can't be spoofed by naming a classroom the caller manages while
+    // actually targeting a student who belongs to a different one.
+    function canManageStudentLink(studentId) {
+      return exists(/databases/$(database)/documents/students/$(studentId)) && (
+        isContextOwner(get(/databases/$(database)/documents/students/$(studentId)).data) || (
+          get(/databases/$(database)/documents/students/$(studentId)).data.schoolId != null &&
+          hasManageAccess(
+            get(/databases/$(database)/documents/students/$(studentId)).data.schoolId,
+            get(/databases/$(database)/documents/students/$(studentId)).data.contextIds[0]
+          )
+        )
+      );
+    }
+    // A student claiming a pending link naming them, by verified email
+    // token (mirrors isValidInviteClaim's shape). First-claim-wins: denied
+    // if the student doc already has ANY linkedUid — an already-linked
+    // record can only be cleared by staff (unlink), never silently
+    // overwritten by a second claimant. Touches exactly linkedUid, nothing
+    // else — see the students/{studentId} update rule below.
+    function isValidStudentLinkClaim(studentId, existingData, newData) {
+      return isAuthenticated() && 'email' in request.auth.token
+        && existingData.get('linkedUid', null) == null
+        && newData.linkedUid == request.auth.uid
+        && newData.diff(existingData).affectedKeys().hasOnly(['linkedUid'])
+        && exists(/databases/$(database)/documents/pendingStudentLinks/$(request.auth.token.email.lower()))
+        && get(/databases/$(database)/documents/pendingStudentLinks/$(request.auth.token.email.lower())).data.studentId == studentId;
+    }
+
     // A user's own profile document.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
@@ -170,6 +210,22 @@ service cloud.firestore {
         (request.resource.data.role == 'teacher' && isAtLeastAdmin(request.resource.data.schoolId));
     }
 
+    // Doc ID is the target student's real school email, lowercased.
+    // Created by staff with manage access to the named student's classroom
+    // (canManageStudentLink derives that from studentId itself — no
+    // contextId/schoolId is stored here, so there's no spoofable field to
+    // lie about which classroom the caller manages); claimed automatically
+    // the first time that email signs in (see isValidStudentLinkClaim and
+    // the students/{studentId} update rule below, which is the write that
+    // actually grants access).
+    match /pendingStudentLinks/{email} {
+      allow read, delete: if isAuthenticated() && (
+        email == request.auth.token.email.lower() || canManageStudentLink(resource.data.studentId)
+      );
+      allow create: if canManageStudentLink(request.resource.data.studentId)
+        && request.resource.data.invitedByUid == request.auth.uid;
+    }
+
     // A classroom or family unit. Only 'classroom' is populated today —
     // 'family' is additive later, not a migration (see TRD §3.2). schoolId
     // is optional: absent for standalone teacher-created classrooms and for
@@ -201,6 +257,9 @@ service cloud.firestore {
         allow read: if isContextOwner(resource.data) || (
           resource.data.schoolId != null
             && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, contextId)
+        ) || (
+          exists(/databases/$(database)/documents/students/$(resource.data.studentId))
+            && isLinkedStudentSelf(get(/databases/$(database)/documents/students/$(resource.data.studentId)).data)
         );
         allow create: if (
           isContextOwner(request.resource.data) || (
@@ -227,25 +286,42 @@ service cloud.firestore {
       allow read: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
           && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, resource.data.contextIds[0])
-      );
-      // Checks manage-access on BOTH the current and the destination
-      // classroom (contextIds[0] before vs. after) — a manage-access
-      // teacher on classroom A must not be able to rewrite contextIds to
-      // move a student into classroom B they have no access to, in
-      // another school even. A same-classroom update (the common case:
-      // rename, studentId/gradeLevel edit) only needs the first check.
+      ) || isLinkedStudentSelf(resource.data);
+      // Three ways to update, and exactly one of them may ever change
+      // linkedUid to a new non-null value:
+      //  1. Staff's normal manage-gated update (rename/regrade/move
+      //     classroom) — checks manage-access on BOTH the current and the
+      //     destination classroom (contextIds[0] before vs. after), same
+      //     reasoning as before, and now additionally requires linkedUid
+      //     stay byte-for-byte unchanged. Without this, an ordinary staff
+      //     write could silently hand an arbitrary uid read access to a
+      //     student's balance/history with zero email verification.
+      //  2. Staff unlinking — clears linkedUid back to null, touches
+      //     nothing else. The only way to free up a mis-linked record.
+      //  3. The student's own verified-email claim (first-claim-wins).
       allow update: if (
-        isContextOwner(resource.data) || (
-          resource.data.schoolId != null
-            && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+        (
+          isContextOwner(resource.data) || (
+            resource.data.schoolId != null
+              && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+          )
+        ) && (
+          request.resource.data.contextIds[0] == resource.data.contextIds[0] ||
+          isContextOwner(request.resource.data) || (
+            request.resource.data.schoolId != null
+              && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextIds[0])
+          )
+        ) && request.resource.data.get('linkedUid', null) == resource.data.get('linkedUid', null)
+      ) || (
+        (
+          isContextOwner(resource.data) || (
+            resource.data.schoolId != null
+              && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+          )
         )
-      ) && (
-        request.resource.data.contextIds[0] == resource.data.contextIds[0] ||
-        isContextOwner(request.resource.data) || (
-          request.resource.data.schoolId != null
-            && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextIds[0])
-        )
-      );
+        && request.resource.data.get('linkedUid', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid'])
+      ) || isValidStudentLinkClaim(studentId, resource.data, request.resource.data);
       allow delete: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
           && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])

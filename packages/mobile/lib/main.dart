@@ -13,7 +13,7 @@ import 'package:sprout/core/services/school/firestore_school_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/features/auth/login_screen.dart';
 import 'package:sprout/features/classroom/classroom_detail_screen.dart';
-import 'package:sprout/features/classroom/classrooms_screen.dart';
+import 'package:sprout/features/classroom/landing_screen.dart';
 import 'package:sprout/features/classroom/student_ledger_screen.dart';
 import 'package:sprout/features/school/school_screen.dart';
 
@@ -46,7 +46,11 @@ class SproutApp extends StatelessWidget {
     SchoolRepository schoolRepository,
   ) {
     return GoRouter(
-      refreshListenable: _AuthStateRefresh(authService.authStateChanges(), schoolRepository),
+      refreshListenable: _AuthStateRefresh(
+        authService.authStateChanges(),
+        classroomRepository,
+        schoolRepository,
+      ),
       redirect: (context, state) {
         final signedIn = authService.currentUser != null;
         final onLoginPage = state.matchedLocation == '/login';
@@ -60,7 +64,7 @@ class SproutApp extends StatelessWidget {
           builder: (context, state) {
             final user = authService.currentUser;
             if (user == null) return const SizedBox.shrink();
-            return ClassroomsScreen(
+            return LandingScreen(
               authService: authService,
               classroomRepository: classroomRepository,
               schoolRepository: schoolRepository,
@@ -123,11 +127,17 @@ class SproutApp extends StatelessWidget {
 
 /// Bridges [AuthService.authStateChanges] into a [Listenable] so GoRouter's
 /// `redirect` re-evaluates on sign-in/sign-out. Also runs
-/// [SchoolRepository.claimPendingInviteIfAny] on every sign-in — a no-op
-/// unless an admin invited this exact email, in which case it activates
-/// the access they configured (see plan's "Invite-and-Claim Flow").
+/// [SchoolRepository.claimPendingInviteIfAny] and
+/// [ClassroomRepository.claimPendingStudentLinkIfAny] on every sign-in —
+/// both no-ops unless an admin/teacher configured access for this exact
+/// email, in which case they activate it (see plan's "Invite-and-Claim
+/// Flow" and BR-1.3.3/1.4.1's student-linking flow).
 class _AuthStateRefresh extends ChangeNotifier {
-  _AuthStateRefresh(Stream<AppUser?> stream, SchoolRepository schoolRepository) {
+  _AuthStateRefresh(
+    Stream<AppUser?> stream,
+    ClassroomRepository classroomRepository,
+    SchoolRepository schoolRepository,
+  ) {
     _subscription = stream.listen((user) {
       notifyListeners();
       final email = user?.email;
@@ -137,6 +147,7 @@ class _AuthStateRefresh extends ChangeNotifier {
           email: email,
           displayName: user.displayName,
         );
+        classroomRepository.claimPendingStudentLinkIfAny(uid: user.uid, email: email);
       }
     });
   }

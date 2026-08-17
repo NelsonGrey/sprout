@@ -4,10 +4,14 @@ import type { TransactionType } from '@sprout/shared';
 import { useLocation } from 'wouter';
 import { Pencil, Trash2 } from 'lucide-react';
 import {
+  cancelStudentLink,
   deleteStudent,
+  linkStudentAccount,
   recordTransaction,
   splitDisplayName,
+  unlinkStudentAccount,
   updateStudent,
+  usePendingStudentLinkForStudent,
   useStudents,
   useTransactions,
 } from '../../lib/firestore';
@@ -57,6 +61,10 @@ export function StudentLedgerPage({
   const [nameDraft, setNameDraft] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const pendingLink = usePendingStudentLinkForStudent(studentId);
+  const [linkEmail, setLinkEmail] = useState('');
+  const [linking, setLinking] = useState(false);
+
   const handleRecord = async (type: TransactionType) => {
     const parsed = Number.parseFloat(amount);
     if (!Number.isFinite(parsed) || parsed <= 0 || !reason.trim() || recording) return;
@@ -91,6 +99,15 @@ export function StudentLedgerPage({
     setRenaming(false);
   };
 
+  const handleSendLinkInvite = async () => {
+    const trimmed = linkEmail.trim();
+    if (!trimmed || linking) return;
+    setLinking(true);
+    await linkStudentAccount({ studentId, email: trimmed, invitedByUid: user.uid });
+    setLinkEmail('');
+    setLinking(false);
+  };
+
   return (
     <main className="flex min-h-screen flex-col bg-neutral-950 text-white">
       {renaming ? (
@@ -122,6 +139,39 @@ export function StudentLedgerPage({
         />
       )}
       <p className="px-6 pt-4 text-3xl font-bold">${((student?.balanceCents ?? 0) / 100).toFixed(2)}</p>
+
+      {canManage && (
+        <section className="mx-6 mt-4 rounded-lg border border-white/10 p-4">
+          <h2 className="mb-2 text-sm font-semibold text-white/60">Student account</h2>
+          {student?.linkedUid ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-green-400">Linked — the student can sign in and see this on their own</span>
+              <Button size="sm" variant="secondary" onClick={() => unlinkStudentAccount(studentId)}>
+                Unlink
+              </Button>
+            </div>
+          ) : pendingLink ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/70">Invite sent to {pendingLink.email}</span>
+              <Button size="sm" variant="secondary" onClick={() => cancelStudentLink(pendingLink.email)}>
+                Cancel invite
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={linkEmail}
+                onChange={(e) => setLinkEmail(e.target.value)}
+                placeholder="Student's school email"
+                className="flex-1"
+              />
+              <Button size="sm" onClick={handleSendLinkInvite} disabled={linking}>
+                Send link invite
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {transactions.length === 0 ? (

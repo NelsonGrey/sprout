@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
+import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 
@@ -15,6 +16,10 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       _firestore.collection('contexts');
   CollectionReference<Map<String, dynamic>> get _students =>
       _firestore.collection('students');
+  CollectionReference<Map<String, dynamic>> get _pendingStudentLinks =>
+      _firestore.collection('pendingStudentLinks');
+
+  String _normalizeEmail(String email) => email.trim().toLowerCase();
 
   @override
   Stream<List<ClassroomContext>> myClassrooms(String ownerUid) {
@@ -119,6 +124,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     String? studentId,
     String? schoolId,
     String? gradeLevel,
+    String? contextName,
   }) async {
     final ref = _students.doc();
     final displayName = combineDisplayName(firstName, lastName);
@@ -135,6 +141,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       'ownerUids': ownerUids,
       if (schoolId != null) 'schoolId': schoolId,
       if (gradeLevel != null) 'gradeLevel': gradeLevel,
+      if (contextName != null) 'contextName': contextName,
       'createdAt': FieldValue.serverTimestamp(),
     });
     return Student(
@@ -147,6 +154,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       ownerUids: ownerUids,
       schoolId: schoolId,
       gradeLevel: gradeLevel,
+      contextId: contextId,
+      contextName: contextName,
     );
   }
 
@@ -226,6 +235,58 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     await batch.commit();
   }
 
+  @override
+  Future<void> linkStudentAccount({
+    required String studentId,
+    required String email,
+    required String invitedByUid,
+  }) async {
+    await _pendingStudentLinks.doc(_normalizeEmail(email)).set({
+      'studentId': studentId,
+      'invitedByUid': invitedByUid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> cancelStudentLink(String email) =>
+      _pendingStudentLinks.doc(_normalizeEmail(email)).delete();
+
+  @override
+  Stream<PendingStudentLink?> pendingStudentLinkForStudent(String studentId) {
+    return _pendingStudentLinks
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isEmpty ? null : _pendingStudentLinkFromDoc(snapshot.docs.first));
+  }
+
+  @override
+  Future<void> unlinkStudentAccount(String studentId) async {
+    await _students.doc(studentId).update({'linkedUid': FieldValue.delete()});
+  }
+
+  @override
+  Future<void> claimPendingStudentLinkIfAny({required String uid, required String email}) async {
+    final normalized = _normalizeEmail(email);
+    final linkRef = _pendingStudentLinks.doc(normalized);
+    final linkSnapshot = await linkRef.get();
+    final link = linkSnapshot.data();
+    if (link == null) return;
+
+    final batch = _firestore.batch();
+    batch.update(_students.doc(link['studentId'] as String), {'linkedUid': uid});
+    batch.delete(linkRef);
+    await batch.commit();
+  }
+
+  @override
+  Stream<Student?> linkedStudentForUser(String uid) {
+    return _students
+        .where('linkedUid', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isEmpty ? null : _studentFromDoc(snapshot.docs.first));
+  }
+
   ClassroomContext _contextFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     return ClassroomContext(
@@ -239,6 +300,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
 
   Student _studentFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
+    final contextIds = data['contextIds'] as List?;
     return Student(
       id: doc.id,
       firstName: data['firstName'] as String? ?? '',
@@ -249,6 +311,18 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       ownerUids: List<String>.from(data['ownerUids'] as List),
       schoolId: data['schoolId'] as String?,
       gradeLevel: data['gradeLevel'] as String?,
+      contextId: contextIds != null && contextIds.isNotEmpty ? contextIds.first as String : null,
+      contextName: data['contextName'] as String?,
+      linkedUid: data['linkedUid'] as String?,
+    );
+  }
+
+  PendingStudentLink _pendingStudentLinkFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    return PendingStudentLink(
+      email: doc.id,
+      studentId: data['studentId'] as String,
+      invitedByUid: data['invitedByUid'] as String,
     );
   }
 

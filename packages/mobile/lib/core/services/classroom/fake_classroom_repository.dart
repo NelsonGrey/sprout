@@ -1,5 +1,6 @@
 import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
+import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 
@@ -10,6 +11,9 @@ class FakeClassroomRepository implements ClassroomRepository {
   final Map<String, Student> _students = {};
   final Map<String, List<LedgerTransaction>> _transactionsByStudent = {};
   final Map<String, Set<String>> _studentIdsByContext = {};
+  final Map<String, PendingStudentLink> _pendingStudentLinksByEmail = {};
+
+  String _normalizeEmail(String email) => email.trim().toLowerCase();
 
   int _nextId = 0;
   String _newId() => 'fake-${_nextId++}';
@@ -91,6 +95,7 @@ class FakeClassroomRepository implements ClassroomRepository {
     String? studentId,
     String? schoolId,
     String? gradeLevel,
+    String? contextName,
   }) async {
     final student = Student(
       id: _newId(),
@@ -102,6 +107,8 @@ class FakeClassroomRepository implements ClassroomRepository {
       ownerUids: ownerUids,
       schoolId: schoolId,
       gradeLevel: gradeLevel,
+      contextId: contextId,
+      contextName: contextName,
     );
     _students[student.id] = student;
     _studentIdsByContext.putIfAbsent(contextId, () => {}).add(student.id);
@@ -132,6 +139,9 @@ class FakeClassroomRepository implements ClassroomRepository {
       ownerUids: current.ownerUids,
       schoolId: current.schoolId,
       gradeLevel: gradeLevel ?? current.gradeLevel,
+      contextId: current.contextId,
+      contextName: current.contextName,
+      linkedUid: current.linkedUid,
     );
   }
 
@@ -187,6 +197,84 @@ class FakeClassroomRepository implements ClassroomRepository {
       ownerUids: current.ownerUids,
       schoolId: current.schoolId,
       gradeLevel: current.gradeLevel,
+      contextId: current.contextId,
+      contextName: current.contextName,
+      linkedUid: current.linkedUid,
     );
+  }
+
+  @override
+  Future<void> linkStudentAccount({
+    required String studentId,
+    required String email,
+    required String invitedByUid,
+  }) async {
+    final normalized = _normalizeEmail(email);
+    _pendingStudentLinksByEmail[normalized] = PendingStudentLink(
+      email: normalized,
+      studentId: studentId,
+      invitedByUid: invitedByUid,
+    );
+  }
+
+  @override
+  Future<void> cancelStudentLink(String email) async {
+    _pendingStudentLinksByEmail.remove(_normalizeEmail(email));
+  }
+
+  @override
+  Stream<PendingStudentLink?> pendingStudentLinkForStudent(String studentId) {
+    final matches = _pendingStudentLinksByEmail.values.where((l) => l.studentId == studentId);
+    return Stream.value(matches.isEmpty ? null : matches.first);
+  }
+
+  @override
+  Future<void> unlinkStudentAccount(String studentId) async {
+    final current = _students[studentId];
+    if (current == null) return;
+    _students[studentId] = Student(
+      id: current.id,
+      firstName: current.firstName,
+      lastName: current.lastName,
+      displayName: current.displayName,
+      studentId: current.studentId,
+      balanceCents: current.balanceCents,
+      ownerUids: current.ownerUids,
+      schoolId: current.schoolId,
+      gradeLevel: current.gradeLevel,
+      contextId: current.contextId,
+      contextName: current.contextName,
+      linkedUid: null,
+    );
+  }
+
+  @override
+  Future<void> claimPendingStudentLinkIfAny({required String uid, required String email}) async {
+    final normalized = _normalizeEmail(email);
+    final link = _pendingStudentLinksByEmail[normalized];
+    if (link == null) return;
+    final current = _students[link.studentId];
+    if (current == null) return;
+    _students[link.studentId] = Student(
+      id: current.id,
+      firstName: current.firstName,
+      lastName: current.lastName,
+      displayName: current.displayName,
+      studentId: current.studentId,
+      balanceCents: current.balanceCents,
+      ownerUids: current.ownerUids,
+      schoolId: current.schoolId,
+      gradeLevel: current.gradeLevel,
+      contextId: current.contextId,
+      contextName: current.contextName,
+      linkedUid: uid,
+    );
+    _pendingStudentLinksByEmail.remove(normalized);
+  }
+
+  @override
+  Stream<Student?> linkedStudentForUser(String uid) {
+    final matches = _students.values.where((s) => s.linkedUid == uid);
+    return Stream.value(matches.isEmpty ? null : matches.first);
   }
 }

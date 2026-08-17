@@ -37,12 +37,15 @@ class StudentLedgerScreen extends StatefulWidget {
 class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
   final _amountController = TextEditingController();
   final _reasonController = TextEditingController();
+  final _linkEmailController = TextEditingController();
   bool _recording = false;
+  bool _linking = false;
 
   @override
   void dispose() {
     _amountController.dispose();
     _reasonController.dispose();
+    _linkEmailController.dispose();
     super.dispose();
   }
 
@@ -104,6 +107,19 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
       );
       if (mounted) setState(() {});
     }
+  }
+
+  Future<void> _sendLinkInvite() async {
+    final email = _linkEmailController.text.trim();
+    if (email.isEmpty || _linking) return;
+    setState(() => _linking = true);
+    await widget.classroomRepository.linkStudentAccount(
+      studentId: widget.studentId,
+      email: email,
+      invitedByUid: widget.user.uid,
+    );
+    _linkEmailController.clear();
+    if (mounted) setState(() => _linking = false);
   }
 
   Future<void> _deleteStudent() async {
@@ -175,6 +191,73 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ),
+                  if (canManage)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: student?.linkedUid != null
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'Linked — the student can sign in and see this on their own',
+                                        style: TextStyle(color: Colors.green),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      key: const Key('unlinkStudentButton'),
+                                      onPressed: () => widget.classroomRepository
+                                          .unlinkStudentAccount(widget.studentId),
+                                      child: const Text('Unlink'),
+                                    ),
+                                  ],
+                                )
+                              : StreamBuilder<PendingStudentLink?>(
+                                  stream: widget.classroomRepository
+                                      .pendingStudentLinkForStudent(widget.studentId),
+                                  builder: (context, pendingSnapshot) {
+                                    final pending = pendingSnapshot.data;
+                                    if (pending != null) {
+                                      return Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(child: Text('Invite sent to ${pending.email}')),
+                                          TextButton(
+                                            key: const Key('cancelStudentLinkButton'),
+                                            onPressed: () => widget.classroomRepository
+                                                .cancelStudentLink(pending.email),
+                                            child: const Text('Cancel invite'),
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            key: const Key('linkStudentEmailField'),
+                                            controller: _linkEmailController,
+                                            decoration: const InputDecoration(
+                                              labelText: "Student's school email",
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton(
+                                          key: const Key('sendLinkInviteButton'),
+                                          onPressed: _linking ? null : _sendLinkInvite,
+                                          child: const Text('Link'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                    ),
                   Expanded(
                     child: StreamBuilder<List<LedgerTransaction>>(
                       stream: widget.classroomRepository.transactionsForStudent(

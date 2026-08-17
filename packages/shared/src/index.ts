@@ -37,6 +37,19 @@ export interface Student {
    * ClassroomContext.schoolId/gradeLevel. */
   schoolId?: string;
   gradeLevel?: string;
+  /** Denormalized from the owning classroom's name at creation time — lets
+   * the student's own read-only view (see linkedUid) show a classroom name
+   * without ever needing a contexts/{contextId} read, which a linked
+   * student must never have access to. Same staleness tradeoff as
+   * schoolId/gradeLevel: a later classroom rename isn't cascaded back. */
+  contextName?: string;
+  /** The real Firebase Auth account (same Google/Apple/email providers
+   * teachers use) linked to this roster entry, once claimed via
+   * pendingStudentLinks — see firestore.rules' isValidStudentLinkClaim.
+   * Absent until linked. Set only by the student's own verified-email
+   * claim; cleared only by staff (unlink) — the normal staff update path
+   * cannot change it (see firestore.rules). */
+  linkedUid?: string;
   createdAt: Date;
 }
 
@@ -115,6 +128,22 @@ export interface PendingInvite {
   firstName?: string;
   lastName?: string;
   staffId?: string;
+  invitedByUid: string;
+  createdAt: Date;
+}
+
+/** Doc ID is the target student's real school email, lowercased. Created
+ * by staff with manage access to the named student's classroom; claimed
+ * automatically the first time that email signs in — mirrors PendingInvite,
+ * except the claim writes onto an EXISTING students/{studentId} doc rather
+ * than creating a new doc under the claimant's own uid (see
+ * claimPendingStudentLinkIfAny / firestore.rules' isValidStudentLinkClaim).
+ * Deliberately carries no contextId/schoolId — those are derived from
+ * studentId itself so there's no spoofable field for a caller to lie about
+ * which classroom they manage. */
+export interface PendingStudentLink {
+  email: string;
+  studentId: string;
   invitedByUid: string;
   createdAt: Date;
 }
