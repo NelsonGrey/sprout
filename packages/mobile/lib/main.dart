@@ -15,6 +15,7 @@ import 'package:sprout/features/auth/login_screen.dart';
 import 'package:sprout/features/classroom/classroom_detail_screen.dart';
 import 'package:sprout/features/classroom/classrooms_screen.dart';
 import 'package:sprout/features/classroom/student_ledger_screen.dart';
+import 'package:sprout/features/school/school_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,6 +91,14 @@ class SproutApp extends StatelessWidget {
               contextId: state.pathParameters['contextId']!,
               studentId: state.pathParameters['studentId']!,
             );
+          },
+        ),
+        GoRoute(
+          path: '/school',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return SchoolScreen(schoolRepository: schoolRepository, user: user);
           },
         ),
         GoRoute(

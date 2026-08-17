@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
+import 'package:sprout/widgets/confirm_delete_dialog.dart';
+import 'package:sprout/widgets/sprout_app_bar.dart';
 
 /// A single student's balance and transaction history, with an inline
 /// earn/spend form. Handing the device to the student to view this screen
@@ -58,6 +61,40 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
     if (mounted) setState(() => _recording = false);
   }
 
+  Future<void> _renameStudent(String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename student'),
+        content: TextField(key: const Key('renameStudentField'), controller: controller, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            key: const Key('saveStudentNameButton'),
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newName != null && newName.isNotEmpty) {
+      await widget.classroomRepository.updateStudent(widget.studentId, displayName: newName);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _deleteStudent() async {
+    final confirmed = await showConfirmDeleteDialog(
+      context,
+      title: 'Delete this student?',
+      message: "This can't be undone.",
+    );
+    if (!confirmed) return;
+    await widget.classroomRepository.deleteStudent(widget.studentId);
+    if (mounted) context.go('/classrooms/${widget.contextId}');
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Student>>(
@@ -67,7 +104,23 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
         final ownerUids = student?.ownerUids ?? [widget.user.uid];
 
         return Scaffold(
-          appBar: AppBar(title: Text(student?.displayName ?? 'Student')),
+          appBar: SproutAppBar(
+            title: student?.displayName ?? 'Student',
+            actions: [
+              IconButton(
+                key: const Key('renameStudentButton'),
+                icon: const Icon(Icons.edit),
+                tooltip: 'Rename student',
+                onPressed: student == null ? null : () => _renameStudent(student.displayName),
+              ),
+              IconButton(
+                key: const Key('deleteStudentButton'),
+                icon: const Icon(Icons.delete),
+                tooltip: 'Delete student',
+                onPressed: _deleteStudent,
+              ),
+            ],
+          ),
           body: Column(
             children: [
               Padding(

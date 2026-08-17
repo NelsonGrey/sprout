@@ -94,6 +94,11 @@ class FirestoreSchoolRepository implements SchoolRepository {
   }
 
   @override
+  Future<void> updateSchool(String schoolId, {String? name}) async {
+    await _schools.doc(schoolId).update({if (name != null) 'name': name});
+  }
+
+  @override
   Stream<SchoolMember?> myMembership(String schoolId, String uid) {
     return _schools.doc(schoolId).collection('members').doc(uid).snapshots().map((snapshot) {
       final data = snapshot.data();
@@ -126,6 +131,11 @@ class FirestoreSchoolRepository implements SchoolRepository {
     } else {
       await memberRef.delete();
     }
+  }
+
+  @override
+  Future<void> updateMemberScope(String schoolId, String uid, MemberScope scope) async {
+    await _schools.doc(schoolId).collection('members').doc(uid).update({'scope': scope.toJson()});
   }
 
   @override

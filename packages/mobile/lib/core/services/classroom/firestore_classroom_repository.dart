@@ -50,6 +50,19 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   }
 
   @override
+  Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel}) async {
+    await _contexts.doc(contextId).update({
+      if (name != null) 'name': name,
+      if (gradeLevel != null) 'gradeLevel': gradeLevel,
+    });
+  }
+
+  @override
+  Future<void> deleteClassroom(String contextId) async {
+    await _contexts.doc(contextId).delete();
+  }
+
+  @override
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,
@@ -126,6 +139,16 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       schoolId: schoolId,
       gradeLevel: gradeLevel,
     );
+  }
+
+  @override
+  Future<void> updateStudent(String studentId, {String? displayName}) async {
+    await _students.doc(studentId).update({if (displayName != null) 'displayName': displayName});
+  }
+
+  @override
+  Future<void> deleteStudent(String studentId) async {
+    await _students.doc(studentId).delete();
   }
 
   @override

@@ -24,6 +24,13 @@ abstract class ClassroomRepository {
   /// visible to this viewer.
   Stream<ClassroomContext?> classroom(String contextId);
 
+  /// Rename or re-grade a classroom. Not cascading — students' contextIds
+  /// pointing at a since-deleted classroom aren't cleaned up by
+  /// [deleteClassroom]; there's no batch/cascade infrastructure for that yet.
+  Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel});
+
+  Future<void> deleteClassroom(String contextId);
+
   /// Also upserts `users/{ownerUid}` with [ownerDisplayName]/[ownerEmail] —
   /// the first classroom a teacher creates is when their profile doc is
   /// written. [schoolId]/[gradeLevel] are optional — omit for a standalone
@@ -50,6 +57,13 @@ abstract class ClassroomRepository {
     String? schoolId,
     String? gradeLevel,
   });
+
+  /// Not cascading — a deleted student's transactions subcollection (owned
+  /// by the context, not the student) is orphaned but inert, never queried
+  /// without a studentId filter that would now just return nothing new.
+  Future<void> updateStudent(String studentId, {String? displayName});
+
+  Future<void> deleteStudent(String studentId);
 
   Stream<List<LedgerTransaction>> transactionsForStudent({
     required String contextId,

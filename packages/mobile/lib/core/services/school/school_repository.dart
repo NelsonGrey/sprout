@@ -20,6 +20,10 @@ abstract class SchoolRepository {
 
   Future<School?> getSchool(String schoolId);
 
+  /// Name only — no delete (rules permit it, but there's no cascade-delete
+  /// for the school's contexts/students/members/invites).
+  Future<void> updateSchool(String schoolId, {String? name});
+
   /// Null if [uid] isn't a member of [schoolId].
   Stream<SchoolMember?> myMembership(String schoolId, String uid);
 
@@ -30,6 +34,12 @@ abstract class SchoolRepository {
   /// firestore.rules). Removing the school's last super_admin is denied by
   /// the rules regardless of who attempts it.
   Future<void> removeMember(String schoolId, String uid);
+
+  /// Changes an existing teacher's scope only — never role. Role changes
+  /// (promoting/demoting across teacher/admin/super_admin) stay a two-step
+  /// remove-then-reinvite flow; firestore.rules' members update rule only
+  /// permits writes that leave role as 'teacher'.
+  Future<void> updateMemberScope(String schoolId, String uid, MemberScope scope);
 
   /// Records who's coming, keyed by email — not tied to an existing
   /// account. Activated automatically the first time that email signs in

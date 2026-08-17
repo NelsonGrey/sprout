@@ -6,6 +6,7 @@ import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
+import 'package:sprout/widgets/sprout_app_bar.dart';
 
 /// Post-login landing screen: a teacher's classroom list plus "create a
 /// classroom". Uses a persistent inline form rather than a dialog so the
@@ -60,9 +61,14 @@ class _ClassroomsScreenState extends State<ClassroomsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Classrooms'),
+      appBar: SproutAppBar(
+        title: 'My Classrooms',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.school),
+            tooltip: 'School',
+            onPressed: () => context.go('/school'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',

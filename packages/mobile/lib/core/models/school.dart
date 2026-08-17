@@ -62,6 +62,14 @@ class SchoolMember {
   final String displayName;
   final String email;
   final MemberScope? scope;
+
+  SchoolMember copyWith({MemberScope? scope}) => SchoolMember(
+        uid: uid,
+        role: role,
+        displayName: displayName,
+        email: email,
+        scope: scope ?? this.scope,
+      );
 }
 
 /// Doc ID is the invitee's lowercased email. Claimed automatically the

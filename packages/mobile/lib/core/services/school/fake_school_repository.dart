@@ -42,6 +42,13 @@ class FakeSchoolRepository implements SchoolRepository {
   Future<School?> getSchool(String schoolId) async => _schools[schoolId];
 
   @override
+  Future<void> updateSchool(String schoolId, {String? name}) async {
+    final existing = _schools[schoolId];
+    if (existing == null) return;
+    _schools[schoolId] = School(id: existing.id, name: name ?? existing.name);
+  }
+
+  @override
   Stream<SchoolMember?> myMembership(String schoolId, String uid) {
     return Stream.value(_membersBySchool[schoolId]?[uid]);
   }
@@ -54,6 +61,13 @@ class FakeSchoolRepository implements SchoolRepository {
   @override
   Future<void> removeMember(String schoolId, String uid) async {
     _membersBySchool[schoolId]?.remove(uid);
+  }
+
+  @override
+  Future<void> updateMemberScope(String schoolId, String uid, MemberScope scope) async {
+    final member = _membersBySchool[schoolId]?[uid];
+    if (member == null) return;
+    _membersBySchool[schoolId]![uid] = member.copyWith(scope: scope);
   }
 
   @override

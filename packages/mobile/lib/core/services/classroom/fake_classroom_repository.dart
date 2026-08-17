@@ -37,6 +37,25 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
+  Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel}) async {
+    final current = _contexts[contextId];
+    if (current == null) return;
+    _contexts[contextId] = ClassroomContext(
+      id: current.id,
+      name: name ?? current.name,
+      ownerUids: current.ownerUids,
+      schoolId: current.schoolId,
+      gradeLevel: gradeLevel ?? current.gradeLevel,
+    );
+  }
+
+  @override
+  Future<void> deleteClassroom(String contextId) async {
+    _contexts.remove(contextId);
+    _studentIdsByContext.remove(contextId);
+  }
+
+  @override
   Future<ClassroomContext> createClassroom({
     required String name,
     required String ownerUid,
@@ -83,6 +102,29 @@ class FakeClassroomRepository implements ClassroomRepository {
     _studentIdsByContext.putIfAbsent(contextId, () => {}).add(student.id);
     _transactionsByStudent[student.id] = [];
     return student;
+  }
+
+  @override
+  Future<void> updateStudent(String studentId, {String? displayName}) async {
+    final current = _students[studentId];
+    if (current == null) return;
+    _students[studentId] = Student(
+      id: current.id,
+      displayName: displayName ?? current.displayName,
+      balanceCents: current.balanceCents,
+      ownerUids: current.ownerUids,
+      schoolId: current.schoolId,
+      gradeLevel: current.gradeLevel,
+    );
+  }
+
+  @override
+  Future<void> deleteStudent(String studentId) async {
+    _students.remove(studentId);
+    _transactionsByStudent.remove(studentId);
+    for (final ids in _studentIdsByContext.values) {
+      ids.remove(studentId);
+    }
   }
 
   @override
