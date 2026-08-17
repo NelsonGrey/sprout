@@ -40,10 +40,17 @@ function contextFromDoc(d: DocumentSnapshot<DocumentData>): ClassroomContext {
 
 export function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
   const data = d.data();
+  // firstName/lastName are absent on students created before the Phase 1
+  // roster migration (only displayName was ever written) — derive them so
+  // every caller can rely on the type's non-optional contract.
+  const { firstName, lastName } =
+    data.firstName !== undefined && data.lastName !== undefined
+      ? { firstName: data.firstName, lastName: data.lastName }
+      : splitDisplayName(data.displayName ?? '');
   return {
     id: d.id,
-    firstName: data.firstName,
-    lastName: data.lastName,
+    firstName,
+    lastName,
     displayName: data.displayName,
     studentId: data.studentId,
     balanceCents: data.balanceCents,
