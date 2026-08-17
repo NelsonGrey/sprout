@@ -137,8 +137,14 @@ class _ClassroomList extends StatelessWidget {
         return StreamBuilder<SchoolMember?>(
           stream: schoolRepository.myMembership(schoolId, user.uid),
           builder: (context, memberSnapshot) {
+            final role = memberSnapshot.data?.role;
+            final isAtLeastAdmin = role == MemberRole.admin || role == MemberRole.superAdmin;
             final scope = memberSnapshot.data?.scope;
-            if (scope == null || scope.type == MemberScopeType.own) {
+            // Admins/super_admins always have full-school visibility (no
+            // `scope` field exists on their member doc — that's
+            // teacher-only data), mirroring firestore.rules'
+            // hasScopedAccess isAtLeastAdmin shortcut.
+            if (!isAtLeastAdmin && (scope == null || scope.type == MemberScopeType.own)) {
               return _OwnClassroomsOnly(classroomRepository: classroomRepository, user: user);
             }
             return StreamBuilder<List<ClassroomContext>>(
@@ -147,7 +153,7 @@ class _ClassroomList extends StatelessWidget {
                 return StreamBuilder<List<ClassroomContext>>(
                   stream: classroomRepository.classroomsInSchool(
                     schoolId,
-                    gradeLevels: scope.type == MemberScopeType.grades ? scope.grades : null,
+                    gradeLevels: !isAtLeastAdmin && scope?.type == MemberScopeType.grades ? scope!.grades : null,
                   ),
                   builder: (context, scopedSnapshot) {
                     if (!ownSnapshot.hasData || !scopedSnapshot.hasData) {

@@ -15,12 +15,17 @@ export function ClassroomsPage({ user }: { user: User }) {
   // Multi-school membership/switching is deferred — use the first one.
   const schoolId = schoolIds[0];
   const membership = useMyMembership(schoolId, user.uid);
+  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
   const scope = membership?.scope;
+  // Admins/super_admins always have full-school visibility (no `scope`
+  // field exists on their member doc — that's teacher-only data), mirroring
+  // firestore.rules' hasScopedAccess isAtLeastAdmin shortcut.
+  const seesWholeOrScopedSchool = isAtLeastAdmin || (scope && scope.type !== 'own');
 
   const ownClassrooms = useClassrooms(user.uid);
   const scopedClassrooms = useClassroomsInSchool(
-    scope && scope.type !== 'own' ? schoolId : undefined,
-    scope?.type === 'grades' ? scope.grades : undefined,
+    seesWholeOrScopedSchool ? schoolId : undefined,
+    !isAtLeastAdmin && scope?.type === 'grades' ? scope.grades : undefined,
   );
   const classrooms = useMemo(() => {
     const merged = new Map(ownClassrooms.map((c) => [c.id, c]));

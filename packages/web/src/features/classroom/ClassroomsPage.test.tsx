@@ -82,4 +82,47 @@ describe('ClassroomsPage', () => {
     expect(screen.getByText('My Own Class')).toBeTruthy();
     expect(screen.getByText("Coach's 5th Grade")).toBeTruthy();
   });
+
+  it('gives a super_admin whole-school visibility despite having no scope field', () => {
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([
+      { id: 'ctx-1', type: 'classroom', name: "3rd Grade", ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '3', createdAt: new Date() },
+    ]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'super_admin',
+      displayName: 'Super Admin',
+      email: 'super@example.com',
+      // No `scope` field — admins/super_admins never have one.
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+
+    render(<ClassroomsPage user={user} />);
+
+    expect(firestoreLib.useClassroomsInSchool).toHaveBeenCalledWith('school-1', undefined);
+    expect(screen.getByText('3rd Grade')).toBeTruthy();
+  });
+
+  it('gives a plain admin whole-school visibility despite having no scope field', () => {
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([
+      { id: 'ctx-1', type: 'classroom', name: "4th Grade", ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '4', createdAt: new Date() },
+    ]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'admin@example.com',
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+
+    render(<ClassroomsPage user={user} />);
+
+    expect(firestoreLib.useClassroomsInSchool).toHaveBeenCalledWith('school-1', undefined);
+    expect(screen.getByText('4th Grade')).toBeTruthy();
+  });
 });

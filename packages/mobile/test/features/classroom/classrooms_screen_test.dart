@@ -10,6 +10,8 @@ import 'package:sprout/features/classroom/classrooms_screen.dart';
 
 const _user = AppUser(uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com');
 const _specialist = AppUser(uid: 'specialist-1', displayName: 'Coach Kim', email: 'kim@example.com');
+const _admin = AppUser(uid: 'admin-1', displayName: 'Office Manager', email: 'admin@example.com');
+const _superAdmin = AppUser(uid: 'super-1', displayName: 'Super Admin', email: 'super@example.com');
 
 void main() {
   testWidgets('shows empty state with no classrooms', (tester) async {
@@ -130,5 +132,81 @@ void main() {
 
     expect(find.text('Kindergarten Room'), findsOneWidget);
     expect(find.text('5th Grade Room'), findsOneWidget);
+  });
+
+  testWidgets('a super_admin sees every classroom despite having no scope field', (tester) async {
+    final classroomRepository = FakeClassroomRepository();
+    final schoolRepository = FakeSchoolRepository();
+    final school = await schoolRepository.createSchool(
+      name: 'Riverside Elementary',
+      founderUid: _user.uid,
+    );
+    await classroomRepository.createClassroom(
+      name: '3rd Grade Room',
+      ownerUid: _user.uid,
+      schoolId: school.id,
+      gradeLevel: '3',
+    );
+    await schoolRepository.inviteMember(
+      schoolId: school.id,
+      email: _superAdmin.email!,
+      role: MemberRole.superAdmin,
+      invitedByUid: _user.uid,
+    );
+    await schoolRepository.claimPendingInviteIfAny(
+      uid: _superAdmin.uid,
+      email: _superAdmin.email!,
+      displayName: _superAdmin.displayName,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: ClassroomsScreen(
+        authService: FakeAuthService(),
+        classroomRepository: classroomRepository,
+        schoolRepository: schoolRepository,
+        user: _superAdmin,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3rd Grade Room'), findsOneWidget);
+  });
+
+  testWidgets('a plain admin sees every classroom despite having no scope field', (tester) async {
+    final classroomRepository = FakeClassroomRepository();
+    final schoolRepository = FakeSchoolRepository();
+    final school = await schoolRepository.createSchool(
+      name: 'Riverside Elementary',
+      founderUid: _user.uid,
+    );
+    await classroomRepository.createClassroom(
+      name: '2nd Grade Room',
+      ownerUid: _user.uid,
+      schoolId: school.id,
+      gradeLevel: '2',
+    );
+    await schoolRepository.inviteMember(
+      schoolId: school.id,
+      email: _admin.email!,
+      role: MemberRole.admin,
+      invitedByUid: _user.uid,
+    );
+    await schoolRepository.claimPendingInviteIfAny(
+      uid: _admin.uid,
+      email: _admin.email!,
+      displayName: _admin.displayName,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: ClassroomsScreen(
+        authService: FakeAuthService(),
+        classroomRepository: classroomRepository,
+        schoolRepository: schoolRepository,
+        user: _admin,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2nd Grade Room'), findsOneWidget);
   });
 }
