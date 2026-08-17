@@ -50,6 +50,9 @@ abstract class SchoolRepository {
     required String email,
     required MemberRole role,
     MemberScope? scope,
+    String? firstName,
+    String? lastName,
+    String? staffId,
     required String invitedByUid,
   });
 

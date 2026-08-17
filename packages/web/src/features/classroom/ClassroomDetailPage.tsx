@@ -6,6 +6,7 @@ import {
   addStudent,
   deleteClassroom,
   deleteStudent,
+  splitDisplayName,
   updateClassroom,
   updateStudent,
   useClassroom,
@@ -64,9 +65,11 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
     const trimmed = name.trim();
     if (!trimmed || adding) return;
     setAdding(true);
+    const { firstName, lastName } = splitDisplayName(trimmed);
     await addStudent({
       contextId,
-      displayName: trimmed,
+      firstName,
+      lastName,
       ownerUids,
       schoolId: classroom?.schoolId,
       gradeLevel: classroom?.gradeLevel,
@@ -93,7 +96,10 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
 
   const saveStudentName = async (studentId: string) => {
     const trimmed = studentNameDraft.trim();
-    if (trimmed) await updateStudent(studentId, { displayName: trimmed });
+    if (trimmed) {
+      const { firstName, lastName } = splitDisplayName(trimmed);
+      await updateStudent(studentId, { firstName, lastName });
+    }
     setRenamingStudentId(null);
   };
 

@@ -85,14 +85,19 @@ class FakeClassroomRepository implements ClassroomRepository {
   @override
   Future<Student> addStudent({
     required String contextId,
-    required String displayName,
+    required String firstName,
+    required String lastName,
     required List<String> ownerUids,
+    String? studentId,
     String? schoolId,
     String? gradeLevel,
   }) async {
     final student = Student(
       id: _newId(),
-      displayName: displayName,
+      firstName: firstName,
+      lastName: lastName,
+      displayName: combineDisplayName(firstName, lastName),
+      studentId: studentId,
       balanceCents: 0,
       ownerUids: ownerUids,
       schoolId: schoolId,
@@ -105,16 +110,28 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Future<void> updateStudent(String studentId, {String? displayName}) async {
-    final current = _students[studentId];
+  Future<void> updateStudent(
+    String id, {
+    String? firstName,
+    String? lastName,
+    String? studentId,
+    String? gradeLevel,
+  }) async {
+    final current = _students[id];
     if (current == null) return;
-    _students[studentId] = Student(
+    final newFirst = firstName ?? current.firstName;
+    final newLast = lastName ?? current.lastName;
+    _students[id] = Student(
       id: current.id,
-      displayName: displayName ?? current.displayName,
+      firstName: newFirst,
+      lastName: newLast,
+      displayName:
+          firstName != null && lastName != null ? combineDisplayName(newFirst, newLast) : current.displayName,
+      studentId: studentId ?? current.studentId,
       balanceCents: current.balanceCents,
       ownerUids: current.ownerUids,
       schoolId: current.schoolId,
-      gradeLevel: current.gradeLevel,
+      gradeLevel: gradeLevel ?? current.gradeLevel,
     );
   }
 
@@ -162,7 +179,10 @@ class FakeClassroomRepository implements ClassroomRepository {
     final delta = type == TransactionType.earn ? amountCents : -amountCents;
     _students[studentId] = Student(
       id: current.id,
+      firstName: current.firstName,
+      lastName: current.lastName,
       displayName: current.displayName,
+      studentId: current.studentId,
       balanceCents: current.balanceCents + delta,
       ownerUids: current.ownerUids,
       schoolId: current.schoolId,

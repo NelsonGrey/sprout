@@ -113,14 +113,20 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   @override
   Future<Student> addStudent({
     required String contextId,
-    required String displayName,
+    required String firstName,
+    required String lastName,
     required List<String> ownerUids,
+    String? studentId,
     String? schoolId,
     String? gradeLevel,
   }) async {
     final ref = _students.doc();
+    final displayName = combineDisplayName(firstName, lastName);
     await ref.set({
+      'firstName': firstName,
+      'lastName': lastName,
       'displayName': displayName,
+      if (studentId != null) 'studentId': studentId,
       'balanceCents': 0,
       'contexts': {
         contextId: {'type': 'classroom', 'role': 'member'},
@@ -133,7 +139,10 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     });
     return Student(
       id: ref.id,
+      firstName: firstName,
+      lastName: lastName,
       displayName: displayName,
+      studentId: studentId,
       balanceCents: 0,
       ownerUids: ownerUids,
       schoolId: schoolId,
@@ -141,9 +150,24 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     );
   }
 
+  /// [firstName]/[lastName] must be updated together (both or neither) — a
+  /// partial name update would leave displayName recombined from a stale
+  /// half.
   @override
-  Future<void> updateStudent(String studentId, {String? displayName}) async {
-    await _students.doc(studentId).update({if (displayName != null) 'displayName': displayName});
+  Future<void> updateStudent(
+    String id, {
+    String? firstName,
+    String? lastName,
+    String? studentId,
+    String? gradeLevel,
+  }) async {
+    await _students.doc(id).update({
+      if (firstName != null) 'firstName': firstName,
+      if (lastName != null) 'lastName': lastName,
+      if (firstName != null && lastName != null) 'displayName': combineDisplayName(firstName, lastName),
+      if (studentId != null) 'studentId': studentId,
+      if (gradeLevel != null) 'gradeLevel': gradeLevel,
+    });
   }
 
   @override
@@ -217,7 +241,10 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     final data = doc.data();
     return Student(
       id: doc.id,
+      firstName: data['firstName'] as String? ?? '',
+      lastName: data['lastName'] as String? ?? '',
       displayName: data['displayName'] as String,
+      studentId: data['studentId'] as String?,
       balanceCents: (data['balanceCents'] as num).toInt(),
       ownerUids: List<String>.from(data['ownerUids'] as List),
       schoolId: data['schoolId'] as String?,

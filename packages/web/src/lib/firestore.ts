@@ -39,7 +39,10 @@ function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
   const data = d.data();
   return {
     id: d.id,
+    firstName: data.firstName,
+    lastName: data.lastName,
     displayName: data.displayName,
+    studentId: data.studentId,
     balanceCents: data.balanceCents,
     contexts: data.contexts,
     contextIds: data.contextIds,
@@ -48,6 +51,21 @@ function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student {
     gradeLevel: data.gradeLevel,
     createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
   };
+}
+
+/** "Mary Jane Smith" -> {first: "Mary Jane", last: "Smith"} — splits on the
+ * last whitespace so the existing single-box quick-add UI can keep working
+ * unchanged while the stored record gets structured first/last fields. A
+ * single-word name (no space) becomes an empty last name. */
+export function splitDisplayName(name: string): { firstName: string; lastName: string } {
+  const trimmed = name.trim();
+  const lastSpace = trimmed.lastIndexOf(' ');
+  if (lastSpace === -1) return { firstName: trimmed, lastName: '' };
+  return { firstName: trimmed.slice(0, lastSpace).trim(), lastName: trimmed.slice(lastSpace + 1).trim() };
+}
+
+function combineDisplayName(firstName: string, lastName: string): string {
+  return [firstName, lastName].filter(Boolean).join(' ').trim();
 }
 
 function transactionFromDoc(d: QueryDocumentSnapshot<DocumentData>): LedgerTransaction {
@@ -192,19 +210,26 @@ export function useStudents(contextId: string): Student[] {
 
 export async function addStudent({
   contextId,
-  displayName,
+  firstName,
+  lastName,
+  studentId,
   ownerUids,
   schoolId,
   gradeLevel,
 }: {
   contextId: string;
-  displayName: string;
+  firstName: string;
+  lastName: string;
+  studentId?: string;
   ownerUids: string[];
   schoolId?: string;
   gradeLevel?: string;
 }): Promise<void> {
   await addDoc(collection(db, 'students'), {
-    displayName,
+    firstName,
+    lastName,
+    displayName: combineDisplayName(firstName, lastName),
+    ...(studentId ? { studentId } : {}),
     balanceCents: 0,
     contexts: { [contextId]: { type: 'classroom', role: 'member' } },
     contextIds: [contextId],
@@ -217,9 +242,19 @@ export async function addStudent({
 
 /** Not cascading — a deleted student's transactions subcollection (owned by
  * the context, not the student) is orphaned but inert, never queried
- * without a studentId filter that would now just return nothing new. */
-export async function updateStudent(studentId: string, updates: { displayName?: string }): Promise<void> {
-  await updateDoc(doc(db, 'students', studentId), { ...updates });
+ * without a studentId filter that would now just return nothing new.
+ * firstName/lastName must be updated together (both or neither) — a
+ * partial name update would leave displayName recombined from a stale
+ * half; callers editing a name always present both fields at once. */
+export async function updateStudent(
+  id: string,
+  updates: { firstName?: string; lastName?: string; studentId?: string; gradeLevel?: string },
+): Promise<void> {
+  const data: Record<string, unknown> = { ...updates };
+  if (updates.firstName !== undefined && updates.lastName !== undefined) {
+    data.displayName = combineDisplayName(updates.firstName, updates.lastName);
+  }
+  await updateDoc(doc(db, 'students', id), data);
 }
 
 export async function deleteStudent(studentId: string): Promise<void> {

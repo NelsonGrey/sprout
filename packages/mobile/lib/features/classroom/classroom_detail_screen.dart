@@ -51,9 +51,11 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty || _adding) return;
     setState(() => _adding = true);
+    final (firstName, lastName) = splitDisplayName(name);
     await widget.classroomRepository.addStudent(
       contextId: widget.contextId,
-      displayName: name,
+      firstName: firstName,
+      lastName: lastName,
       ownerUids: ownerUids,
       schoolId: classroom?.schoolId,
       gradeLevel: classroom?.gradeLevel,
@@ -130,9 +132,11 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
       ),
     );
     if (newName != null && newName.isNotEmpty) {
+      final (firstName, lastName) = splitDisplayName(newName);
       await widget.classroomRepository.updateStudent(
         studentId,
-        displayName: newName,
+        firstName: firstName,
+        lastName: lastName,
       );
       if (mounted) setState(() {});
     }

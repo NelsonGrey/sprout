@@ -63,6 +63,9 @@ class SchoolMember {
     required this.role,
     required this.displayName,
     required this.email,
+    this.firstName,
+    this.lastName,
+    this.staffId,
     this.scope,
     this.classroomGrants = const {},
   });
@@ -71,6 +74,15 @@ class SchoolMember {
   final MemberRole role;
   final String displayName;
   final String email;
+
+  /// Pure supplementary roster metadata (manual edit or CSV import) —
+  /// never overwrites displayName, never consulted by the invite/claim
+  /// identity logic. displayName (auth-provider-sourced) stays the one
+  /// authoritative name.
+  final String? firstName;
+  final String? lastName;
+  final String? staffId;
+
   final MemberScope? scope;
 
   /// contextId -> grant level, for classrooms this member doesn't own and
@@ -83,6 +95,9 @@ class SchoolMember {
         role: role,
         displayName: displayName,
         email: email,
+        firstName: firstName,
+        lastName: lastName,
+        staffId: staffId,
         scope: scope ?? this.scope,
         classroomGrants: classroomGrants ?? this.classroomGrants,
       );
@@ -101,12 +116,18 @@ class PendingInvite {
     required this.schoolId,
     required this.role,
     this.scope,
+    this.firstName,
+    this.lastName,
+    this.staffId,
   });
 
   final String email;
   final String schoolId;
   final MemberRole role;
   final MemberScope? scope;
+  final String? firstName;
+  final String? lastName;
+  final String? staffId;
 }
 
 enum AccessRequestStatus { pending, approved, declined }

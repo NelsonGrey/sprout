@@ -96,9 +96,11 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
       ),
     );
     if (newName != null && newName.isNotEmpty) {
+      final (firstName, lastName) = splitDisplayName(newName);
       await widget.classroomRepository.updateStudent(
         widget.studentId,
-        displayName: newName,
+        firstName: firstName,
+        lastName: lastName,
       );
       if (mounted) setState(() {});
     }

@@ -11,6 +11,16 @@ vi.mock('../../lib/firestore', () => ({
   recordTransaction: vi.fn(),
   updateStudent: vi.fn(),
   deleteStudent: vi.fn(),
+  // Real implementation is a trivial last-whitespace split with no
+  // dependency on Firebase — safe to inline here rather than
+  // importOriginal (which would pull in the real ./firebase module and
+  // its side-effecting FirebaseClient.initialize()).
+  splitDisplayName: (name: string) => {
+    const trimmed = name.trim();
+    const lastSpace = trimmed.lastIndexOf(' ');
+    if (lastSpace === -1) return { firstName: trimmed, lastName: '' };
+    return { firstName: trimmed.slice(0, lastSpace).trim(), lastName: trimmed.slice(lastSpace + 1).trim() };
+  },
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -26,6 +36,8 @@ vi.mock('wouter', async (importOriginal) => {
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
 const student = {
   id: 'student-1',
+  firstName: 'Alex',
+  lastName: '',
   displayName: 'Alex',
   balanceCents: 500,
   contexts: {},
@@ -100,7 +112,9 @@ describe('StudentLedgerPage', () => {
     fireEvent.change(screen.getByDisplayValue('Alex'), { target: { value: 'Alexis' } });
     fireEvent.click(screen.getByText('Save'));
 
-    await waitFor(() => expect(firestoreLib.updateStudent).toHaveBeenCalledWith('student-1', { displayName: 'Alexis' }));
+    await waitFor(() =>
+      expect(firestoreLib.updateStudent).toHaveBeenCalledWith('student-1', { firstName: 'Alexis', lastName: '' }),
+    );
   });
 
   it('requires confirming before deleting the student', async () => {

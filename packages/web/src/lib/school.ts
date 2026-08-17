@@ -40,6 +40,9 @@ function memberFromDoc(d: QueryDocumentSnapshot<DocumentData>): SchoolMember {
     role: data.role,
     displayName: data.displayName ?? '',
     email: data.email ?? '',
+    firstName: data.firstName,
+    lastName: data.lastName,
+    staffId: data.staffId,
     scope: data.scope,
     classroomGrants: data.classroomGrants,
     addedByUid: data.addedByUid,
@@ -73,6 +76,9 @@ function inviteFromDoc(d: QueryDocumentSnapshot<DocumentData>): PendingInvite {
     schoolId: data.schoolId,
     role: data.role,
     scope: data.scope,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    staffId: data.staffId,
     invitedByUid: data.invitedByUid,
     createdAt: data.createdAt?.toDate() ?? new Date(),
   };
@@ -235,12 +241,18 @@ export async function inviteMember({
   email,
   role,
   scope,
+  firstName,
+  lastName,
+  staffId,
   invitedByUid,
 }: {
   schoolId: string;
   email: string;
   role: MemberRole;
   scope?: MemberScope;
+  firstName?: string;
+  lastName?: string;
+  staffId?: string;
   invitedByUid: string;
 }): Promise<void> {
   await writeBatch(db)
@@ -248,6 +260,9 @@ export async function inviteMember({
       schoolId,
       role,
       ...(scope ? { scope } : {}),
+      ...(firstName ? { firstName } : {}),
+      ...(lastName ? { lastName } : {}),
+      ...(staffId ? { staffId } : {}),
       invitedByUid,
       createdAt: serverTimestamp(),
     })
@@ -299,6 +314,9 @@ export async function claimPendingInviteIfAny({
     displayName: displayName ?? null,
     email: normalized,
     ...(invite.scope ? { scope: invite.scope } : {}),
+    ...(invite.firstName ? { firstName: invite.firstName } : {}),
+    ...(invite.lastName ? { lastName: invite.lastName } : {}),
+    ...(invite.staffId ? { staffId: invite.staffId } : {}),
     addedByUid: uid,
     createdAt: serverTimestamp(),
   });

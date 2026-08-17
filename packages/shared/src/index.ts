@@ -18,7 +18,17 @@ export interface ClassroomContext {
 
 export interface Student {
   id: string;
+  firstName: string;
+  lastName: string;
+  /** Denormalized `${firstName} ${lastName}`, computed at write time by
+   * addStudent/updateStudent — every display/sort/search call site reads
+   * this instead of recombining first/last itself. */
   displayName: string;
+  /** Plain admin-entered or CSV-imported school/district student ID,
+   * distinct from the Firestore doc id. Not enforced unique by Firestore —
+   * CSV import uses it for upsert matching within a school. Not the
+   * barcode-ID-card feature (future/deferred), just roster metadata. */
+  studentId?: string;
   balanceCents: number;
   contexts: Record<string, { type: ContextType; role: 'member' }>;
   contextIds: string[];
@@ -80,6 +90,13 @@ export interface SchoolMember {
   role: MemberRole;
   displayName: string;
   email: string;
+  /** Pure supplementary roster metadata (manual edit or CSV import) —
+   * never overwrites displayName, never consulted by the invite/claim
+   * identity logic. displayName (auth-provider-sourced) stays the one
+   * authoritative name. */
+  firstName?: string;
+  lastName?: string;
+  staffId?: string;
   scope?: MemberScope;
   /** contextId -> grant level, for classrooms this member doesn't own and
    * whose grade/scope wouldn't otherwise cover (see ClassroomGrantLevel). */
@@ -95,6 +112,9 @@ export interface PendingInvite {
   schoolId: string;
   role: MemberRole;
   scope?: MemberScope;
+  firstName?: string;
+  lastName?: string;
+  staffId?: string;
   invitedByUid: string;
   createdAt: Date;
 }

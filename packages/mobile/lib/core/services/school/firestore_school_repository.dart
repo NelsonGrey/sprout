@@ -146,12 +146,18 @@ class FirestoreSchoolRepository implements SchoolRepository {
     required String email,
     required MemberRole role,
     MemberScope? scope,
+    String? firstName,
+    String? lastName,
+    String? staffId,
     required String invitedByUid,
   }) async {
     await _invites.doc(_normalizeEmail(email)).set({
       'schoolId': schoolId,
       'role': _roleToJson(role),
       if (scope != null) 'scope': scope.toJson(),
+      if (firstName != null) 'firstName': firstName,
+      if (lastName != null) 'lastName': lastName,
+      if (staffId != null) 'staffId': staffId,
       'invitedByUid': invitedByUid,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -186,6 +192,9 @@ class FirestoreSchoolRepository implements SchoolRepository {
       'displayName': displayName,
       'email': email,
       if (invite['scope'] != null) 'scope': invite['scope'],
+      if (invite['firstName'] != null) 'firstName': invite['firstName'],
+      if (invite['lastName'] != null) 'lastName': invite['lastName'],
+      if (invite['staffId'] != null) 'staffId': invite['staffId'],
       'addedByUid': uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -209,6 +218,9 @@ class FirestoreSchoolRepository implements SchoolRepository {
       role: _roleFromJson(data['role']),
       displayName: data['displayName'] as String? ?? '',
       email: data['email'] as String? ?? '',
+      firstName: data['firstName'] as String?,
+      lastName: data['lastName'] as String?,
+      staffId: data['staffId'] as String?,
       scope: data['scope'] != null
           ? MemberScope.fromJson(Map<String, dynamic>.from(data['scope'] as Map))
           : null,
@@ -224,6 +236,9 @@ class FirestoreSchoolRepository implements SchoolRepository {
       scope: data['scope'] != null
           ? MemberScope.fromJson(Map<String, dynamic>.from(data['scope'] as Map))
           : null,
+      firstName: data['firstName'] as String?,
+      lastName: data['lastName'] as String?,
+      staffId: data['staffId'] as String?,
     );
   }
 

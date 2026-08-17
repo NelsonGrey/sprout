@@ -228,7 +228,25 @@ service cloud.firestore {
         resource.data.schoolId != null
           && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, resource.data.contextIds[0])
       );
-      allow update, delete: if isContextOwner(resource.data) || (
+      // Checks manage-access on BOTH the current and the destination
+      // classroom (contextIds[0] before vs. after) — a manage-access
+      // teacher on classroom A must not be able to rewrite contextIds to
+      // move a student into classroom B they have no access to, in
+      // another school even. A same-classroom update (the common case:
+      // rename, studentId/gradeLevel edit) only needs the first check.
+      allow update: if (
+        isContextOwner(resource.data) || (
+          resource.data.schoolId != null
+            && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+        )
+      ) && (
+        request.resource.data.contextIds[0] == resource.data.contextIds[0] ||
+        isContextOwner(request.resource.data) || (
+          request.resource.data.schoolId != null
+            && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextIds[0])
+        )
+      );
+      allow delete: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
           && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
       );

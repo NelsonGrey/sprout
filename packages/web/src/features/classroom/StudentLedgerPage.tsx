@@ -3,7 +3,14 @@ import type { User } from 'firebase/auth';
 import type { TransactionType } from '@sprout/shared';
 import { useLocation } from 'wouter';
 import { Pencil, Trash2 } from 'lucide-react';
-import { deleteStudent, recordTransaction, updateStudent, useStudents, useTransactions } from '../../lib/firestore';
+import {
+  deleteStudent,
+  recordTransaction,
+  splitDisplayName,
+  updateStudent,
+  useStudents,
+  useTransactions,
+} from '../../lib/firestore';
 import { useMyMembership } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
@@ -77,7 +84,10 @@ export function StudentLedgerPage({
 
   const saveName = async () => {
     const trimmed = nameDraft.trim();
-    if (trimmed) await updateStudent(studentId, { displayName: trimmed });
+    if (trimmed) {
+      const { firstName, lastName } = splitDisplayName(trimmed);
+      await updateStudent(studentId, { firstName, lastName });
+    }
     setRenaming(false);
   };
 

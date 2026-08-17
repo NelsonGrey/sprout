@@ -490,6 +490,65 @@ describe('firestore.rules — school security matrix', () => {
     );
   });
 
+  it('lets a manage-grant teacher reassign a student into another classroom they also manage, but denies reassigning into one they do not', async () => {
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Mr. Delegate-Teacher',
+      email: 'delegate-teacher@example.com',
+      scope: { type: 'own' },
+      classroomGrants: { 'school-ctx-1': 'manage', 'school-ctx-2': 'manage' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+    await seedClassroomAndStudent('4');
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await setDoc(doc(owner, 'contexts/school-ctx-2'), {
+      type: 'classroom',
+      name: 'Grade 4 Other Room',
+      ownerUids: [OWNER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+    await setDoc(doc(owner, 'contexts/school-ctx-3'), {
+      type: 'classroom',
+      name: 'Grade 4 Unmanaged Room',
+      ownerUids: [OWNER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    });
+
+    const grantee = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
+    const studentData = {
+      displayName: 'Jamie',
+      balanceCents: 0,
+      ownerUids: [OWNER_UID],
+      schoolId: SCHOOL_ID,
+      gradeLevel: '4',
+      createdAt: new Date(),
+    };
+    // Reassign into a classroom they also manage — succeeds.
+    await assertSucceeds(
+      setDoc(doc(grantee, 'students/school-student-1'), {
+        ...studentData,
+        contexts: { 'school-ctx-2': { type: 'classroom', role: 'member' } },
+        contextIds: ['school-ctx-2'],
+      }),
+    );
+    // Reassign into a classroom they have no access to at all — denied,
+    // even though the "before" side (school-ctx-2) is one they manage.
+    await assertFails(
+      setDoc(doc(grantee, 'students/school-student-1'), {
+        ...studentData,
+        contexts: { 'school-ctx-3': { type: 'classroom', role: 'member' } },
+        contextIds: ['school-ctx-3'],
+      }),
+    );
+  });
+
   it("lets a teacher with an 'award' classroom grant record transactions but never rename/delete", async () => {
     await seedSchoolWithAdmins();
     const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();

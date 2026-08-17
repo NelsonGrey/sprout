@@ -106,13 +106,16 @@ async function main() {
   }
 
   const students = [
-    { id: 'student-alex', name: 'Alex', contextId: 'ctx-grade-3', gradeLevel: '3', owner: teacherOwn.uid, balanceCents: 850 },
-    { id: 'student-jamie', name: 'Jamie', contextId: 'ctx-grade-4', gradeLevel: '4', owner: GHOST_OWNER_UID, balanceCents: 400 },
-    { id: 'student-sam', name: 'Sam', contextId: 'ctx-grade-5', gradeLevel: '5', owner: GHOST_OWNER_UID, balanceCents: 1200 },
+    { id: 'student-alex', firstName: 'Alex', lastName: 'Rivera', studentId: 'STU-1001', contextId: 'ctx-grade-3', gradeLevel: '3', owner: teacherOwn.uid, balanceCents: 850 },
+    { id: 'student-jamie', firstName: 'Jamie', lastName: 'Chen', studentId: 'STU-1002', contextId: 'ctx-grade-4', gradeLevel: '4', owner: GHOST_OWNER_UID, balanceCents: 400 },
+    { id: 'student-sam', firstName: 'Sam', lastName: 'Patel', studentId: 'STU-1003', contextId: 'ctx-grade-5', gradeLevel: '5', owner: GHOST_OWNER_UID, balanceCents: 1200 },
   ];
   for (const s of students) {
     await db.collection('students').doc(s.id).set({
-      displayName: s.name,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      displayName: `${s.firstName} ${s.lastName}`,
+      studentId: s.studentId,
       balanceCents: s.balanceCents,
       contexts: { [s.contextId]: { type: 'classroom', role: 'member' } },
       contextIds: [s.contextId],

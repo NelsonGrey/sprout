@@ -49,11 +49,14 @@ abstract class ClassroomRepository {
 
   /// [schoolId]/[gradeLevel] should mirror the owning classroom's, if any —
   /// denormalized at creation time for scoped reads (see
-  /// [classroomsInSchool]).
+  /// [classroomsInSchool]). [studentId] is a plain admin/CSV-entered
+  /// school/district ID string, distinct from the returned [Student.id].
   Future<Student> addStudent({
     required String contextId,
-    required String displayName,
+    required String firstName,
+    required String lastName,
     required List<String> ownerUids,
+    String? studentId,
     String? schoolId,
     String? gradeLevel,
   });
@@ -61,7 +64,16 @@ abstract class ClassroomRepository {
   /// Not cascading — a deleted student's transactions subcollection (owned
   /// by the context, not the student) is orphaned but inert, never queried
   /// without a studentId filter that would now just return nothing new.
-  Future<void> updateStudent(String studentId, {String? displayName});
+  /// [firstName]/[lastName] must be updated together (both or neither) — a
+  /// partial name update would leave displayName recombined from a stale
+  /// half; callers editing a name always present both fields at once.
+  Future<void> updateStudent(
+    String id, {
+    String? firstName,
+    String? lastName,
+    String? studentId,
+    String? gradeLevel,
+  });
 
   Future<void> deleteStudent(String studentId);
 

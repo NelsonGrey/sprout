@@ -45,7 +45,8 @@ void main() {
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
     final student = await repository.addStudent(
       contextId: classroom.id,
-      displayName: 'Alex',
+      firstName: 'Alex',
+      lastName: '',
       ownerUids: classroom.ownerUids,
     );
 
@@ -79,7 +80,8 @@ void main() {
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
     final student = await repository.addStudent(
       contextId: classroom.id,
-      displayName: 'Alex',
+      firstName: 'Alex',
+      lastName: '',
       ownerUids: classroom.ownerUids,
     );
     await repository.recordTransaction(
@@ -120,7 +122,8 @@ void main() {
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
     final student = await repository.addStudent(
       contextId: classroom.id,
-      displayName: 'Alex',
+      firstName: 'Alex',
+      lastName: '',
       ownerUids: classroom.ownerUids,
     );
 
@@ -146,7 +149,8 @@ void main() {
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
     final student = await repository.addStudent(
       contextId: classroom.id,
-      displayName: 'Alex',
+      firstName: 'Alex',
+      lastName: '',
       ownerUids: classroom.ownerUids,
     );
 
@@ -179,7 +183,8 @@ void main() {
     );
     final student = await repository.addStudent(
       contextId: classroom.id,
-      displayName: 'Alex',
+      firstName: 'Alex',
+      lastName: '',
       ownerUids: ['other-teacher'],
       schoolId: 'school-1',
       gradeLevel: '4',
@@ -222,7 +227,8 @@ void main() {
     );
     final student = await repository.addStudent(
       contextId: classroom.id,
-      displayName: 'Alex',
+      firstName: 'Alex',
+      lastName: '',
       ownerUids: ['other-teacher'],
       schoolId: 'school-1',
       gradeLevel: '4',

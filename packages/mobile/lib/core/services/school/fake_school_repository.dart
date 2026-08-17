@@ -77,6 +77,9 @@ class FakeSchoolRepository implements SchoolRepository {
     required String email,
     required MemberRole role,
     MemberScope? scope,
+    String? firstName,
+    String? lastName,
+    String? staffId,
     required String invitedByUid,
   }) async {
     final normalized = email.trim().toLowerCase();
@@ -85,6 +88,9 @@ class FakeSchoolRepository implements SchoolRepository {
       schoolId: schoolId,
       role: role,
       scope: scope,
+      firstName: firstName,
+      lastName: lastName,
+      staffId: staffId,
     );
   }
 
@@ -115,6 +121,9 @@ class FakeSchoolRepository implements SchoolRepository {
       role: invite.role,
       displayName: displayName ?? '',
       email: normalized,
+      firstName: invite.firstName,
+      lastName: invite.lastName,
+      staffId: invite.staffId,
       scope: invite.scope,
     );
     _schoolIdsByUser.putIfAbsent(uid, () => []).add(invite.schoolId);

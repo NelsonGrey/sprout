@@ -176,7 +176,7 @@ void main() {
   testWidgets('renames a student from the roster row', (tester) async {
     final repository = FakeClassroomRepository();
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
-    final student = await repository.addStudent(contextId: classroom.id, displayName: 'Alex', ownerUids: [_user.uid]);
+    final student = await repository.addStudent(contextId: classroom.id, firstName: 'Alex', lastName: '', ownerUids: [_user.uid]);
 
     await tester.pumpWidget(MaterialApp(
       home: ClassroomDetailScreen(classroomRepository: repository,
@@ -202,7 +202,7 @@ void main() {
   testWidgets('requires confirming before deleting a student from the roster row', (tester) async {
     final repository = FakeClassroomRepository();
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _user.uid);
-    final student = await repository.addStudent(contextId: classroom.id, displayName: 'Alex', ownerUids: [_user.uid]);
+    final student = await repository.addStudent(contextId: classroom.id, firstName: 'Alex', lastName: '', ownerUids: [_user.uid]);
 
     await tester.pumpWidget(MaterialApp(
       home: ClassroomDetailScreen(classroomRepository: repository,
