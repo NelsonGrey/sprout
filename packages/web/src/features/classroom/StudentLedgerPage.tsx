@@ -4,6 +4,7 @@ import type { TransactionType } from '@sprout/shared';
 import { useLocation } from 'wouter';
 import { Pencil, Trash2 } from 'lucide-react';
 import { deleteStudent, recordTransaction, updateStudent, useStudents, useTransactions } from '../../lib/firestore';
+import { useMyMembership } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
@@ -28,6 +29,17 @@ export function StudentLedgerPage({
   const students = useStudents(contextId);
   const student = students.find((s) => s.id === studentId);
   const ownerUids = student?.ownerUids ?? [user.uid];
+  const isOwner = ownerUids.includes(user.uid);
+
+  const membership = useMyMembership(student?.schoolId, user.uid);
+  // Same manage tier as ClassroomDetailPage: owner, admin/super_admin, or
+  // an explicit 'manage'-level grant on this student's classroom. Award
+  // access (scope or an 'award' grant) is enough to record a
+  // transaction, but never enough to rename/delete.
+  const canManage =
+    isOwner ||
+    (membership !== null && membership !== undefined && membership.role !== 'teacher') ||
+    membership?.classroomGrants?.[contextId] === 'manage';
 
   const transactions = useTransactions(contextId, studentId);
   const [amount, setAmount] = useState('');
@@ -86,14 +98,16 @@ export function StudentLedgerPage({
           title={student?.displayName ?? 'Student'}
           backTo={`/classrooms/${contextId}`}
           actions={
-            <>
-              <IconButton label="Rename student" variant="secondary" onClick={startRenaming}>
-                <Pencil size={16} />
-              </IconButton>
-              <IconButton label="Delete student" variant="secondary" onClick={() => setDeleting(true)}>
-                <Trash2 size={16} />
-              </IconButton>
-            </>
+            canManage && (
+              <>
+                <IconButton label="Rename student" variant="secondary" onClick={startRenaming}>
+                  <Pencil size={16} />
+                </IconButton>
+                <IconButton label="Delete student" variant="secondary" onClick={() => setDeleting(true)}>
+                  <Trash2 size={16} />
+                </IconButton>
+              </>
+            )
           }
         />
       )}

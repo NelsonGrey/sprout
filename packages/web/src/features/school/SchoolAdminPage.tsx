@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { Pencil } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 import type { MemberRole, MemberScope } from '@sprout/shared';
 import {
+  approveAccessRequest,
   cancelInvite,
+  declineAccessRequest,
   getSchool,
   inviteMember,
   removeMember,
+  revokeClassroomGrant,
   updateMemberScope,
   updateSchool,
   useMembersOfSchool,
   useMyMembership,
+  usePendingAccessRequestsForSchool,
   usePendingInvitesForSchool,
 } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
@@ -97,6 +101,7 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
   const membership = useMyMembership(schoolId, user.uid);
   const members = useMembersOfSchool(schoolId);
   const invites = usePendingInvitesForSchool(schoolId);
+  const accessRequests = usePendingAccessRequestsForSchool(schoolId);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteScope, setInviteScope] = useState<MemberScope>({ type: 'own' });
@@ -253,6 +258,23 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                             ? `Teacher — ${scopeSummary(member.scope)}`
                             : roleLabel(member.role)}
                         </p>
+                        {member.classroomGrants && Object.keys(member.classroomGrants).length > 0 && (
+                          <ul className="mt-1 flex flex-col gap-0.5">
+                            {Object.entries(member.classroomGrants).map(([contextId, level]) => (
+                              <li key={contextId} className="flex items-center gap-1 text-xs text-white/40">
+                                Classroom {contextId} — {level}
+                                <button
+                                  type="button"
+                                  onClick={() => revokeClassroomGrant(schoolId, member.uid, contextId)}
+                                  aria-label={`Revoke access to classroom ${contextId}`}
+                                  className="text-white/40 hover:text-red-400"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                       <div className="flex items-center gap-3">
                         {member.role === 'teacher' && isAtLeastAdmin && (
@@ -275,6 +297,39 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
                 )}
               </ul>
             </section>
+
+            {accessRequests.length > 0 && (
+              <section>
+                <h2 className="mb-3 text-sm font-semibold text-white/60">Access requests</h2>
+                <ul className="flex flex-col gap-2">
+                  {accessRequests.map((request) => (
+                    <li
+                      key={request.id}
+                      className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                    >
+                      <div>
+                        <p>
+                          {request.requestedByDisplayName} wants {request.targetDisplayName} to have{' '}
+                          {request.level} access to {request.contextName}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={() => approveAccessRequest(request, user.uid)}>
+                          Approve
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => declineAccessRequest(request.id, user.uid)}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {invites.length > 0 && (
               <section>

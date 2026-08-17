@@ -19,6 +19,10 @@ vi.mock('../../lib/school', () => ({
   useMyMembership: vi.fn(),
   useMembersOfSchool: vi.fn(),
   usePendingInvitesForSchool: vi.fn(),
+  usePendingAccessRequestsForSchool: vi.fn(),
+  approveAccessRequest: vi.fn(),
+  declineAccessRequest: vi.fn(),
+  revokeClassroomGrant: vi.fn(),
 }));
 
 const superAdmin = { uid: 'super-admin-1', displayName: 'Principal Lee', email: 'lee@example.com' } as User;
@@ -43,6 +47,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<SchoolAdminPage user={teacher} schoolId="school-1" />);
 
@@ -67,6 +72,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     vi.mocked(schoolLib.inviteMember).mockResolvedValue(undefined);
 
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
@@ -107,6 +113,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     vi.mocked(schoolLib.inviteMember).mockResolvedValue(undefined);
 
     render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
@@ -149,6 +156,7 @@ describe('SchoolAdminPage', () => {
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([
       { email: 'pending@example.com', schoolId: 'school-1', role: 'teacher', scope: { type: 'own' }, invitedByUid: 'super-admin-1', createdAt: new Date() },
     ]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
     fireEvent.click(screen.getByText('Cancel'));
@@ -189,6 +197,7 @@ describe('SchoolAdminPage', () => {
       },
     ]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
 
@@ -209,6 +218,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<SchoolAdminPage user={teacher} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
@@ -229,6 +239,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     vi.mocked(schoolLib.updateSchool).mockResolvedValue(undefined);
 
     render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
@@ -253,6 +264,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
@@ -282,6 +294,7 @@ describe('SchoolAdminPage', () => {
       },
     ]);
     vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     vi.mocked(schoolLib.updateMemberScope).mockResolvedValue(undefined);
 
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
@@ -295,5 +308,84 @@ describe('SchoolAdminPage', () => {
     await waitFor(() =>
       expect(schoolLib.updateMemberScope).toHaveBeenCalledWith('school-1', 'teacher-1', { type: 'school' }),
     );
+  });
+
+  it('lets an admin approve or decline a pending access request', async () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({
+      id: 'school-1',
+      name: 'Riverside Elementary',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    const request = {
+      id: 'req-1',
+      schoolId: 'school-1',
+      contextId: 'ctx-1',
+      contextName: '4th Grade',
+      requestedByUid: 'owner-1',
+      requestedByDisplayName: 'Ms. Owner',
+      targetUid: 'target-1',
+      targetDisplayName: 'Mr. Target',
+      level: 'manage' as const,
+      status: 'pending' as const,
+      createdAt: new Date(),
+    };
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([request]);
+    vi.mocked(schoolLib.approveAccessRequest).mockResolvedValue(undefined);
+    vi.mocked(schoolLib.declineAccessRequest).mockResolvedValue(undefined);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+
+    expect(screen.getByText(/Ms\. Owner wants Mr\. Target to have manage access to 4th Grade/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Approve'));
+    await waitFor(() => expect(schoolLib.approveAccessRequest).toHaveBeenCalledWith(request, 'delegate-1'));
+
+    fireEvent.click(screen.getByText('Decline'));
+    await waitFor(() => expect(schoolLib.declineAccessRequest).toHaveBeenCalledWith('req-1', 'delegate-1'));
+  });
+
+  it("lets an admin revoke a teacher's classroom grant", () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({
+      id: 'school-1',
+      name: 'Riverside Elementary',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([
+      {
+        uid: 'teacher-1',
+        role: 'teacher',
+        displayName: 'Ms. Lord',
+        email: 'lord@example.com',
+        scope: { type: 'own' },
+        classroomGrants: { 'ctx-1': 'manage' },
+        addedByUid: 'delegate-1',
+        createdAt: new Date(),
+      },
+    ]);
+    vi.mocked(schoolLib.usePendingInvitesForSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+
+    fireEvent.click(screen.getByLabelText('Revoke access to classroom ctx-1'));
+    expect(schoolLib.revokeClassroomGrant).toHaveBeenCalledWith('school-1', 'teacher-1', 'ctx-1');
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { StudentLedgerPage } from './StudentLedgerPage';
 import * as firestoreLib from '../../lib/firestore';
+import * as schoolLib from '../../lib/school';
 
 vi.mock('../../lib/firestore', () => ({
   useStudents: vi.fn(),
@@ -10,6 +11,10 @@ vi.mock('../../lib/firestore', () => ({
   recordTransaction: vi.fn(),
   updateStudent: vi.fn(),
   deleteStudent: vi.fn(),
+}));
+
+vi.mock('../../lib/school', () => ({
+  useMyMembership: vi.fn(),
 }));
 
 const navigateMock = vi.fn();
@@ -111,5 +116,46 @@ describe('StudentLedgerPage', () => {
 
     await waitFor(() => expect(firestoreLib.deleteStudent).toHaveBeenCalledWith('student-1'));
     expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1');
+  });
+
+  it('hides rename/delete for a viewer with only award-level access', () => {
+    const otherOwnedStudent = { ...student, ownerUids: ['other-teacher'], schoolId: 'school-1' };
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([otherOwnedStudent]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'school' },
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    render(<StudentLedgerPage user={user} contextId="ctx-1" studentId="student-1" />);
+
+    expect(screen.queryByLabelText('Rename student')).toBeNull();
+    expect(screen.queryByLabelText('Delete student')).toBeNull();
+    // Award-level access still gets the earn/spend form.
+    expect(screen.getByText('Earn')).toBeTruthy();
+  });
+
+  it('shows rename/delete for a teacher with an explicit manage-level classroom grant', () => {
+    const otherOwnedStudent = { ...student, ownerUids: ['other-teacher'], schoolId: 'school-1' };
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([otherOwnedStudent]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'own' },
+      classroomGrants: { 'ctx-1': 'manage' },
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    render(<StudentLedgerPage user={user} contextId="ctx-1" studentId="student-1" />);
+
+    expect(screen.getByLabelText('Rename student')).toBeTruthy();
+    expect(screen.getByLabelText('Delete student')).toBeTruthy();
   });
 });

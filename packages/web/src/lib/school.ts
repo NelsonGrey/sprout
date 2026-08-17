@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   increment,
@@ -15,7 +16,15 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { MemberRole, MemberScope, PendingInvite, School, SchoolMember } from '@sprout/shared';
+import type {
+  AccessRequest,
+  ClassroomGrantLevel,
+  MemberRole,
+  MemberScope,
+  PendingInvite,
+  School,
+  SchoolMember,
+} from '@sprout/shared';
 import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
@@ -32,8 +41,28 @@ function memberFromDoc(d: QueryDocumentSnapshot<DocumentData>): SchoolMember {
     displayName: data.displayName ?? '',
     email: data.email ?? '',
     scope: data.scope,
+    classroomGrants: data.classroomGrants,
     addedByUid: data.addedByUid,
     createdAt: data.createdAt?.toDate() ?? new Date(),
+  };
+}
+
+function accessRequestFromDoc(d: QueryDocumentSnapshot<DocumentData>): AccessRequest {
+  const data = d.data();
+  return {
+    id: d.id,
+    schoolId: data.schoolId,
+    contextId: data.contextId,
+    contextName: data.contextName,
+    requestedByUid: data.requestedByUid,
+    requestedByDisplayName: data.requestedByDisplayName,
+    targetUid: data.targetUid,
+    targetDisplayName: data.targetDisplayName,
+    level: data.level,
+    status: data.status,
+    createdAt: data.createdAt?.toDate() ?? new Date(),
+    resolvedByUid: data.resolvedByUid,
+    resolvedAt: data.resolvedAt?.toDate(),
   };
 }
 
@@ -279,4 +308,117 @@ export async function claimPendingInviteIfAny({
   batch.set(doc(db, 'users', uid), { schoolIds: arrayUnion(invite.schoolId) }, { merge: true });
   batch.delete(inviteRef);
   await batch.commit();
+}
+
+/** A classroom owner proposing that a colleague (an existing active
+ * teacher member of the school) get 'award' or 'manage' access to
+ * specifically their classroom. Grants nothing by itself — only an
+ * admin/super_admin approving it (see approveAccessRequest) actually
+ * grants access, keeping "only admins/super_admins grant access" intact. */
+export async function createAccessRequest({
+  schoolId,
+  contextId,
+  contextName,
+  requestedByUid,
+  requestedByDisplayName,
+  targetUid,
+  targetDisplayName,
+  level,
+}: {
+  schoolId: string;
+  contextId: string;
+  contextName: string;
+  requestedByUid: string;
+  requestedByDisplayName: string;
+  targetUid: string;
+  targetDisplayName: string;
+  level: ClassroomGrantLevel;
+}): Promise<void> {
+  await writeBatch(db)
+    .set(doc(collection(db, 'accessRequests')), {
+      schoolId,
+      contextId,
+      contextName,
+      requestedByUid,
+      requestedByDisplayName,
+      targetUid,
+      targetDisplayName,
+      level,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    })
+    .commit();
+}
+
+export function usePendingAccessRequestsForSchool(schoolId: string | undefined): AccessRequest[] {
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setRequests([]);
+      return;
+    }
+    const q = query(
+      collection(db, 'accessRequests'),
+      where('schoolId', '==', schoolId),
+      where('status', '==', 'pending'),
+    );
+    return onSnapshot(q, (snapshot) => setRequests(snapshot.docs.map(accessRequestFromDoc)));
+  }, [schoolId]);
+
+  return requests;
+}
+
+/** A classroom's own request history (any status) — for the owner's view
+ * on the classroom detail page. */
+export function useAccessRequestsForContext(contextId: string | undefined): AccessRequest[] {
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
+
+  useEffect(() => {
+    if (!contextId) {
+      setRequests([]);
+      return;
+    }
+    const q = query(collection(db, 'accessRequests'), where('contextId', '==', contextId));
+    return onSnapshot(q, (snapshot) => setRequests(snapshot.docs.map(accessRequestFromDoc)));
+  }, [contextId]);
+
+  return requests;
+}
+
+/** Approving is the only thing that actually grants access: updates the
+ * request's status and, in the same batch, writes the requested level
+ * onto the target's classroomGrants — mirrors updateMemberScope's shape. */
+export async function approveAccessRequest(request: AccessRequest, resolvedByUid: string): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'accessRequests', request.id), {
+    status: 'approved',
+    resolvedByUid,
+    resolvedAt: serverTimestamp(),
+  });
+  batch.update(doc(db, 'schools', request.schoolId, 'members', request.targetUid), {
+    [`classroomGrants.${request.contextId}`]: request.level,
+  });
+  await batch.commit();
+}
+
+export async function declineAccessRequest(requestId: string, resolvedByUid: string): Promise<void> {
+  await updateDoc(doc(db, 'accessRequests', requestId), {
+    status: 'declined',
+    resolvedByUid,
+    resolvedAt: serverTimestamp(),
+  });
+}
+
+/** The requester cancelling their own still-pending request. */
+export async function cancelAccessRequest(requestId: string): Promise<void> {
+  await deleteDoc(doc(db, 'accessRequests', requestId));
+}
+
+/** Admin-direct revoke — grants shouldn't be permanent with no way back
+ * short of editing Firestore. */
+export async function revokeClassroomGrant(schoolId: string, uid: string, contextId: string): Promise<void> {
+  await updateDoc(doc(db, 'schools', schoolId, 'members', uid), {
+    [`classroomGrants.${contextId}`]: deleteField(),
+  });
 }
