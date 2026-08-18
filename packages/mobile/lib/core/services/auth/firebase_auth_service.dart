@@ -26,7 +26,12 @@ class FirebaseAuthService implements AuthService {
 
   AppUser? _toAppUser(fb.User? user) => user == null
       ? null
-      : AppUser(uid: user.uid, displayName: user.displayName, email: user.email);
+      : AppUser(
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          providerId: user.providerData.firstOrNull?.providerId,
+        );
 
   @override
   Stream<AppUser?> authStateChanges() =>
@@ -45,8 +50,11 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  @override
-  Future<AppUser> signInWithGoogle() async {
+  /// Google credential construction, shared by [signInWithGoogle] and
+  /// [reauthenticateWithGoogle] — identical Google Sign-In v7 authenticate()
+  /// + authorizationClient flow either way, only what's done with the
+  /// resulting credential differs.
+  Future<fb.AuthCredential> _googleCredential() async {
     await _ensureGoogleInitialized();
 
     final googleUser = await _googleSignIn.authenticate();
@@ -61,16 +69,15 @@ class FirebaseAuthService implements AuthService {
     authorization ??=
         await googleUser.authorizationClient.authorizeScopes(_kGoogleAuthScopes);
 
-    final credential = fb.GoogleAuthProvider.credential(
+    return fb.GoogleAuthProvider.credential(
       accessToken: authorization.accessToken,
       idToken: idToken,
     );
-    final result = await _firebaseAuth.signInWithCredential(credential);
-    return _toAppUser(result.user)!;
   }
 
-  @override
-  Future<AppUser> signInWithApple() async {
+  /// Apple credential construction, shared by [signInWithApple] and
+  /// [reauthenticateWithApple] — same hashed-nonce flow either way.
+  Future<fb.AuthCredential> _appleCredential() async {
     if (!Platform.isIOS && !Platform.isMacOS) {
       throw UnsupportedError('Sign in with Apple is iOS/macOS only.');
     }
@@ -86,11 +93,23 @@ class FirebaseAuthService implements AuthService {
     if (appleCredential.identityToken == null) {
       throw StateError('Apple did not return an identity token.');
     }
-    final credential = fb.OAuthProvider('apple.com').credential(
+    return fb.OAuthProvider('apple.com').credential(
       idToken: appleCredential.identityToken,
       rawNonce: rawNonce,
       accessToken: appleCredential.authorizationCode,
     );
+  }
+
+  @override
+  Future<AppUser> signInWithGoogle() async {
+    final credential = await _googleCredential();
+    final result = await _firebaseAuth.signInWithCredential(credential);
+    return _toAppUser(result.user)!;
+  }
+
+  @override
+  Future<AppUser> signInWithApple() async {
+    final credential = await _appleCredential();
     final result = await _firebaseAuth.signInWithCredential(credential);
     return _toAppUser(result.user)!;
   }
@@ -124,5 +143,31 @@ class FirebaseAuthService implements AuthService {
       _firebaseAuth.signOut(),
       _googleSignIn.signOut(),
     ]);
+  }
+
+  @override
+  Future<void> reauthenticateWithGoogle() async {
+    final credential = await _googleCredential();
+    await _firebaseAuth.currentUser!.reauthenticateWithCredential(credential);
+  }
+
+  @override
+  Future<void> reauthenticateWithApple() async {
+    final credential = await _appleCredential();
+    await _firebaseAuth.currentUser!.reauthenticateWithCredential(credential);
+  }
+
+  @override
+  Future<void> reauthenticateWithEmail(String password) async {
+    final credential = fb.EmailAuthProvider.credential(
+      email: _firebaseAuth.currentUser!.email ?? '',
+      password: password,
+    );
+    await _firebaseAuth.currentUser!.reauthenticateWithCredential(credential);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await _firebaseAuth.currentUser!.delete();
   }
 }

@@ -51,6 +51,11 @@ async function main() {
   const teacherOwn = await createTestUser({ email: 'teacher.own@test.sprout', displayName: 'Ms. Own-Scope' });
   const teacherGrades = await createTestUser({ email: 'teacher.grades@test.sprout', displayName: 'Mr. Grade-Scope' });
   const teacherSchool = await createTestUser({ email: 'teacher.school@test.sprout', displayName: 'Coach Whole-School' });
+  // Two more directly-owning teachers, purely to give ClassroomsPage/the
+  // master-detail student list more than one real (non-ghost-owned)
+  // classroom to browse.
+  const teacherFirst = await createTestUser({ email: 'teacher.first@test.sprout', displayName: 'Mx. First-Own' });
+  const teacherSecond = await createTestUser({ email: 'teacher.second@test.sprout', displayName: 'Mr. Second-Own' });
 
   const schoolRef = db.collection('schools').doc();
   const schoolId = schoolRef.id;
@@ -68,6 +73,8 @@ async function main() {
     { user: teacherOwn, role: 'teacher', scope: { type: 'own' }, addedBy: admin.uid },
     { user: teacherGrades, role: 'teacher', scope: { type: 'grades', grades: ['4', '5'] }, addedBy: admin.uid },
     { user: teacherSchool, role: 'teacher', scope: { type: 'school' }, addedBy: admin.uid },
+    { user: teacherFirst, role: 'teacher', scope: { type: 'own' }, addedBy: admin.uid },
+    { user: teacherSecond, role: 'teacher', scope: { type: 'own' }, addedBy: admin.uid },
   ];
 
   for (const m of members) {
@@ -91,6 +98,8 @@ async function main() {
   }
 
   const classrooms = [
+    { id: 'ctx-grade-1', name: '1st Grade - Room 3', gradeLevel: '1', owner: teacherFirst.uid },
+    { id: 'ctx-grade-2', name: '2nd Grade - Room 5', gradeLevel: '2', owner: teacherSecond.uid },
     { id: 'ctx-grade-3', name: '3rd Grade - Room 12', gradeLevel: '3', owner: teacherOwn.uid },
     { id: 'ctx-grade-4', name: '4th Grade - Room 8', gradeLevel: '4', owner: GHOST_OWNER_UID },
     { id: 'ctx-grade-5', name: '5th Grade - Room 14', gradeLevel: '5', owner: GHOST_OWNER_UID },
@@ -106,11 +115,47 @@ async function main() {
     });
   }
 
-  const students = [
-    { id: 'student-alex', firstName: 'Alex', lastName: 'Rivera', studentId: 'STU-1001', contextId: 'ctx-grade-3', gradeLevel: '3', owner: teacherOwn.uid, balanceCents: 850 },
-    { id: 'student-jamie', firstName: 'Jamie', lastName: 'Chen', studentId: 'STU-1002', contextId: 'ctx-grade-4', gradeLevel: '4', owner: GHOST_OWNER_UID, balanceCents: 400 },
-    { id: 'student-sam', firstName: 'Sam', lastName: 'Patel', studentId: 'STU-1003', contextId: 'ctx-grade-5', gradeLevel: '5', owner: GHOST_OWNER_UID, balanceCents: 1200 },
+  // A real classroom-sized roster (not just one token student) per
+  // classroom, so a browsed list — the master-detail student list, bulk
+  // select, sort/search — has something realistic to work with. Balances
+  // vary deterministically (not random) so a re-seed always produces the
+  // same, reproducible data.
+  const FIRST_NAMES = [
+    'Alex', 'Jamie', 'Sam', 'Morgan', 'Casey', 'Riley', 'Jordan', 'Taylor',
+    'Avery', 'Quinn', 'Rowan', 'Skyler', 'Emerson', 'Finley', 'Harper', 'Reese',
+    'Dakota', 'Elliot', 'Hayden', 'Peyton', 'Kai', 'Remy', 'Sage', 'Wren',
+    'Blake', 'Cameron', 'Drew', 'Frankie',
   ];
+  const LAST_NAMES = [
+    'Rivera', 'Chen', 'Patel', 'Nguyen', 'Garcia', 'Kim', 'Johnson', 'Brooks',
+    'Martinez', 'Singh', 'Wright', 'Davis', 'Flores', 'Bennett', 'Cohen', 'Ortiz',
+    'Diaz', 'Hughes', 'Torres', 'Reyes', 'Cole', 'Foster', 'Grant', 'Hayes',
+    'Ibrahim', 'Jensen', 'Kaur', 'Lam',
+  ];
+
+  const students = [];
+  let nameIndex = 0;
+  let studentNumber = 1;
+  for (const c of classrooms) {
+    const rosterSize = 6;
+    for (let i = 0; i < rosterSize; i++) {
+      const firstName = FIRST_NAMES[nameIndex % FIRST_NAMES.length];
+      const lastName = LAST_NAMES[nameIndex % LAST_NAMES.length];
+      nameIndex++;
+      students.push({
+        id: `student-${c.id}-${i}`,
+        firstName,
+        lastName,
+        studentId: `STU-${String(1000 + studentNumber++).padStart(4, '0')}`,
+        contextId: c.id,
+        gradeLevel: c.gradeLevel,
+        owner: c.owner,
+        // Cycles through a handful of realistic starting balances rather
+        // than one flat amount for every student.
+        balanceCents: [850, 400, 1200, 250, 675, 1500][i % 6],
+      });
+    }
+  }
   for (const s of students) {
     await db.collection('students').doc(s.id).set({
       firstName: s.firstName,
@@ -142,12 +187,15 @@ async function main() {
   }
 
   console.log('\nSeed complete — Test Elementary (%s)\n', schoolId);
+  console.log('%d classrooms, %d students\n', classrooms.length, students.length);
   console.log('Test accounts (password for all: %s):', PASSWORD);
   console.log('  super1@test.sprout          — super admin');
   console.log('  admin1@test.sprout          — admin (delegate)');
   console.log("  teacher.own@test.sprout     — teacher, scope 'own' (owns 3rd Grade)");
   console.log("  teacher.grades@test.sprout  — teacher, scope 'grades' [4, 5]");
-  console.log("  teacher.school@test.sprout  — teacher, scope 'school' (whole-school specialist)\n");
+  console.log("  teacher.school@test.sprout  — teacher, scope 'school' (whole-school specialist)");
+  console.log("  teacher.first@test.sprout   — teacher, scope 'own' (owns 1st Grade)");
+  console.log("  teacher.second@test.sprout  — teacher, scope 'own' (owns 2nd Grade)\n");
 }
 
 main()

@@ -137,10 +137,34 @@ class FirestoreSchoolRepository implements SchoolRepository {
   }
 
   @override
+  // Also auto-unassigns any classroom(s) this member owned in this school —
+  // otherwise a removed teacher would still satisfy isContextOwner on those
+  // classrooms and their existing students forever (ownerUids is a plain
+  // array-contains check independent of school membership). Mirrors web's
+  // lib/school.ts removeMember fix; inlined here directly rather than
+  // adding a ClassroomRepository dependency, since it's a single simple
+  // batch write and this repository already talks to `contexts` docs at
+  // this same level (no shared code layer exists between web and mobile).
   Future<void> removeMember(String schoolId, String uid) async {
     final memberRef = _schools.doc(schoolId).collection('members').doc(uid);
     final memberSnapshot = await memberRef.get();
     final role = memberSnapshot.data()?['role'];
+
+    final ownedClassrooms = await _firestore
+        .collection('contexts')
+        .where('schoolId', isEqualTo: schoolId)
+        .where('ownerUids', arrayContains: uid)
+        .get();
+    for (final classroomDoc in ownedClassrooms.docs) {
+      final studentsSnapshot =
+          await _firestore.collection('students').where('contextId', isEqualTo: classroomDoc.id).get();
+      final unassignBatch = _firestore.batch();
+      unassignBatch.update(classroomDoc.reference, {'ownerUids': <String>[]});
+      for (final studentDoc in studentsSnapshot.docs) {
+        unassignBatch.update(studentDoc.reference, {'ownerUids': <String>[]});
+      }
+      await unassignBatch.commit();
+    }
 
     if (role == 'super_admin') {
       // Paired with firestore.rules' superAdminCount > 1 check — kept in
@@ -351,5 +375,17 @@ class FirestoreSchoolRepository implements SchoolRepository {
     await _schools.doc(schoolId).collection('members').doc(uid).update({
       'classroomGrants.$contextId': FieldValue.delete(),
     });
+  }
+
+  @override
+  Future<void> removeSchoolIdForSelf(String schoolId, String uid) async {
+    await _firestore.collection('users').doc(uid).set({
+      'schoolIds': FieldValue.arrayRemove([schoolId]),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> deleteUserProfile(String uid) async {
+    await _firestore.collection('users').doc(uid).delete();
   }
 }

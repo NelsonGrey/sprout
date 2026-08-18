@@ -212,4 +212,14 @@ class FakeSchoolRepository implements SchoolRepository {
     final updatedGrants = {...member.classroomGrants}..remove(contextId);
     _membersBySchool[schoolId]![uid] = member.copyWith(classroomGrants: updatedGrants);
   }
+
+  @override
+  Future<void> removeSchoolIdForSelf(String schoolId, String uid) async {
+    _schoolIdsByUser[uid]?.remove(schoolId);
+  }
+
+  @override
+  Future<void> deleteUserProfile(String uid) async {
+    _schoolIdsByUser.remove(uid);
+  }
 }

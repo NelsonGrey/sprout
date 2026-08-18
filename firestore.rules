@@ -248,11 +248,17 @@ service cloud.firestore {
         // create/delete alongside schools/{schoolId}.superAdminCount);
         // full transactional cross-validation of the counter would be
         // disproportionate rigor for this stage.
+        // Self-deletion (account-deletion flow): anyone may delete their
+        // own membership doc regardless of role, except a sole remaining
+        // super_admin — they must promote a peer or delete the school
+        // first, same invariant as the branch above.
         allow delete: if
           (resource.data.role == 'super_admin' && isSuperAdmin(schoolId)
             && get(schoolPath(schoolId)).data.superAdminCount > 1) ||
           (resource.data.role == 'admin' && isSuperAdmin(schoolId)) ||
-          (resource.data.role == 'teacher' && isAtLeastAdmin(schoolId));
+          (resource.data.role == 'teacher' && isAtLeastAdmin(schoolId)) ||
+          (isOwner(memberUid) && (resource.data.role != 'super_admin'
+            || get(schoolPath(schoolId)).data.superAdminCount > 1));
       }
     }
 
@@ -304,7 +310,21 @@ service cloud.firestore {
         resource.data.get('schoolId', null) != null
           && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, contextId)
       );
-      allow update, delete: if isContextOwner(resource.data) || (
+      // ownerUids may only be changed by a school admin — split out from
+      // the general update rule below so a non-owner manage-grant teacher
+      // (or the classroom's own non-admin owner) can still rename/re-grade
+      // but can't reassign who owns it. Classroom assignment is an
+      // admin/staff-only capability (see StaffDetailPane).
+      allow update: if (
+        isContextOwner(resource.data) || (
+          resource.data.get('schoolId', null) != null
+            && hasManageAccess(resource.data.get('schoolId', null), contextId)
+        )
+      ) && (
+        request.resource.data.get('ownerUids', []) == resource.data.get('ownerUids', [])
+        || (resource.data.get('schoolId', null) != null && isAtLeastAdmin(resource.data.get('schoolId', null)))
+      );
+      allow delete: if isContextOwner(resource.data) || (
         resource.data.get('schoolId', null) != null
           && hasManageAccess(resource.data.get('schoolId', null), contextId)
       );

@@ -106,4 +106,18 @@ abstract class SchoolRepository {
   /// Admin-direct revoke — grants shouldn't be permanent with no way back
   /// short of editing Firestore.
   Future<void> revokeClassroomGrant(String schoolId, String uid, String contextId);
+
+  // ---- Self-service account deletion ----
+
+  /// Self-service only — removes [schoolId] from the caller's own
+  /// users/{uid}.schoolIds. Never call this for someone else's uid: an
+  /// admin removing someone ELSE (see [removeMember]) isn't the owner of
+  /// the departed member's users/{uid} doc, and firestore.rules' isOwner
+  /// check on that doc would deny the write anyway.
+  Future<void> removeSchoolIdForSelf(String schoolId, String uid);
+
+  /// Self-service only, same reasoning as [removeSchoolIdForSelf] — deletes
+  /// the caller's own users/{uid} profile doc entirely. The last step of
+  /// account deletion before [AuthService.deleteAccount].
+  Future<void> deleteUserProfile(String uid);
 }

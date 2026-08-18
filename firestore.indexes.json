@@ -25,6 +25,14 @@
       ]
     },
     {
+      "collectionGroup": "contexts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schoolId", "order": "ASCENDING" },
+        { "fieldPath": "ownerUids", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
       "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [

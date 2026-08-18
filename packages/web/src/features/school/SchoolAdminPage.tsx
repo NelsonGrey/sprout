@@ -1,187 +1,34 @@
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
-import { Pencil, X } from 'lucide-react';
-import type { MemberRole, MemberScope } from '@sprout/shared';
-import {
-  approveAccessRequest,
-  cancelInvite,
-  declineAccessRequest,
-  getSchool,
-  inviteMember,
-  removeMember,
-  revokeClassroomGrant,
-  updateMemberScope,
-  updateSchool,
-  useMembersOfSchool,
-  useMyMembership,
-  usePendingAccessRequestsForSchool,
-  usePendingInvitesForSchool,
-} from '../../lib/school';
+import { Pencil } from 'lucide-react';
+import { getSchool, updateSchool, useMyMembership } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
+import { roleLabel, scopeSummary } from './shared';
 
-export const GRADE_OPTIONS = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-
-function scopeSummary(scope: MemberScope | undefined): string {
-  if (!scope || scope.type === 'own') return 'Own classrooms only';
-  if (scope.type === 'school') return 'Whole school';
-  return `Grades: ${scope.grades.join(', ') || '(none selected)'}`;
-}
-
-function roleLabel(role: MemberRole): string {
-  if (role === 'super_admin') return 'Super Admin';
-  if (role === 'admin') return 'Admin';
-  return 'Teacher';
-}
-
-function ScopePicker({
-  value,
-  onChange,
-  gradeOptions,
-}: {
-  value: MemberScope;
-  onChange: (v: MemberScope) => void;
-  gradeOptions: string[];
-}) {
-  return (
-    <div className="flex flex-col gap-2 text-left text-sm">
-      <label className="flex items-center gap-2">
-        <input
-          type="radio"
-          checked={value.type === 'own'}
-          onChange={() => onChange({ type: 'own' })}
-        />
-        Own classrooms only
-      </label>
-      <label className="flex items-center gap-2">
-        <input
-          type="radio"
-          checked={value.type === 'grades'}
-          onChange={() => onChange({ type: 'grades', grades: [] })}
-        />
-        Specific grades
-      </label>
-      {value.type === 'grades' && (
-        <div className="ml-6 flex flex-wrap gap-2">
-          {gradeOptions.map((grade) => {
-            const checked = value.grades.includes(grade);
-            return (
-              <button
-                key={grade}
-                type="button"
-                onClick={() =>
-                  onChange({
-                    type: 'grades',
-                    grades: checked ? value.grades.filter((g) => g !== grade) : [...value.grades, grade],
-                  })
-                }
-                className={`rounded border px-2 py-1 text-xs ${checked ? 'border-brand bg-brand/20' : 'border-border'}`}
-              >
-                {grade}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      <label className="flex items-center gap-2">
-        <input
-          type="radio"
-          checked={value.type === 'school'}
-          onChange={() => onChange({ type: 'school' })}
-        />
-        Whole school (PE, art, music, etc.)
-      </label>
-    </div>
-  );
-}
-
-/** Shown at /school to a member of a school. Admins/super admins get the
- * full staff roster + invite/remove tooling; a plain teacher just sees
- * their own role and scope. Delegation is hierarchical
- * (BR-1.3.11/1.3.12): only a super_admin can invite/remove another
- * super_admin or an admin — a regular admin manages teachers only. The
- * school is never left without at least one super_admin (enforced in
- * firestore.rules, not just this UI's disabled-button state). */
+/** Shown at /school to a member of a school — a lightweight hub: the
+ * viewer's own role/scope, header-level actions (Manage/Promote/Archive
+ * Students, rename school), and nav links into the focused pages that
+ * used to be sections on this one page (Staff, Access Requests, Invite a
+ * Teacher, Grades Offered, Delegate Admin Access) — split up since it had
+ * grown to hold too much on one screen. */
 export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: string }) {
   const [, navigate] = useLocation();
   const [schoolName, setSchoolName] = useState<string | null>(null);
-  const [schoolEnabledGrades, setSchoolEnabledGrades] = useState<string[] | undefined>(undefined);
   const membership = useMyMembership(schoolId, user.uid);
-  const members = useMembersOfSchool(schoolId);
-  const invites = usePendingInvitesForSchool(schoolId);
-  const accessRequests = usePendingAccessRequestsForSchool(schoolId);
-
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteScope, setInviteScope] = useState<MemberScope>({ type: 'own' });
-  const [inviting, setInviting] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminRole, setAdminRole] = useState<'admin' | 'super_admin'>('admin');
-  const [invitingAdmin, setInvitingAdmin] = useState(false);
-  const [error, setError] = useState('');
 
   const [renamingSchool, setRenamingSchool] = useState(false);
   const [schoolNameDraft, setSchoolNameDraft] = useState('');
-  const [editingScopeUid, setEditingScopeUid] = useState<string | null>(null);
-  const [scopeDraft, setScopeDraft] = useState<MemberScope>({ type: 'own' });
-  const [editingGrades, setEditingGrades] = useState(false);
-  const [gradesDraft, setGradesDraft] = useState<string[]>(GRADE_OPTIONS);
 
   useEffect(() => {
-    getSchool(schoolId).then((school) => {
-      setSchoolName(school?.name ?? null);
-      setSchoolEnabledGrades(school?.enabledGrades);
-    });
+    getSchool(schoolId).then((school) => setSchoolName(school?.name ?? null));
   }, [schoolId]);
-
-  const activeGrades = schoolEnabledGrades
-    ? GRADE_OPTIONS.filter((g) => schoolEnabledGrades.includes(g))
-    : GRADE_OPTIONS;
 
   const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
   const isSuperAdmin = membership?.role === 'super_admin';
-  const superAdminCount = members.filter((m) => m.role === 'super_admin').length;
-
-  const handleInviteTeacher = async () => {
-    const email = inviteEmail.trim();
-    if (!email || inviting) return;
-    setInviting(true);
-    setError('');
-    try {
-      await inviteMember({ schoolId, email, role: 'teacher', scope: inviteScope, invitedByUid: user.uid });
-      setInviteEmail('');
-      setInviteScope({ type: 'own' });
-    } catch {
-      setError('Could not send that invite. Please try again.');
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const handleInviteAdmin = async () => {
-    const email = adminEmail.trim();
-    if (!email || invitingAdmin) return;
-    setInvitingAdmin(true);
-    setError('');
-    try {
-      await inviteMember({ schoolId, email, role: adminRole, invitedByUid: user.uid });
-      setAdminEmail('');
-    } catch {
-      setError('Could not send that invite. Please try again.');
-    } finally {
-      setInvitingAdmin(false);
-    }
-  };
-
-  const canRemove = (memberRole: MemberRole, memberUid: string): boolean => {
-    if (memberUid === user.uid) return false;
-    if (memberRole === 'teacher') return isAtLeastAdmin;
-    if (memberRole === 'admin') return isSuperAdmin;
-    // super_admin — only another super_admin can remove one, and never the last.
-    return isSuperAdmin && superAdminCount > 1;
-  };
 
   const startRenamingSchool = () => {
     setSchoolNameDraft(schoolName ?? '');
@@ -197,27 +44,11 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
     setRenamingSchool(false);
   };
 
-  const startEditingScope = (member: { uid: string; scope?: MemberScope }) => {
-    setScopeDraft(member.scope ?? { type: 'own' });
-    setEditingScopeUid(member.uid);
-  };
-
-  const saveScope = async (uid: string) => {
-    await updateMemberScope(schoolId, uid, scopeDraft);
-    setEditingScopeUid(null);
-  };
-
-  const startEditingGrades = () => {
-    setGradesDraft(activeGrades);
-    setEditingGrades(true);
-  };
-
-  const saveGrades = async () => {
-    const ordered = GRADE_OPTIONS.filter((g) => gradesDraft.includes(g));
-    await updateSchool(schoolId, { enabledGrades: ordered });
-    setSchoolEnabledGrades(ordered);
-    setEditingGrades(false);
-  };
+  const navLinks = [
+    { label: 'Staff', to: '/school/staff', show: isAtLeastAdmin },
+    { label: 'Access Requests', to: '/school/requests', show: isAtLeastAdmin },
+    { label: 'Grades Offered', to: '/school/grades', show: isAtLeastAdmin },
+  ].filter((link) => link.show);
 
   return (
     <div className="flex min-h-full flex-col text-ink">
@@ -267,7 +98,7 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
         />
       )}
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 overflow-y-auto px-6 py-6">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-6 py-6">
         <section className="rounded-lg border border-border p-4">
           <h2 className="text-sm font-semibold text-ink-muted">Your access</h2>
           <p className="mt-1">
@@ -276,240 +107,21 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
           </p>
         </section>
 
-        {isAtLeastAdmin && (
-          <>
-            <section>
-              <h2 className="mb-3 text-sm font-semibold text-ink-muted">Staff</h2>
-              <ul className="flex flex-col gap-2">
-                {members.map((member) =>
-                  editingScopeUid === member.uid ? (
-                    <li key={member.uid} className="rounded-lg border border-border px-4 py-3">
-                      <p className="mb-2">{member.displayName || member.email}</p>
-                      <ScopePicker value={scopeDraft} onChange={setScopeDraft} gradeOptions={activeGrades} />
-                      <div className="mt-3 flex gap-2">
-                        <Button size="sm" onClick={() => saveScope(member.uid)}>
-                          Save
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setEditingScopeUid(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </li>
-                  ) : (
-                    <li
-                      key={member.uid}
-                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
-                    >
-                      <div>
-                        <p>{member.displayName || member.email}</p>
-                        <p className="text-xs text-ink-muted">
-                          {member.role === 'teacher'
-                            ? `Teacher — ${scopeSummary(member.scope)}`
-                            : roleLabel(member.role)}
-                        </p>
-                        {member.classroomGrants && Object.keys(member.classroomGrants).length > 0 && (
-                          <ul className="mt-1 flex flex-col gap-0.5">
-                            {Object.entries(member.classroomGrants).map(([contextId, level]) => (
-                              <li key={contextId} className="flex items-center gap-1 text-xs text-ink-muted">
-                                Classroom {contextId} — {level}
-                                <button
-                                  type="button"
-                                  onClick={() => revokeClassroomGrant(schoolId, member.uid, contextId)}
-                                  aria-label={`Revoke access to classroom ${contextId}`}
-                                  className="text-ink-muted hover:text-red-500"
-                                >
-                                  <X size={12} />
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {member.role === 'teacher' && isAtLeastAdmin && (
-                          <IconButton
-                            label="Edit scope"
-                            variant="secondary"
-                            onClick={() => startEditingScope(member)}
-                          >
-                            <Pencil size={14} />
-                          </IconButton>
-                        )}
-                        {canRemove(member.role, member.uid) && (
-                          <Button variant="ghost" size="sm" onClick={() => removeMember(schoolId, member.uid)}>
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </section>
-
-            {accessRequests.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-sm font-semibold text-ink-muted">Access requests</h2>
-                <ul className="flex flex-col gap-2">
-                  {accessRequests.map((request) => (
-                    <li
-                      key={request.id}
-                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
-                    >
-                      <div>
-                        <p>
-                          {request.requestedByDisplayName} wants {request.targetDisplayName} to have{' '}
-                          {request.level} access to {request.contextName}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={() => approveAccessRequest(request, user.uid)}>
-                          Approve
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => declineAccessRequest(request.id, user.uid)}
-                        >
-                          Decline
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {invites.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-sm font-semibold text-ink-muted">Pending invites</h2>
-                <ul className="flex flex-col gap-2">
-                  {invites.map((invite) => (
-                    <li
-                      key={invite.email}
-                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
-                    >
-                      <div>
-                        <p>{invite.email}</p>
-                        <p className="text-xs text-ink-muted">
-                          {invite.role === 'teacher'
-                            ? `Teacher — ${scopeSummary(invite.scope)} (pending)`
-                            : `${roleLabel(invite.role)} (pending)`}
-                        </p>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => cancelInvite(invite.email)}>
-                        Cancel
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <section className="rounded-lg border border-border p-4">
-              <h2 className="mb-3 text-sm font-semibold text-ink-muted">Invite a teacher</h2>
-              <div className="flex flex-col gap-3">
-                <Input
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="Email"
-                />
-                <ScopePicker value={inviteScope} onChange={setInviteScope} gradeOptions={activeGrades} />
-                <Button onClick={handleInviteTeacher} disabled={inviting}>
-                  Send Invite
-                </Button>
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-border p-4">
-              <h2 className="mb-3 text-sm font-semibold text-ink-muted">Grades offered</h2>
-              {editingGrades ? (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {GRADE_OPTIONS.map((grade) => {
-                      const checked = gradesDraft.includes(grade);
-                      return (
-                        <button
-                          key={grade}
-                          type="button"
-                          onClick={() =>
-                            setGradesDraft((prev) =>
-                              checked ? prev.filter((g) => g !== grade) : [...prev, grade],
-                            )
-                          }
-                          className={`rounded border px-2 py-1 text-xs ${checked ? 'border-brand bg-brand/20' : 'border-border'}`}
-                        >
-                          {grade}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" onClick={saveGrades}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setEditingGrades(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-ink-muted">
-                    {activeGrades.length === GRADE_OPTIONS.length ? 'All grades' : activeGrades.join(', ')}
-                  </p>
-                  {isSuperAdmin && (
-                    <Button size="sm" variant="secondary" className="mt-3" onClick={startEditingGrades}>
-                      Edit
-                    </Button>
-                  )}
-                </>
-              )}
-            </section>
-
-            {isSuperAdmin && (
-              <section className="rounded-lg border border-border p-4">
-                <h2 className="mb-3 text-sm font-semibold text-ink-muted">
-                  Delegate admin access
-                </h2>
-                <p className="mb-3 text-xs text-ink-muted">
-                  Only a super admin can grant or revoke admin (or super admin) access.
-                </p>
-                <div className="flex flex-col gap-3">
-                  <Input
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    placeholder="Email"
-                    className="text-left"
-                  />
-                  <div className="flex gap-4 text-left text-sm">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={adminRole === 'admin'}
-                        onChange={() => setAdminRole('admin')}
-                      />
-                      Admin
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={adminRole === 'super_admin'}
-                        onChange={() => setAdminRole('super_admin')}
-                      />
-                      Super Admin
-                    </label>
-                  </div>
-                  <Button variant="secondary" onClick={handleInviteAdmin} disabled={invitingAdmin}>
-                    Send Invite
-                  </Button>
-                </div>
-              </section>
-            )}
-          </>
+        {navLinks.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {navLinks.map((link) => (
+              <li key={link.to}>
+                <button
+                  type="button"
+                  onClick={() => navigate(link.to)}
+                  className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-left hover:bg-bg"
+                >
+                  {link.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
-
-        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
     </div>
   );

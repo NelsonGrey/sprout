@@ -6,6 +6,7 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocs,
   increment,
   onSnapshot,
   orderBy,
@@ -204,6 +205,34 @@ export async function updateClassroom(
 
 export async function deleteClassroom(contextId: string): Promise<void> {
   await deleteDoc(doc(db, 'contexts', contextId));
+}
+
+/** Single-owner replace, not append — matches createClassroom's
+ * single-element-array convention. Reassigning to a different teacher IS
+ * the unassign step (no separate call needed); pass ownerUid: null to leave
+ * the classroom unassigned. Re-denormalizes ownerUids onto every existing
+ * student in the classroom too — students carry their own copy of
+ * ownerUids, used directly by firestore.rules' isContextOwner on student
+ * update/delete (a live lookup on the classroom isn't performed there).
+ * Skipping this would strand a newly-assigned non-admin owner without
+ * write access to the pre-existing roster, or — for unassign — leave a
+ * departed owner's isContextOwner check still true on those students even
+ * after they lose the classroom and their school membership. Always
+ * called by an admin (UI-gated), so these per-student writes are
+ * authorized via hasManageAccess/isAtLeastAdmin, not isContextOwner — no
+ * firestore.rules change needed on students. No users/{uid} write here
+ * (unlike createClassroom): the caller is an admin acting on someone
+ * else's behalf, and users/{userId} rules are isOwner(userId)-only —
+ * bundling that write into this batch would fail the whole batch. */
+export async function assignClassroomOwner(contextId: string, ownerUid: string | null): Promise<void> {
+  const ownerUids = ownerUid ? [ownerUid] : [];
+  const studentsSnapshot = await getDocs(query(collection(db, 'students'), where('contextId', '==', contextId)));
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'contexts', contextId), { ownerUids });
+  for (const studentDoc of studentsSnapshot.docs) {
+    batch.update(studentDoc.ref, { ownerUids });
+  }
+  await batch.commit();
 }
 
 export function useStudents(contextId: string): Student[] {

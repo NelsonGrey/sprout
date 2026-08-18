@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
-import { createClassroom, useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
-import { getSchool, useMyMembership, useSchoolIdsForUser } from '../../lib/school';
-import { GRADE_OPTIONS } from '../school/SchoolAdminPage';
+import { useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
+import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 
 /** Post-login landing page: a teacher's classroom list plus "create a
  * classroom". The list is classrooms this user owns directly, merged with
@@ -36,54 +34,25 @@ export function ClassroomsPage({ user }: { user: User }) {
     return Array.from(merged.values());
   }, [ownClassrooms, scopedClassrooms]);
 
-  const [name, setName] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [addToSchool, setAddToSchool] = useState(true);
-  const [gradeLevel, setGradeLevel] = useState('');
-  const [schoolGrades, setSchoolGrades] = useState<string[] | undefined>(undefined);
   const [, navigate] = useLocation();
-
-  useEffect(() => {
-    if (!schoolId) {
-      setSchoolGrades(undefined);
-      return;
-    }
-    getSchool(schoolId).then((school) => setSchoolGrades(school?.enabledGrades));
-  }, [schoolId]);
-
-  const gradeOptions = schoolGrades ?? GRADE_OPTIONS;
-
-  const handleCreate = async () => {
-    const trimmed = name.trim();
-    if (!trimmed || creating) return;
-    setCreating(true);
-    await createClassroom({
-      name: trimmed,
-      ownerUid: user.uid,
-      ownerDisplayName: user.displayName,
-      ownerEmail: user.email,
-      schoolId: isAtLeastAdmin && addToSchool ? schoolId : undefined,
-      gradeLevel: isAtLeastAdmin && addToSchool ? gradeLevel || undefined : undefined,
-    });
-    setName('');
-    setGradeLevel('');
-    setCreating(false);
-  };
 
   return (
     <div className="flex min-h-full flex-col">
       <PageHeader
         title="My Classrooms"
         actions={
-          <Button variant="secondary" onClick={() => navigate('/school')}>
-            School
-          </Button>
+          <>
+            <Button onClick={() => navigate('/classrooms/new')}>Add Classroom</Button>
+            <Button variant="secondary" onClick={() => navigate('/school')}>
+              School
+            </Button>
+          </>
         }
       />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {classrooms.length === 0 ? (
-          <p className="text-ink-muted">No classrooms yet — add one below.</p>
+          <p className="text-ink-muted">No classrooms yet — add one above.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {classrooms.map((classroom) => (
@@ -102,44 +71,6 @@ export function ClassroomsPage({ user }: { user: User }) {
             ))}
           </ul>
         )}
-      </div>
-
-      <div className="flex flex-col gap-2 border-t border-border px-6 py-4">
-        {isAtLeastAdmin && schoolId && (
-          <label className="flex items-center gap-2 text-sm text-ink-muted">
-            <input
-              type="checkbox"
-              checked={addToSchool}
-              onChange={(e) => setAddToSchool(e.target.checked)}
-            />
-            Add to school roster
-            {addToSchool && (
-              <select
-                value={gradeLevel}
-                onChange={(e) => setGradeLevel(e.target.value)}
-                className="ml-2 rounded-lg border border-border bg-surface px-2 py-1 text-ink"
-              >
-                <option value="">— Grade —</option>
-                {gradeOptions.map((grade) => (
-                  <option key={grade} value={grade}>
-                    {grade}
-                  </option>
-                ))}
-              </select>
-            )}
-          </label>
-        )}
-        <div className="flex gap-2">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Classroom name"
-            className="flex-1"
-          />
-          <Button onClick={handleCreate} disabled={creating}>
-            Create
-          </Button>
-        </div>
       </div>
     </div>
   );

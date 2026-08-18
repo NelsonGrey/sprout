@@ -311,6 +311,27 @@ describe('firestore.rules — school security matrix', () => {
     await assertSucceeds(deleteDoc(doc(superAdmin, `schools/${SCHOOL_ID}/members/${SUPER_ADMIN_UID}`)));
   });
 
+  it('lets a plain teacher or a plain admin delete their own membership doc (account deletion)', async () => {
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'own' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+
+    // A plain teacher removing themselves is neither isAtLeastAdmin nor
+    // isSuperAdmin — before the self-delete branch existed, this failed.
+    const teacher = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
+    await assertSucceeds(deleteDoc(doc(teacher, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`)));
+
+    // A plain admin removing themselves is not isSuperAdmin — same gap.
+    await assertSucceeds(deleteDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${DELEGATE_UID}`)));
+  });
+
   it('lets an admin (not just a super admin) act on, rename, and delete any classroom/student in their school', async () => {
     await seedSchoolWithAdmins();
     await seedClassroomAndStudent('4');
@@ -487,6 +508,51 @@ describe('firestore.rules — school security matrix', () => {
     await assertFails(getDoc(doc(grantee, 'contexts/school-ctx-2')));
     await assertFails(
       setDoc(doc(grantee, 'contexts/school-ctx-2'), { name: 'Hijacked' }, { merge: true }),
+    );
+  });
+
+  it('lets an admin reassign ownerUids on a school classroom, but denies the same write to the classroom owner or a manage-grant teacher', async () => {
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Mr. Delegate-Teacher',
+      email: 'delegate-teacher@example.com',
+      scope: { type: 'own' },
+      classroomGrants: { 'school-ctx-1': 'manage' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+    await seedClassroomAndStudent('4');
+
+    // Checked before the admin reassignment below, while OWNER_UID and
+    // GRADE_TEACHER_UID still hold their original owner/manage-grant
+    // standing on this classroom — reassigning first would leave OWNER_UID
+    // with no standing at all, making these checks meaningless.
+
+    // The classroom's own (non-admin) owner cannot reassign ownerUids...
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await assertFails(setDoc(doc(owner, 'contexts/school-ctx-1'), { ownerUids: [OWNER_UID, OTHER_UID] }, { merge: true }));
+    // ...but can still rename it (ownerUids untouched).
+    await assertSucceeds(setDoc(doc(owner, 'contexts/school-ctx-1'), { name: 'Owner Renamed' }, { merge: true }));
+
+    // A manage-grant teacher (not the owner, not an admin) cannot reassign
+    // ownerUids either...
+    const grantee = testEnv.authenticatedContext(GRADE_TEACHER_UID).firestore();
+    await assertFails(setDoc(doc(grantee, 'contexts/school-ctx-1'), { ownerUids: [GRADE_TEACHER_UID] }, { merge: true }));
+    // ...but the same teacher's plain rename (already covered above) still
+    // works — regression guard that the ownerUids gate doesn't overreach.
+    await assertSucceeds(setDoc(doc(grantee, 'contexts/school-ctx-1'), { name: 'Grantee Renamed' }, { merge: true }));
+
+    // Admin: can reassign ownerUids...
+    await assertSucceeds(
+      setDoc(doc(delegate, 'contexts/school-ctx-1'), { ownerUids: [GRADE_TEACHER_UID] }, { merge: true }),
+    );
+    // ...and can update an existing student's own denormalized ownerUids in
+    // that reassigned classroom — the linchpin of assignClassroomOwner's
+    // re-denormalization, exercised via the same hasManageAccess branch.
+    await assertSucceeds(
+      setDoc(doc(delegate, 'students/school-student-1'), { ownerUids: [GRADE_TEACHER_UID] }, { merge: true }),
     );
   });
 

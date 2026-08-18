@@ -4,6 +4,7 @@ import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
+import 'package:sprout/widgets/account_menu_button.dart';
 import 'package:sprout/widgets/sprout_app_bar.dart';
 
 /// A student's own read-only balance and transaction history — no
@@ -29,11 +30,7 @@ class MyBalanceScreen extends StatelessWidget {
       appBar: SproutAppBar(
         title: student.contextName ?? 'My Balance',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: authService.signOut,
-          ),
+          AccountMenuButton(authService: authService),
         ],
       ),
       body: Column(

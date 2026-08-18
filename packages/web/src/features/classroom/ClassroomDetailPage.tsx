@@ -3,29 +3,31 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { Pencil, Trash2 } from 'lucide-react';
 import {
-  addStudent,
+  bulkArchiveStudents,
+  bulkDeleteStudents,
   deleteClassroom,
-  deleteStudent,
-  splitDisplayName,
   updateClassroom,
-  updateStudent,
   useClassroom,
   useStudents,
 } from '../../lib/firestore';
-import {
-  createAccessRequest,
-  useAccessRequestsForContext,
-  useMembersOfSchool,
-  useMyMembership,
-} from '../../lib/school';
-import type { ClassroomGrantLevel } from '@sprout/shared';
+import { useMembersOfSchool, useMyMembership } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { TwoPaneLayout } from '../../components/layout/TwoPaneLayout';
+import { StudentDetailPane } from './StudentDetailPane';
 
-export function ClassroomDetailPage({ user, contextId }: { user: User; contextId: string }) {
+export function ClassroomDetailPage({
+  user,
+  contextId,
+  studentId,
+}: {
+  user: User;
+  contextId: string;
+  studentId?: string;
+}) {
   const classroom = useClassroom(contextId);
   const ownerUids = classroom?.ownerUids ?? [user.uid];
   const isOwner = ownerUids.includes(user.uid);
@@ -43,41 +45,23 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
   const schoolTeachers = useMembersOfSchool(classroom?.schoolId).filter(
     (m) => m.role === 'teacher' && m.uid !== user.uid,
   );
-  const contextRequests = useAccessRequestsForContext(contextId);
 
   const students = useStudents(contextId);
-  const [name, setName] = useState('');
-  const [adding, setAdding] = useState(false);
   const [, navigate] = useLocation();
 
   const [renamingClassroom, setRenamingClassroom] = useState(false);
   const [classroomNameDraft, setClassroomNameDraft] = useState('');
   const [deletingClassroom, setDeletingClassroom] = useState(false);
-  const [renamingStudentId, setRenamingStudentId] = useState<string | null>(null);
-  const [studentNameDraft, setStudentNameDraft] = useState('');
-  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
 
-  const [requestTargetUid, setRequestTargetUid] = useState('');
-  const [requestLevel, setRequestLevel] = useState<ClassroomGrantLevel>('award');
-  const [requesting, setRequesting] = useState(false);
-
-  const handleAdd = async () => {
-    const trimmed = name.trim();
-    if (!trimmed || adding) return;
-    setAdding(true);
-    const { firstName, lastName } = splitDisplayName(trimmed);
-    await addStudent({
-      contextId,
-      firstName,
-      lastName,
-      ownerUids,
-      schoolId: classroom?.schoolId,
-      gradeLevel: classroom?.gradeLevel,
-      contextName: classroom?.name,
-    });
-    setName('');
-    setAdding(false);
-  };
+  // Right pane selection: which student is shown in detail (URL-synced, so
+  // a direct link to /classrooms/:id/students/:id stays bookmarkable) vs.
+  // which are checked for a bulk action (ephemeral, local-only — never
+  // synced to the URL). Seeded once from the studentId route param, not
+  // re-synced on every render, so a user's in-page selection isn't fought
+  // by prop changes.
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(studentId ?? null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [deletingChecked, setDeletingChecked] = useState(false);
 
   const startRenamingClassroom = () => {
     setClassroomNameDraft(classroom?.name ?? '');
@@ -90,36 +74,35 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
     setRenamingClassroom(false);
   };
 
-  const startRenamingStudent = (studentId: string, currentName: string) => {
-    setStudentNameDraft(currentName);
-    setRenamingStudentId(studentId);
+  const selectStudent = (id: string) => {
+    setSelectedStudentId(id);
+    navigate(`/classrooms/${contextId}/students/${id}`);
   };
 
-  const saveStudentName = async (studentId: string) => {
-    const trimmed = studentNameDraft.trim();
-    if (trimmed) {
-      const { firstName, lastName } = splitDisplayName(trimmed);
-      await updateStudent(studentId, { firstName, lastName });
-    }
-    setRenamingStudentId(null);
-  };
-
-  const handleRequestAccess = async () => {
-    const target = schoolTeachers.find((m) => m.uid === requestTargetUid);
-    if (!target || !classroom?.schoolId || requesting) return;
-    setRequesting(true);
-    await createAccessRequest({
-      schoolId: classroom.schoolId,
-      contextId,
-      contextName: classroom.name,
-      requestedByUid: user.uid,
-      requestedByDisplayName: user.displayName ?? '',
-      targetUid: target.uid,
-      targetDisplayName: target.displayName || target.email,
-      level: requestLevel,
+  const toggleChecked = (id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-    setRequestTargetUid('');
-    setRequesting(false);
+  };
+
+  // No confirm dialog, matching StudentsPage's exact Archive/Delete
+  // asymmetry (Archive fires directly, only Delete confirms).
+  const handleBulkArchive = async () => {
+    await bulkArchiveStudents([...checkedIds]);
+    setCheckedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    await bulkDeleteStudents([...checkedIds]);
+    if (selectedStudentId && checkedIds.has(selectedStudentId)) {
+      setSelectedStudentId(null);
+      navigate(`/classrooms/${contextId}`);
+    }
+    setCheckedIds(new Set());
+    setDeletingChecked(false);
   };
 
   return (
@@ -158,133 +141,85 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
         />
       )}
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {students.length === 0 ? (
-          <p className="text-ink-muted">No students yet — create one below.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {students.map((student) =>
-              renamingStudentId === student.id ? (
+      <TwoPaneLayout
+        left={
+          students.length === 0 ? (
+            <p className="text-ink-muted">No students yet — create one below.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {students.map((student) => (
                 <li
                   key={student.id}
-                  className="flex items-center gap-2 rounded-lg border border-border px-4 py-3"
+                  className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 hover:bg-bg"
                 >
-                  <Input
-                    value={studentNameDraft}
-                    onChange={(e) => setStudentNameDraft(e.target.value)}
-                    autoFocus
-                    className="flex-1"
-                  />
-                  <Button size="sm" onClick={() => saveStudentName(student.id)}>
-                    Save
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => setRenamingStudentId(null)}>
-                    Cancel
-                  </Button>
-                </li>
-              ) : (
-                <li
-                  key={student.id}
-                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3 hover:bg-bg"
-                >
+                  {canManage && (
+                    <input
+                      type="checkbox"
+                      checked={checkedIds.has(student.id)}
+                      onChange={() => toggleChecked(student.id)}
+                      aria-label={`Select ${student.displayName}`}
+                    />
+                  )}
                   <button
                     type="button"
-                    onClick={() => navigate(`/classrooms/${contextId}/students/${student.id}`)}
+                    onClick={() => selectStudent(student.id)}
                     className="flex flex-1 items-center justify-between text-left"
                   >
                     <span>{student.displayName}</span>
                     <span>${(student.balanceCents / 100).toFixed(2)}</span>
                   </button>
-                  {canManage && (
-                    <div className="ml-2 flex items-center gap-1">
-                      <IconButton
-                        label="Rename student"
-                        variant="secondary"
-                        onClick={() => startRenamingStudent(student.id, student.displayName)}
-                      >
-                        <Pencil size={14} />
-                      </IconButton>
-                      <IconButton
-                        label="Delete student"
-                        variant="secondary"
-                        onClick={() => setDeletingStudentId(student.id)}
-                      >
-                        <Trash2 size={14} />
-                      </IconButton>
-                    </div>
-                  )}
                 </li>
-              ),
-            )}
-          </ul>
-        )}
-      </div>
+              ))}
+            </ul>
+          )
+        }
+        right={
+          checkedIds.size > 0 ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-ink-muted">{checkedIds.size} selected</p>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={handleBulkArchive}>
+                  Archive selected
+                </Button>
+                <Button variant="danger" onClick={() => setDeletingChecked(true)}>
+                  Delete selected
+                </Button>
+              </div>
+            </div>
+          ) : (
+            (() => {
+              const selectedStudent = students.find((s) => s.id === selectedStudentId);
+              return selectedStudent ? (
+                <StudentDetailPane
+                  user={user}
+                  contextId={contextId}
+                  student={selectedStudent}
+                  canManage={canManage}
+                  onDeleted={() => {
+                    setSelectedStudentId(null);
+                    navigate(`/classrooms/${contextId}`);
+                  }}
+                />
+              ) : (
+                <p className="text-ink-muted">Select a student to view details.</p>
+              );
+            })()
+          )
+        }
+      />
 
       {canManage && (
-        <div className="flex gap-2 border-t border-border px-6 py-4">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Student name"
-            className="flex-1"
-          />
-          <Button onClick={handleAdd} disabled={adding}>
-            Create
-          </Button>
+        <div className="border-t border-border px-6 py-4">
+          <Button onClick={() => navigate(`/classrooms/${contextId}/students/new`)}>Add Student</Button>
         </div>
       )}
 
       {isOwner && schoolTeachers.length > 0 && (
-        <section className="mx-6 mb-6 rounded-lg border border-border p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink-muted">Request access for a colleague</h2>
-          <p className="mb-3 text-xs text-ink-muted">
-            An admin will need to approve this before your colleague gets access.
-          </p>
-          <div className="flex flex-col gap-3">
-            <select
-              value={requestTargetUid}
-              onChange={(e) => setRequestTargetUid(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-ink"
-            >
-              <option value="">Choose a teacher…</option>
-              {schoolTeachers.map((m) => (
-                <option key={m.uid} value={m.uid}>
-                  {m.displayName || m.email}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  checked={requestLevel === 'award'}
-                  onChange={() => setRequestLevel('award')}
-                />
-                Award only (record earn/spend)
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  checked={requestLevel === 'manage'}
-                  onChange={() => setRequestLevel('manage')}
-                />
-                Full manage (rename/delete/roster)
-              </label>
-            </div>
-            <Button onClick={handleRequestAccess} disabled={!requestTargetUid || requesting}>
-              Request Access
-            </Button>
-          </div>
-          {contextRequests.length > 0 && (
-            <ul className="mt-4 flex flex-col gap-1 text-xs text-ink-muted">
-              {contextRequests.map((r) => (
-                <li key={r.id}>
-                  {r.targetDisplayName} — {r.level} — {r.status}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <div className="px-6 pb-6">
+          <Button variant="secondary" onClick={() => navigate(`/classrooms/${contextId}/request-access`)}>
+            Request access for a colleague
+          </Button>
+        </div>
       )}
 
       <ConfirmDialog
@@ -300,15 +235,13 @@ export function ClassroomDetailPage({ user, contextId }: { user: User; contextId
         }}
       />
       <ConfirmDialog
-        open={deletingStudentId !== null}
-        onOpenChange={(open) => !open && setDeletingStudentId(null)}
-        title="Delete this student?"
+        open={deletingChecked}
+        onOpenChange={setDeletingChecked}
+        title={`Delete ${checkedIds.size} student(s)?`}
         description="This can't be undone."
         confirmLabel="Delete"
         destructive
-        onConfirm={async () => {
-          if (deletingStudentId) await deleteStudent(deletingStudentId);
-        }}
+        onConfirm={handleBulkDelete}
       />
     </div>
   );

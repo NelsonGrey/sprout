@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { ClassroomsPage } from './ClassroomsPage';
 import * as firestoreLib from '../../lib/firestore';
@@ -8,57 +8,39 @@ import * as schoolLib from '../../lib/school';
 vi.mock('../../lib/firestore', () => ({
   useClassrooms: vi.fn(),
   useClassroomsInSchool: vi.fn(),
-  createClassroom: vi.fn(),
 }));
 
 vi.mock('../../lib/school', () => ({
   useSchoolIdsForUser: vi.fn(),
   useMyMembership: vi.fn(),
-  getSchool: vi.fn(),
 }));
 
+const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/', vi.fn()],
+  useLocation: () => ['/', navigateMock],
 }));
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
 
 describe('ClassroomsPage', () => {
-  beforeEach(() => {
-    vi.mocked(schoolLib.getSchool).mockResolvedValue(null);
-  });
-
-
   it('shows empty state with no classrooms', () => {
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
     vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
     vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<ClassroomsPage user={user} />);
-    expect(screen.getByText('No classrooms yet — add one below.')).toBeTruthy();
+    expect(screen.getByText('No classrooms yet — add one above.')).toBeTruthy();
   });
 
-  it('calls createClassroom with the entered name', async () => {
+  it("the Add Classroom button navigates to the create-classroom page", () => {
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
     vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
     vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
-    vi.mocked(firestoreLib.createClassroom).mockResolvedValue(undefined);
     render(<ClassroomsPage user={user} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Classroom name'), {
-      target: { value: "Mrs. Lord's 4th Grade" },
-    });
-    fireEvent.click(screen.getByText('Create'));
-
-    await waitFor(() =>
-      expect(firestoreLib.createClassroom).toHaveBeenCalledWith({
-        name: "Mrs. Lord's 4th Grade",
-        ownerUid: 'teacher-1',
-        ownerDisplayName: 'Ms. Lord',
-        ownerEmail: 'lord@example.com',
-      }),
-    );
+    fireEvent.click(screen.getByText('Add Classroom'));
+    expect(navigateMock).toHaveBeenCalledWith('/classrooms/new');
   });
 
   it('merges owned classrooms with school-scoped classrooms', () => {
@@ -105,93 +87,6 @@ describe('ClassroomsPage', () => {
 
     expect(firestoreLib.useClassroomsInSchool).toHaveBeenCalledWith('school-1', undefined);
     expect(screen.getByText('3rd Grade')).toBeTruthy();
-  });
-
-  it('lets an admin create a school-affiliated classroom with a grade', async () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
-    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
-    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
-      uid: 'teacher-1',
-      role: 'admin',
-      displayName: 'Office Manager',
-      email: 'admin@example.com',
-      addedByUid: 'super-1',
-      createdAt: new Date(),
-    });
-    vi.mocked(firestoreLib.createClassroom).mockResolvedValue(undefined);
-    render(<ClassroomsPage user={user} />);
-
-    expect(screen.getByText('Add to school roster')).toBeTruthy();
-    fireEvent.change(screen.getByPlaceholderText('Classroom name'), { target: { value: 'Homeroom A' } });
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '4' } });
-    fireEvent.click(screen.getByText('Create'));
-
-    await waitFor(() =>
-      expect(firestoreLib.createClassroom).toHaveBeenCalledWith({
-        name: 'Homeroom A',
-        ownerUid: 'teacher-1',
-        ownerDisplayName: 'Ms. Lord',
-        ownerEmail: 'lord@example.com',
-        schoolId: 'school-1',
-        gradeLevel: '4',
-      }),
-    );
-  });
-
-  it('omits schoolId/gradeLevel when an admin unchecks "Add to school roster"', async () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
-    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
-    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
-      uid: 'teacher-1',
-      role: 'admin',
-      displayName: 'Office Manager',
-      email: 'admin@example.com',
-      addedByUid: 'super-1',
-      createdAt: new Date(),
-    });
-    vi.mocked(firestoreLib.createClassroom).mockResolvedValue(undefined);
-    render(<ClassroomsPage user={user} />);
-
-    fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.change(screen.getByPlaceholderText('Classroom name'), { target: { value: 'Personal Class' } });
-    fireEvent.click(screen.getByText('Create'));
-
-    await waitFor(() =>
-      expect(firestoreLib.createClassroom).toHaveBeenCalledWith({
-        name: 'Personal Class',
-        ownerUid: 'teacher-1',
-        ownerDisplayName: 'Ms. Lord',
-        ownerEmail: 'lord@example.com',
-        schoolId: undefined,
-        gradeLevel: undefined,
-      }),
-    );
-  });
-
-  it("limits the grade select to the school's enabled grades", async () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
-    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
-    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
-      uid: 'teacher-1',
-      role: 'admin',
-      displayName: 'Office Manager',
-      email: 'admin@example.com',
-      addedByUid: 'super-1',
-      createdAt: new Date(),
-    });
-    vi.mocked(schoolLib.getSchool).mockResolvedValue({
-      id: 'school-1',
-      name: 'Riverside Elementary',
-      createdAt: new Date(),
-      enabledGrades: ['PK', 'K', '1', '2', '3', '4', '5'],
-    });
-    render(<ClassroomsPage user={user} />);
-
-    await waitFor(() => expect(screen.getByRole('option', { name: '5' })).toBeTruthy());
-    expect(screen.queryByRole('option', { name: '6' })).toBeNull();
   });
 
   it('gives a plain admin whole-school visibility despite having no scope field', () => {

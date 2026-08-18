@@ -6,6 +6,7 @@ import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
+import 'package:sprout/widgets/account_menu_button.dart';
 import 'package:sprout/widgets/sprout_app_bar.dart';
 
 /// Post-login landing screen: a teacher's classroom list plus "create a
@@ -69,11 +70,7 @@ class _ClassroomsScreenState extends State<ClassroomsScreen> {
             tooltip: 'School',
             onPressed: () => context.go('/school'),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: widget.authService.signOut,
-          ),
+          AccountMenuButton(authService: widget.authService),
         ],
       ),
       body: Column(

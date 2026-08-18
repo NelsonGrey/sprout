@@ -34,6 +34,14 @@ describe('Header', () => {
     expect(signOutMock).toHaveBeenCalled();
   });
 
+  it('navigates to the delete-account page when Delete account is clicked', () => {
+    render(<Header user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Account menu'));
+    fireEvent.click(screen.getByText('Delete account'));
+    expect(navigateMock).toHaveBeenCalledWith('/account/delete');
+  });
+
   it('navigates home when the logo is clicked', () => {
     render(<Header user={user} />);
 

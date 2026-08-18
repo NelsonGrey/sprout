@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import type { TransactionType } from '@sprout/shared';
-import { useLocation } from 'wouter';
+import type { Student, TransactionType } from '@sprout/shared';
 import { Pencil, Trash2 } from 'lucide-react';
 import {
   cancelStudentLink,
@@ -12,47 +11,36 @@ import {
   unlinkStudentAccount,
   updateStudent,
   usePendingStudentLinkForStudent,
-  useStudents,
   useTransactions,
 } from '../../lib/firestore';
-import { useMyMembership } from '../../lib/school';
-import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 
 /**
- * A single student's balance and transaction history, with an inline
- * earn/spend form. Sharing this page with the student on the family/shared
- * device is this slice's stand-in for a separate student login.
+ * One student's balance, transaction history, and earn/spend form — the
+ * right-pane content of ClassroomDetailPage's master-detail layout.
+ * `student`/`canManage` are resolved by the caller (which already has the
+ * full classroom roster loaded), not re-derived here — see
+ * ClassroomDetailPage for how this is embedded.
  */
-export function StudentLedgerPage({
+export function StudentDetailPane({
   user,
   contextId,
-  studentId,
+  student,
+  canManage,
+  onDeleted,
 }: {
   user: User;
   contextId: string;
-  studentId: string;
+  student: Student;
+  canManage: boolean;
+  onDeleted: () => void;
 }) {
-  const [, navigate] = useLocation();
-  const students = useStudents(contextId);
-  const student = students.find((s) => s.id === studentId);
-  const ownerUids = student?.ownerUids ?? [user.uid];
-  const isOwner = ownerUids.includes(user.uid);
+  const ownerUids = student.ownerUids ?? [user.uid];
 
-  const membership = useMyMembership(student?.schoolId, user.uid);
-  // Same manage tier as ClassroomDetailPage: owner, admin/super_admin, or
-  // an explicit 'manage'-level grant on this student's classroom. Award
-  // access (scope or an 'award' grant) is enough to record a
-  // transaction, but never enough to rename/delete.
-  const canManage =
-    isOwner ||
-    (membership !== null && membership !== undefined && membership.role !== 'teacher') ||
-    membership?.classroomGrants?.[contextId] === 'manage';
-
-  const transactions = useTransactions(contextId, studentId);
+  const transactions = useTransactions(contextId, student.id);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [recording, setRecording] = useState(false);
@@ -61,7 +49,7 @@ export function StudentLedgerPage({
   const [nameDraft, setNameDraft] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const pendingLink = usePendingStudentLinkForStudent(studentId);
+  const pendingLink = usePendingStudentLinkForStudent(student.id);
   const [linkEmail, setLinkEmail] = useState('');
   const [linking, setLinking] = useState(false);
 
@@ -71,14 +59,14 @@ export function StudentLedgerPage({
     setRecording(true);
     await recordTransaction({
       contextId,
-      studentId,
+      studentId: student.id,
       type,
       amountCents: Math.round(parsed * 100),
       reason: reason.trim(),
       createdByUid: user.uid,
       ownerUids,
-      schoolId: student?.schoolId,
-      gradeLevel: student?.gradeLevel,
+      schoolId: student.schoolId,
+      gradeLevel: student.gradeLevel,
     });
     setAmount('');
     setReason('');
@@ -86,7 +74,7 @@ export function StudentLedgerPage({
   };
 
   const startRenaming = () => {
-    setNameDraft(student?.displayName ?? '');
+    setNameDraft(student.displayName);
     setRenaming(true);
   };
 
@@ -94,7 +82,7 @@ export function StudentLedgerPage({
     const trimmed = nameDraft.trim();
     if (trimmed) {
       const { firstName, lastName } = splitDisplayName(trimmed);
-      await updateStudent(studentId, { firstName, lastName });
+      await updateStudent(student.id, { firstName, lastName });
     }
     setRenaming(false);
   };
@@ -103,7 +91,7 @@ export function StudentLedgerPage({
     const trimmed = linkEmail.trim();
     if (!trimmed || linking) return;
     setLinking(true);
-    await linkStudentAccount({ studentId, email: trimmed, invitedByUid: user.uid });
+    await linkStudentAccount({ studentId: student.id, email: trimmed, invitedByUid: user.uid });
     setLinkEmail('');
     setLinking(false);
   };
@@ -111,7 +99,7 @@ export function StudentLedgerPage({
   return (
     <div className="flex min-h-full flex-col text-ink">
       {renaming ? (
-        <header className="flex items-center gap-3 border-b border-border px-6 py-4">
+        <header className="flex items-center gap-3 border-b border-border pb-4">
           <Input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus className="flex-1" />
           <Button size="sm" onClick={saveName}>
             Save
@@ -121,32 +109,29 @@ export function StudentLedgerPage({
           </Button>
         </header>
       ) : (
-        <PageHeader
-          title={student?.displayName ?? 'Student'}
-          backTo={`/classrooms/${contextId}`}
-          actions={
-            canManage && (
-              <>
-                <IconButton label="Rename student" variant="secondary" onClick={startRenaming}>
-                  <Pencil size={16} />
-                </IconButton>
-                <IconButton label="Delete student" variant="secondary" onClick={() => setDeleting(true)}>
-                  <Trash2 size={16} />
-                </IconButton>
-              </>
-            )
-          }
-        />
+        <header className="flex items-center justify-between border-b border-border pb-4">
+          <h2 className="text-xl font-bold text-ink">{student.displayName}</h2>
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <IconButton label="Rename student" variant="secondary" onClick={startRenaming}>
+                <Pencil size={16} />
+              </IconButton>
+              <IconButton label="Delete student" variant="secondary" onClick={() => setDeleting(true)}>
+                <Trash2 size={16} />
+              </IconButton>
+            </div>
+          )}
+        </header>
       )}
-      <p className="px-6 pt-4 text-3xl font-bold">${((student?.balanceCents ?? 0) / 100).toFixed(2)}</p>
+      <p className="pt-4 text-3xl font-bold">${(student.balanceCents / 100).toFixed(2)}</p>
 
       {canManage && (
-        <section className="mx-6 mt-4 rounded-lg border border-border bg-surface p-4">
+        <section className="mt-4 rounded-lg border border-border bg-surface p-4">
           <h2 className="mb-2 text-sm font-semibold text-ink-muted">Student account</h2>
-          {student?.linkedUid ? (
+          {student.linkedUid ? (
             <div className="flex items-center justify-between">
               <span className="text-sm text-brand">Linked — the student can sign in and see this on their own</span>
-              <Button size="sm" variant="secondary" onClick={() => unlinkStudentAccount(studentId)}>
+              <Button size="sm" variant="secondary" onClick={() => unlinkStudentAccount(student.id)}>
                 Unlink
               </Button>
             </div>
@@ -173,7 +158,7 @@ export function StudentLedgerPage({
         </section>
       )}
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto py-4">
         {transactions.length === 0 ? (
           <p className="text-ink-muted">No transactions yet.</p>
         ) : (
@@ -194,7 +179,7 @@ export function StudentLedgerPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-border px-6 py-4">
+      <div className="flex flex-col gap-2 border-t border-border pt-4">
         <div className="flex gap-2">
           <Input
             value={amount}
@@ -228,8 +213,8 @@ export function StudentLedgerPage({
         confirmLabel="Delete"
         destructive
         onConfirm={async () => {
-          await deleteStudent(studentId);
-          navigate(`/classrooms/${contextId}`);
+          await deleteStudent(student.id);
+          onDeleted();
         }}
       />
     </div>

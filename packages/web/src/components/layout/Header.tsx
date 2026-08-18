@@ -51,6 +51,16 @@ export function Header({ user }: { user: User | null }) {
                 >
                   Sign out
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/account/delete');
+                  }}
+                  className="w-full rounded-md px-2 py-1.5 text-left text-sm text-red-500 hover:bg-bg"
+                >
+                  Delete account
+                </button>
               </div>
             )}
           </div>

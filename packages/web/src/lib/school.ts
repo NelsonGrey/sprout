@@ -6,6 +6,7 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocs,
   increment,
   onSnapshot,
   query,
@@ -27,6 +28,7 @@ import type {
   SchoolMember,
 } from '@sprout/shared';
 import { firebaseClient } from './firebase';
+import { assignClassroomOwner } from './firestore';
 
 const db = firebaseClient.firestore;
 
@@ -209,11 +211,28 @@ export function useMyMembership(schoolId: string | undefined, uid: string): Scho
  * admin or another super_admin (hierarchical delegation — see
  * firestore.rules). Removing the school's last super_admin is denied by the
  * rules regardless of who attempts it. Removing your own membership this
- * way is possible but has no dedicated "leave school" UI yet. */
+ * way is possible but has no dedicated "leave school" UI yet.
+ *
+ * Also auto-unassigns any classroom(s) this member owned in this school —
+ * otherwise a removed teacher would still satisfy isContextOwner on those
+ * classrooms and their existing students forever (ownerUids is a plain
+ * array-contains check independent of school membership). Unassign runs
+ * before the member delete, not batched with it: if the delete step failed
+ * after a successful unassign, the worst case is a briefly-ownerless
+ * classroom while the departing teacher is still technically a member (an
+ * admin can just reassign it) — the reverse ordering would recreate the
+ * exact security gap this exists to close. */
 export async function removeMember(schoolId: string, uid: string): Promise<void> {
   const memberRef = doc(db, 'schools', schoolId, 'members', uid);
   const memberSnapshot = await getDoc(memberRef);
   const role = memberSnapshot.data()?.role;
+
+  const ownedClassrooms = await getDocs(
+    query(collection(db, 'contexts'), where('schoolId', '==', schoolId), where('ownerUids', 'array-contains', uid)),
+  );
+  for (const classroomDoc of ownedClassrooms.docs) {
+    await assignClassroomOwner(classroomDoc.id, null);
+  }
 
   if (role === 'super_admin') {
     // Paired with firestore.rules' superAdminCount > 1 check — kept in

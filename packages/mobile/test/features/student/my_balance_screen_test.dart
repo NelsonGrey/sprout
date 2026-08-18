@@ -58,7 +58,7 @@ void main() {
     expect(find.byKey(const Key('amountField')), findsNothing);
   });
 
-  testWidgets('has a sign-out action', (tester) async {
+  testWidgets('has an account menu with a sign-out action', (tester) async {
     final repository = FakeClassroomRepository();
     final classroom = await repository.createClassroom(name: '4th Grade', ownerUid: _owner.uid);
     final student = await repository.addStudent(
@@ -77,6 +77,11 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.byTooltip('Sign out'), findsOneWidget);
+    expect(find.byKey(const Key('accountMenuButton')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('accountMenuButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('signOutMenuItem')), findsOneWidget);
+    expect(find.byKey(const Key('deleteAccountMenuItem')), findsOneWidget);
   });
 }

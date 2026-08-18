@@ -11,6 +11,7 @@ import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/classroom/firestore_classroom_repository.dart';
 import 'package:sprout/core/services/school/firestore_school_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
+import 'package:sprout/features/auth/delete_account_screen.dart';
 import 'package:sprout/features/auth/login_screen.dart';
 import 'package:sprout/features/classroom/classroom_detail_screen.dart';
 import 'package:sprout/features/classroom/landing_screen.dart';
@@ -153,6 +154,19 @@ class SproutApp extends StatelessWidget {
             final user = authService.currentUser;
             if (user == null) return const SizedBox.shrink();
             return StudentImportScreen(
+              classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
+              user: user,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/account/delete',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return DeleteAccountScreen(
+              authService: authService,
               classroomRepository: classroomRepository,
               schoolRepository: schoolRepository,
               user: user,
