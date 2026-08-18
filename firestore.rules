@@ -36,12 +36,19 @@ service cloud.firestore {
     function memberPath(schoolId, uid) {
       return /databases/$(database)/documents/schools/$(schoolId)/members/$(uid);
     }
+    // schoolId is string, not just != null: a caller may pass through
+    // data.get('schoolId', null) from an optional field, and null isn't a
+    // valid path segment — interpolating it into memberPath() throws a
+    // type-evaluation error, not a clean false. Checking the type here,
+    // before any path is built, keeps that "absent schoolId" case a plain
+    // false for every caller of these two functions (and everything that
+    // composes them, e.g. hasAwardAccess/hasManageAccess below).
     function isSuperAdmin(schoolId) {
-      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
+      return schoolId is string && isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
         && get(memberPath(schoolId, request.auth.uid)).data.role == 'super_admin';
     }
     function isAtLeastAdmin(schoolId) {
-      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
+      return schoolId is string && isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
         && get(memberPath(schoolId, request.auth.uid)).data.role in ['admin', 'super_admin'];
     }
     // A specific classroom's delegated access, layered on top of the
@@ -57,7 +64,7 @@ service cloud.firestore {
     // direct indexing would deny (error) if the field is missing entirely,
     // not just if this one contextId's key is missing.
     function classroomGrantLevel(schoolId, contextId) {
-      return isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
+      return schoolId is string && isAuthenticated() && exists(memberPath(schoolId, request.auth.uid))
         ? get(memberPath(schoolId, request.auth.uid)).data.get('classroomGrants', {}).get(contextId, null)
         : null;
     }
@@ -70,7 +77,7 @@ service cloud.firestore {
     // tier. Admins/super_admins always have full access.
     function hasAwardAccess(schoolId, gradeLevel, contextId) {
       return isAtLeastAdmin(schoolId) || (
-        isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)) &&
+        schoolId is string && isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)) &&
         get(memberPath(schoolId, request.auth.uid)).data.role == 'teacher' && (
           get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'school' ||
           (get(memberPath(schoolId, request.auth.uid)).data.scope.type == 'grades'
@@ -309,9 +316,11 @@ service cloud.firestore {
       // second branch (hasAwardAccess) rather than isContextOwner, which
       // silently denies the whole query instead of just this branch.
       allow read: if isContextOwner(resource.data) || (
-        resource.data.get('schoolId', null) != null
-          && resource.data.contextIds.size() > 0
-          && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, resource.data.contextIds[0])
+        hasAwardAccess(
+          resource.data.get('schoolId', null),
+          resource.data.get('gradeLevel', null),
+          resource.data.get('contextIds', []).size() > 0 ? resource.data.get('contextIds', [])[0] : null
+        )
       ) || isLinkedStudentSelf(resource.data);
       // Three ways to update, and exactly one of them may ever change
       // linkedUid to a new non-null value:
