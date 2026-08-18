@@ -310,6 +310,7 @@ service cloud.firestore {
       // silently denies the whole query instead of just this branch.
       allow read: if isContextOwner(resource.data) || (
         resource.data.get('schoolId', null) != null
+          && resource.data.contextIds.size() > 0
           && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, resource.data.contextIds[0])
       ) || isLinkedStudentSelf(resource.data);
       // Three ways to update, and exactly one of them may ever change
