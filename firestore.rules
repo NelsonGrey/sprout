@@ -319,7 +319,7 @@ service cloud.firestore {
         hasAwardAccess(
           resource.data.get('schoolId', null),
           resource.data.get('gradeLevel', null),
-          resource.data.get('contextIds', []).size() > 0 ? resource.data.get('contextIds', [])[0] : null
+          resource.data.get('contextIds', []).size() > 0 ? resource.data.get('contextIds', [])[0] : ''
         )
       ) || isLinkedStudentSelf(resource.data);
       // Three ways to update, and exactly one of them may ever change
