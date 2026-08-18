@@ -4,6 +4,7 @@ import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
+import 'package:sprout/core/models/student_import_row.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 
 class FirestoreClassroomRepository implements ClassroomRepository {
@@ -11,6 +12,14 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
+
+  // Firestore's WriteBatch hard-caps at 500 operations; 400 leaves headroom
+  // since each id in a bulk operation maps to exactly one write. Matches
+  // web's BULK_CHUNK_SIZE (packages/web/src/lib/firestore.ts). None of the
+  // bulk methods below get() a document inside the same batch they write to,
+  // so they don't hit the pre-commit-state gotcha documented on
+  // createSchool in firestore_school_repository.dart.
+  static const _bulkChunkSize = 400;
 
   CollectionReference<Map<String, dynamic>> get _contexts =>
       _firestore.collection('contexts');
@@ -112,6 +121,14 @@ class FirestoreClassroomRepository implements ClassroomRepository {
         .where('contextId', isEqualTo: contextId)
         .orderBy('displayName')
         .snapshots()
+        .map((snapshot) => snapshot.docs.map(_studentFromDoc).where((s) => s.archivedAt == null).toList());
+  }
+
+  @override
+  Stream<List<Student>> studentsInSchool(String schoolId) {
+    return _students
+        .where('schoolId', isEqualTo: schoolId)
+        .snapshots()
         .map((snapshot) => snapshot.docs.map(_studentFromDoc).toList());
   }
 
@@ -182,6 +199,128 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   @override
   Future<void> deleteStudent(String studentId) async {
     await _students.doc(studentId).delete();
+  }
+
+  @override
+  Future<void> bulkMoveStudents(
+    List<String> studentIds, {
+    required String contextId,
+    required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
+    String? contextName,
+  }) async {
+    for (var i = 0; i < studentIds.length; i += _bulkChunkSize) {
+      final batch = _firestore.batch();
+      for (final id in studentIds.skip(i).take(_bulkChunkSize)) {
+        batch.update(_students.doc(id), {
+          'contextId': contextId,
+          'contexts': {
+            contextId: {'type': 'classroom', 'role': 'member'},
+          },
+          'ownerUids': ownerUids,
+          if (schoolId != null) 'schoolId': schoolId,
+          if (gradeLevel != null) 'gradeLevel': gradeLevel,
+          if (contextName != null) 'contextName': contextName,
+        });
+      }
+      await batch.commit();
+    }
+  }
+
+  @override
+  Future<void> bulkArchiveStudents(List<String> studentIds) async {
+    for (var i = 0; i < studentIds.length; i += _bulkChunkSize) {
+      final batch = _firestore.batch();
+      for (final id in studentIds.skip(i).take(_bulkChunkSize)) {
+        batch.update(_students.doc(id), {'archivedAt': FieldValue.serverTimestamp()});
+      }
+      await batch.commit();
+    }
+  }
+
+  @override
+  Future<void> restoreStudents(
+    List<String> studentIds, {
+    required String contextId,
+    required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
+    String? contextName,
+  }) async {
+    for (var i = 0; i < studentIds.length; i += _bulkChunkSize) {
+      final batch = _firestore.batch();
+      for (final id in studentIds.skip(i).take(_bulkChunkSize)) {
+        batch.update(_students.doc(id), {
+          'contextId': contextId,
+          'contexts': {
+            contextId: {'type': 'classroom', 'role': 'member'},
+          },
+          'ownerUids': ownerUids,
+          if (schoolId != null) 'schoolId': schoolId,
+          if (gradeLevel != null) 'gradeLevel': gradeLevel,
+          if (contextName != null) 'contextName': contextName,
+          'archivedAt': FieldValue.delete(),
+        });
+      }
+      await batch.commit();
+    }
+  }
+
+  @override
+  Future<void> bulkDeleteStudents(List<String> studentIds) async {
+    for (var i = 0; i < studentIds.length; i += _bulkChunkSize) {
+      final batch = _firestore.batch();
+      for (final id in studentIds.skip(i).take(_bulkChunkSize)) {
+        batch.delete(_students.doc(id));
+      }
+      await batch.commit();
+    }
+  }
+
+  @override
+  Future<void> commitStudentImport(
+    List<StudentImportRow> rows, {
+    required String contextId,
+    required List<String> ownerUids,
+    required String schoolId,
+    String? gradeLevel,
+    required String contextName,
+  }) async {
+    for (var i = 0; i < rows.length; i += _bulkChunkSize) {
+      final batch = _firestore.batch();
+      for (final row in rows.skip(i).take(_bulkChunkSize)) {
+        final displayName = combineDisplayName(row.firstName, row.lastName);
+        final effectiveGrade = row.gradeLevel ?? gradeLevel;
+        if (row.existingId != null) {
+          batch.update(_students.doc(row.existingId), {
+            'firstName': row.firstName,
+            'lastName': row.lastName,
+            'displayName': displayName,
+            if (row.studentId != null) 'studentId': row.studentId,
+            if (effectiveGrade != null) 'gradeLevel': effectiveGrade,
+          });
+        } else {
+          batch.set(_students.doc(), {
+            'firstName': row.firstName,
+            'lastName': row.lastName,
+            'displayName': displayName,
+            if (row.studentId != null) 'studentId': row.studentId,
+            'balanceCents': 0,
+            'contexts': {
+              contextId: {'type': 'classroom', 'role': 'member'},
+            },
+            'contextId': contextId,
+            'ownerUids': ownerUids,
+            'schoolId': schoolId,
+            if (effectiveGrade != null) 'gradeLevel': effectiveGrade,
+            'contextName': contextName,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+      await batch.commit();
+    }
   }
 
   @override
@@ -313,6 +452,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       contextId: data['contextId'] as String?,
       contextName: data['contextName'] as String?,
       linkedUid: data['linkedUid'] as String?,
+      archivedAt: (data['archivedAt'] as Timestamp?)?.toDate(),
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
+import 'package:sprout/core/models/student_import_row.dart';
 
 /// Firestore-backed classroom data access, behind an interface so screens
 /// can be tested against [FakeClassroomRepository] — same shape as
@@ -46,7 +47,15 @@ abstract class ClassroomRepository {
     String? gradeLevel,
   });
 
+  /// Active roster only — archived (graduated) students are filtered out,
+  /// same as [studentsInSchool] leaves the choice to the caller. Matches
+  /// web's useStudents.
   Stream<List<Student>> studentsInClassroom(String contextId);
+
+  /// Every student across the whole school, unfiltered by [Student.archivedAt]
+  /// — callers (the bulk-management screens) do their own archived-filtering,
+  /// same as web's useStudentsInSchool/StudentsPage's "Show archived" toggle.
+  Stream<List<Student>> studentsInSchool(String schoolId);
 
   /// [schoolId]/[gradeLevel] should mirror the owning classroom's, if any —
   /// denormalized at creation time for scoped reads (see
@@ -80,6 +89,59 @@ abstract class ClassroomRepository {
   });
 
   Future<void> deleteStudent(String studentId);
+
+  // ---- Bulk roster management (BR-1.3.9/1.3.10) ----
+
+  /// Reassigns every student in [studentIds] to the classroom described by
+  /// the rest of the arguments — used for both "Move to classroom" and
+  /// "Promote" (grade rollover is just a move to a different classroom,
+  /// there's no separate promote primitive). [ownerUids] must be the
+  /// destination classroom's actual owner(s), not left stale from the old
+  /// one. [schoolId]/[gradeLevel]/[contextName] are written only when
+  /// non-null — omitting one leaves the student's existing value untouched,
+  /// it is never explicitly cleared.
+  Future<void> bulkMoveStudents(
+    List<String> studentIds, {
+    required String contextId,
+    required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
+    String? contextName,
+  });
+
+  /// Sets [Student.archivedAt] only — nothing else about the student
+  /// changes, including which classroom they're still pointed at. Archived
+  /// students drop out of [studentsInClassroom]'s default view.
+  Future<void> bulkArchiveStudents(List<String> studentIds);
+
+  /// Un-archives and reassigns to a (usually new) classroom in the same
+  /// write — there is no bare "just clear archivedAt" path, since a
+  /// returning student's old classroom is almost always gone or repurposed
+  /// by the time they come back.
+  Future<void> restoreStudents(
+    List<String> studentIds, {
+    required String contextId,
+    required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
+    String? contextName,
+  });
+
+  Future<void> bulkDeleteStudents(List<String> studentIds);
+
+  /// Commits a previewed CSV import. A row with [StudentImportRow.existingId]
+  /// set updates only name/studentId/gradeLevel on that existing student —
+  /// it never reassigns classroom/school/owner, even though [contextId] is
+  /// the chosen import destination; a row without one creates a brand-new
+  /// student in that classroom.
+  Future<void> commitStudentImport(
+    List<StudentImportRow> rows, {
+    required String contextId,
+    required List<String> ownerUids,
+    required String schoolId,
+    String? gradeLevel,
+    required String contextName,
+  });
 
   Stream<List<LedgerTransaction>> transactionsForStudent({
     required String contextId,

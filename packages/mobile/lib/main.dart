@@ -16,6 +16,10 @@ import 'package:sprout/features/classroom/classroom_detail_screen.dart';
 import 'package:sprout/features/classroom/landing_screen.dart';
 import 'package:sprout/features/classroom/student_ledger_screen.dart';
 import 'package:sprout/features/school/school_screen.dart';
+import 'package:sprout/features/student/archive_students_screen.dart';
+import 'package:sprout/features/student/promote_students_screen.dart';
+import 'package:sprout/features/student/student_import_screen.dart';
+import 'package:sprout/features/student/students_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -105,6 +109,54 @@ class SproutApp extends StatelessWidget {
             final user = authService.currentUser;
             if (user == null) return const SizedBox.shrink();
             return SchoolScreen(schoolRepository: schoolRepository, user: user);
+          },
+        ),
+        GoRoute(
+          path: '/students',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return StudentsScreen(
+              classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
+              user: user,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/students/promote',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return PromoteStudentsScreen(
+              classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
+              user: user,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/students/archive',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return ArchiveStudentsScreen(
+              classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
+              user: user,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/students/import',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return StudentImportScreen(
+              classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
+              user: user,
+            );
           },
         ),
         GoRoute(

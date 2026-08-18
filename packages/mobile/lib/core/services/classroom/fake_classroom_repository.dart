@@ -2,6 +2,7 @@ import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
+import 'package:sprout/core/models/student_import_row.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 
 /// In-memory [ClassroomRepository] for widget tests — mirrors
@@ -83,7 +84,14 @@ class FakeClassroomRepository implements ClassroomRepository {
   @override
   Stream<List<Student>> studentsInClassroom(String contextId) {
     final ids = _studentIdsByContext[contextId] ?? {};
-    return Stream.value(ids.map((id) => _students[id]!).toList());
+    return Stream.value(
+      ids.map((id) => _students[id]!).where((s) => s.archivedAt == null).toList(),
+    );
+  }
+
+  @override
+  Stream<List<Student>> studentsInSchool(String schoolId) {
+    return Stream.value(_students.values.where((s) => s.schoolId == schoolId).toList());
   }
 
   @override
@@ -142,6 +150,7 @@ class FakeClassroomRepository implements ClassroomRepository {
       contextId: current.contextId,
       contextName: current.contextName,
       linkedUid: current.linkedUid,
+      archivedAt: current.archivedAt,
     );
   }
 
@@ -151,6 +160,155 @@ class FakeClassroomRepository implements ClassroomRepository {
     _transactionsByStudent.remove(studentId);
     for (final ids in _studentIdsByContext.values) {
       ids.remove(studentId);
+    }
+  }
+
+  void _reassignContext(String studentId, String contextId) {
+    for (final ids in _studentIdsByContext.values) {
+      ids.remove(studentId);
+    }
+    _studentIdsByContext.putIfAbsent(contextId, () => {}).add(studentId);
+  }
+
+  @override
+  Future<void> bulkMoveStudents(
+    List<String> studentIds, {
+    required String contextId,
+    required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
+    String? contextName,
+  }) async {
+    for (final id in studentIds) {
+      final current = _students[id];
+      if (current == null) continue;
+      _students[id] = Student(
+        id: current.id,
+        firstName: current.firstName,
+        lastName: current.lastName,
+        displayName: current.displayName,
+        studentId: current.studentId,
+        balanceCents: current.balanceCents,
+        ownerUids: ownerUids,
+        schoolId: schoolId ?? current.schoolId,
+        gradeLevel: gradeLevel ?? current.gradeLevel,
+        contextId: contextId,
+        contextName: contextName ?? current.contextName,
+        linkedUid: current.linkedUid,
+        archivedAt: current.archivedAt,
+      );
+      _reassignContext(id, contextId);
+    }
+  }
+
+  @override
+  Future<void> bulkArchiveStudents(List<String> studentIds) async {
+    for (final id in studentIds) {
+      final current = _students[id];
+      if (current == null) continue;
+      _students[id] = Student(
+        id: current.id,
+        firstName: current.firstName,
+        lastName: current.lastName,
+        displayName: current.displayName,
+        studentId: current.studentId,
+        balanceCents: current.balanceCents,
+        ownerUids: current.ownerUids,
+        schoolId: current.schoolId,
+        gradeLevel: current.gradeLevel,
+        contextId: current.contextId,
+        contextName: current.contextName,
+        linkedUid: current.linkedUid,
+        archivedAt: DateTime.now(),
+      );
+    }
+  }
+
+  @override
+  Future<void> restoreStudents(
+    List<String> studentIds, {
+    required String contextId,
+    required List<String> ownerUids,
+    String? schoolId,
+    String? gradeLevel,
+    String? contextName,
+  }) async {
+    for (final id in studentIds) {
+      final current = _students[id];
+      if (current == null) continue;
+      _students[id] = Student(
+        id: current.id,
+        firstName: current.firstName,
+        lastName: current.lastName,
+        displayName: current.displayName,
+        studentId: current.studentId,
+        balanceCents: current.balanceCents,
+        ownerUids: ownerUids,
+        schoolId: schoolId ?? current.schoolId,
+        gradeLevel: gradeLevel ?? current.gradeLevel,
+        contextId: contextId,
+        contextName: contextName ?? current.contextName,
+        linkedUid: current.linkedUid,
+        archivedAt: null,
+      );
+      _reassignContext(id, contextId);
+    }
+  }
+
+  @override
+  Future<void> bulkDeleteStudents(List<String> studentIds) async {
+    for (final id in studentIds) {
+      await deleteStudent(id);
+    }
+  }
+
+  @override
+  Future<void> commitStudentImport(
+    List<StudentImportRow> rows, {
+    required String contextId,
+    required List<String> ownerUids,
+    required String schoolId,
+    String? gradeLevel,
+    required String contextName,
+  }) async {
+    for (final row in rows) {
+      final effectiveGrade = row.gradeLevel ?? gradeLevel;
+      if (row.existingId != null) {
+        final current = _students[row.existingId];
+        if (current == null) continue;
+        _students[current.id] = Student(
+          id: current.id,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          displayName: combineDisplayName(row.firstName, row.lastName),
+          studentId: row.studentId ?? current.studentId,
+          balanceCents: current.balanceCents,
+          ownerUids: current.ownerUids,
+          schoolId: current.schoolId,
+          gradeLevel: effectiveGrade ?? current.gradeLevel,
+          contextId: current.contextId,
+          contextName: current.contextName,
+          linkedUid: current.linkedUid,
+          archivedAt: current.archivedAt,
+        );
+      } else {
+        final student = Student(
+          id: _newId(),
+          firstName: row.firstName,
+          lastName: row.lastName,
+          displayName: combineDisplayName(row.firstName, row.lastName),
+          studentId: row.studentId,
+          balanceCents: 0,
+          ownerUids: ownerUids,
+          schoolId: schoolId,
+          gradeLevel: effectiveGrade,
+          contextId: contextId,
+          contextName: contextName,
+        );
+        _students[student.id] = student;
+        _studentIdsByContext.putIfAbsent(contextId, () => {}).add(student.id);
+        _transactionsByStudent[student.id] = [];
+      }
     }
   }
 
@@ -200,6 +358,7 @@ class FakeClassroomRepository implements ClassroomRepository {
       contextId: current.contextId,
       contextName: current.contextName,
       linkedUid: current.linkedUid,
+      archivedAt: current.archivedAt,
     );
   }
 
@@ -245,6 +404,7 @@ class FakeClassroomRepository implements ClassroomRepository {
       contextId: current.contextId,
       contextName: current.contextName,
       linkedUid: null,
+      archivedAt: current.archivedAt,
     );
   }
 
@@ -268,6 +428,7 @@ class FakeClassroomRepository implements ClassroomRepository {
       contextId: current.contextId,
       contextName: current.contextName,
       linkedUid: uid,
+      archivedAt: current.archivedAt,
     );
     _pendingStudentLinksByEmail.remove(normalized);
   }

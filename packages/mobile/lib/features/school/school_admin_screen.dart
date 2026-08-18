@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
@@ -310,6 +311,16 @@ class _SchoolAdminScreenState extends State<SchoolAdminScreen> {
                   ),
                 ),
                 if (isAtLeastAdmin) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: ListTile(
+                      key: const Key('manageStudentsButton'),
+                      title: const Text('Manage Students'),
+                      subtitle: const Text('Move, archive, restore, delete, or import a roster'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.go('/students'),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Text('Staff', style: Theme.of(context).textTheme.labelLarge),
                   StreamBuilder<List<SchoolMember>>(

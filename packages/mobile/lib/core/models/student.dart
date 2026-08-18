@@ -28,6 +28,7 @@ class Student {
     this.contextId,
     this.contextName,
     this.linkedUid,
+    this.archivedAt,
   });
 
   final String id;
@@ -74,4 +75,10 @@ class Student {
   /// own verified-email claim; cleared only by staff (unlink) — the normal
   /// staff update path cannot change it (see firestore.rules).
   final String? linkedUid;
+
+  /// Graduated/left-the-school — a field flip, not a delete, so balance and
+  /// transaction history are preserved. Archived students drop out of
+  /// [ClassroomRepository.studentsInClassroom]'s default view but stay
+  /// visible via [ClassroomRepository.studentsInSchool].
+  final DateTime? archivedAt;
 }
