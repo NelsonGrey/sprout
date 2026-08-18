@@ -209,7 +209,7 @@ service cloud.firestore {
     // spoofed) or a school admin managing invites they're responsible for.
     match /pendingInvites/{email} {
       allow read, delete: if isAuthenticated() && (
-        email == request.auth.token.email.lower() || isAtLeastAdmin(resource.data.schoolId)
+        email == request.auth.token.email.lower() || isAtLeastAdmin(resource.data.get('schoolId', null))
       );
       allow create: if
         (request.resource.data.role in ['super_admin', 'admin'] && isSuperAdmin(request.resource.data.schoolId)) ||
@@ -226,7 +226,7 @@ service cloud.firestore {
     // actually grants access).
     match /pendingStudentLinks/{email} {
       allow read, delete: if isAuthenticated() && (
-        email == request.auth.token.email.lower() || canManageStudentLink(resource.data.studentId)
+        email == request.auth.token.email.lower() || canManageStudentLink(resource.data.get('studentId', null))
       );
       allow create: if canManageStudentLink(request.resource.data.studentId)
         && request.resource.data.invitedByUid == request.auth.uid;
@@ -240,13 +240,20 @@ service cloud.firestore {
     // only the owner, an admin, or a 'manage'-level delegate can
     // rename/delete/create (hasManageAccess) — see both above.
     match /contexts/{contextId} {
+      // get('schoolId', null): standalone (non-school) classrooms never
+      // have schoolId set at all, and this read rule also governs LIST
+      // queries (e.g. useClassrooms' ownerUids array-contains query,
+      // which runs on every login) — direct dot access on a field most
+      // matching documents genuinely lack throws "Property schoolId is
+      // undefined" and denies the whole query, same issue as students/
+      // accessRequests above.
       allow read: if isContextOwner(resource.data) || (
-        resource.data.schoolId != null
-          && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, contextId)
+        resource.data.get('schoolId', null) != null
+          && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, contextId)
       );
       allow update, delete: if isContextOwner(resource.data) || (
-        resource.data.schoolId != null
-          && hasManageAccess(resource.data.schoolId, contextId)
+        resource.data.get('schoolId', null) != null
+          && hasManageAccess(resource.data.get('schoolId', null), contextId)
       );
       // Narrowed: a grade/whole-school-scoped teacher never spontaneously
       // creates a classroom — only the owner (naming themselves) or a
@@ -260,9 +267,12 @@ service cloud.firestore {
       // context — no update/delete once created. Recording an earn/spend
       // IS "granting an award," so award-level access is sufficient.
       match /transactions/{transactionId} {
+        // get('schoolId', null): same reasoning as contexts/students above
+        // — this read rule also governs useTransactions' LIST query
+        // (filtered by studentId, not schoolId), and schoolId is optional.
         allow read: if isContextOwner(resource.data) || (
-          resource.data.schoolId != null
-            && hasAwardAccess(resource.data.schoolId, resource.data.gradeLevel, contextId)
+          resource.data.get('schoolId', null) != null
+            && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, contextId)
         ) || (
           exists(/databases/$(database)/documents/students/$(resource.data.studentId))
             && isLinkedStudentSelf(get(/databases/$(database)/documents/students/$(resource.data.studentId)).data)
