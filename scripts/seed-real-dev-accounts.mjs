@@ -118,7 +118,7 @@ async function main() {
       studentId: s.studentId,
       balanceCents: s.balanceCents,
       contexts: { [s.contextId]: { type: 'classroom', role: 'member' } },
-      contextIds: [s.contextId],
+      contextId: s.contextId,
       ownerUids: [s.owner],
       schoolId,
       gradeLevel: s.gradeLevel,

@@ -31,7 +31,7 @@ export function PromoteStudentsPage({ user }: { user: User }) {
     return classrooms
       .map((classroom) => ({
         classroom,
-        studentIds: students.filter((s) => s.contextIds.includes(classroom.id)).map((s) => s.id),
+        studentIds: students.filter((s) => s.contextId === classroom.id).map((s) => s.id),
       }))
       .filter((row) => row.studentIds.length > 0)
       .sort((a, b) => a.classroom.name.localeCompare(b.classroom.name));

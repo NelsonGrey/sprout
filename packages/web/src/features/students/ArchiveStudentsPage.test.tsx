@@ -61,7 +61,7 @@ function student(overrides: Partial<Student>): Student {
     displayName: 'Alex Rivera',
     balanceCents: 0,
     contexts: {},
-    contextIds: ['ctx-6'],
+    contextId: 'ctx-6',
     ownerUids: ['teacher-6'],
     schoolId: 'school-1',
     gradeLevel: '6',
@@ -96,10 +96,10 @@ describe('ArchiveStudentsPage', () => {
   it('renders one row per occupied non-archived classroom', () => {
     setup({
       students: [
-        student({ id: 'student-1', contextIds: ['ctx-6'] }),
+        student({ id: 'student-1', contextId: 'ctx-6' }),
         student({
           id: 'student-2',
-          contextIds: ['ctx-3'],
+          contextId: 'ctx-3',
           gradeLevel: '3',
           contextName: '3rd Grade - Room 12',
           archivedAt: new Date(),
@@ -113,7 +113,7 @@ describe('ArchiveStudentsPage', () => {
   });
 
   it('updates the summary when a row is checked', () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-6'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-6' })] });
     render(<ArchiveStudentsPage user={user} />);
 
     expect(screen.getByText(/0 students across 0 classrooms will be archived/)).toBeTruthy();
@@ -126,8 +126,8 @@ describe('ArchiveStudentsPage', () => {
   it('archives the checked classroom via bulkArchiveStudents', async () => {
     setup({
       students: [
-        student({ id: 'student-1', contextIds: ['ctx-6'] }),
-        student({ id: 'student-2', contextIds: ['ctx-6'], displayName: 'Jamie Chen' }),
+        student({ id: 'student-1', contextId: 'ctx-6' }),
+        student({ id: 'student-2', contextId: 'ctx-6', displayName: 'Jamie Chen' }),
       ],
     });
     vi.mocked(firestoreLib.bulkArchiveStudents).mockResolvedValue(undefined);
@@ -144,14 +144,14 @@ describe('ArchiveStudentsPage', () => {
   });
 
   it('disables Archive All when nothing is checked', () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-6'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-6' })] });
     render(<ArchiveStudentsPage user={user} />);
 
     expect((screen.getByText('Archive All').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('navigates back to Students after a successful archive', async () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-6'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-6' })] });
     vi.mocked(firestoreLib.bulkArchiveStudents).mockResolvedValue(undefined);
     render(<ArchiveStudentsPage user={user} />);
 

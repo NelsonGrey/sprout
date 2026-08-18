@@ -39,5 +39,8 @@
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "firebase": "^12.17.1"
   }
 }

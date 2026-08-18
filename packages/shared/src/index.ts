@@ -31,7 +31,11 @@ export interface Student {
   studentId?: string;
   balanceCents: number;
   contexts: Record<string, { type: ContextType; role: 'member' }>;
-  contextIds: string[];
+  /** The single classroom this student currently belongs to. Firestore
+   * queries/rules require a scalar here, not an array — see firestore.rules'
+   * isReadableClassroom comment. `contexts` above is the future multi-
+   * context (family continuity) field; this is Phase 1's source of truth. */
+  contextId: string;
   ownerUids: string[];
   /** Denormalized from the owning classroom at creation time — see
    * ClassroomContext.schoolId/gradeLevel. */

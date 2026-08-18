@@ -71,7 +71,7 @@ function student(overrides: Partial<Student>): Student {
     displayName: 'Alex Rivera',
     balanceCents: 0,
     contexts: {},
-    contextIds: ['ctx-3'],
+    contextId: 'ctx-3',
     ownerUids: ['teacher-3'],
     schoolId: 'school-1',
     gradeLevel: '3',
@@ -105,7 +105,7 @@ describe('PromoteStudentsPage', () => {
 
   it('renders one row per occupied classroom, skipping empty ones', () => {
     setup({
-      students: [student({ id: 'student-1', contextIds: ['ctx-3'] })],
+      students: [student({ id: 'student-1', contextId: 'ctx-3' })],
     });
     render(<PromoteStudentsPage user={user} />);
 
@@ -114,7 +114,7 @@ describe('PromoteStudentsPage', () => {
   });
 
   it('updates the summary when a destination is selected', () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-3'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-3' })] });
     render(<PromoteStudentsPage user={user} />);
 
     expect(screen.getByText(/0 students across 0 classrooms will move/)).toBeTruthy();
@@ -125,7 +125,7 @@ describe('PromoteStudentsPage', () => {
   });
 
   it('promotes mapped classrooms via bulkMoveStudents using the source classroom students', async () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-3'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-3' })] });
     vi.mocked(firestoreLib.bulkMoveStudents).mockResolvedValue(undefined);
     render(<PromoteStudentsPage user={user} />);
 
@@ -148,8 +148,8 @@ describe('PromoteStudentsPage', () => {
   it('supports two source classrooms mapped to the same destination', async () => {
     setup({
       students: [
-        student({ id: 'student-1', contextIds: ['ctx-3'] }),
-        student({ id: 'student-2', contextIds: ['ctx-4'], displayName: 'Jamie Chen' }),
+        student({ id: 'student-1', contextId: 'ctx-3' }),
+        student({ id: 'student-2', contextId: 'ctx-4', displayName: 'Jamie Chen' }),
       ],
     });
     vi.mocked(firestoreLib.bulkMoveStudents).mockResolvedValue(undefined);
@@ -167,14 +167,14 @@ describe('PromoteStudentsPage', () => {
   });
 
   it('disables Promote All when nothing is mapped', () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-3'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-3' })] });
     render(<PromoteStudentsPage user={user} />);
 
     expect((screen.getByText('Promote All').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('navigates back to Students after a successful promotion', async () => {
-    setup({ students: [student({ id: 'student-1', contextIds: ['ctx-3'] })] });
+    setup({ students: [student({ id: 'student-1', contextId: 'ctx-3' })] });
     vi.mocked(firestoreLib.bulkMoveStudents).mockResolvedValue(undefined);
     render(<PromoteStudentsPage user={user} />);
 

@@ -45,7 +45,7 @@ const student = {
   studentId: 'STU-1',
   balanceCents: 500,
   contexts: {},
-  contextIds: ['ctx-1'],
+  contextId: 'ctx-1',
   ownerUids: ['teacher-1'],
   schoolId: 'school-1',
   gradeLevel: '4',

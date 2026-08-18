@@ -39,7 +39,7 @@ const existingStudent = {
   studentId: 'STU-2',
   balanceCents: 0,
   contexts: {},
-  contextIds: ['ctx-1'],
+  contextId: 'ctx-1',
   ownerUids: ['teacher-1'],
   schoolId: 'school-1',
   createdAt: new Date(),

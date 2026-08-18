@@ -53,10 +53,10 @@ class Student {
   final String? schoolId;
   final String? gradeLevel;
 
-  /// The classroom this student belongs to — mirrors Firestore's
-  /// `contextIds` array, but as a single field: mobile (unlike the web
-  /// model) has never needed to carry more than one, since every screen
-  /// that reads a Student already knows its contextId from route params.
+  /// The classroom this student belongs to — mirrors Firestore's scalar
+  /// `contextId` field. Mobile has never needed to carry more than one,
+  /// since every screen that reads a Student already knows its contextId
+  /// from route params.
   /// Only needed as a field at all for contexts (like the student's own
   /// balance view) that don't have a route-supplied contextId to fall
   /// back on.

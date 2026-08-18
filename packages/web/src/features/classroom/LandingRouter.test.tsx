@@ -35,7 +35,7 @@ const linkedStudent = {
   displayName: 'Alex Rivera',
   balanceCents: 500,
   contexts: {},
-  contextIds: ['ctx-1'],
+  contextId: 'ctx-1',
   ownerUids: ['teacher-1'],
   contextName: '4th Grade',
   linkedUid: 'user-1',

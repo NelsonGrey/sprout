@@ -45,7 +45,7 @@ const student = {
   displayName: 'Alex',
   balanceCents: 500,
   contexts: {},
-  contextIds: ['ctx-1'],
+  contextId: 'ctx-1',
   ownerUids: ['teacher-1'],
   createdAt: new Date(),
 };

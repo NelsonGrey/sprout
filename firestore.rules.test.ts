@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 
 const OWNER_UID = 'owner-1';
 const OTHER_UID = 'other-1';
@@ -40,7 +40,7 @@ async function seedClassroomWithStudent() {
     displayName: 'Alex',
     balanceCents: 0,
     contexts: { 'ctx-1': { type: 'classroom', role: 'member' } },
-    contextIds: ['ctx-1'],
+    contextId: 'ctx-1',
     ownerUids: [OWNER_UID],
     createdAt: new Date(),
   });
@@ -169,7 +169,7 @@ describe('firestore.rules — school security matrix', () => {
       displayName: 'Jamie',
       balanceCents: 0,
       contexts: { 'school-ctx-1': { type: 'classroom', role: 'member' } },
-      contextIds: ['school-ctx-1'],
+      contextId: 'school-ctx-1',
       ownerUids: [OWNER_UID],
       schoolId: SCHOOL_ID,
       gradeLevel,
@@ -473,7 +473,7 @@ describe('firestore.rules — school security matrix', () => {
         displayName: 'New Kid',
         balanceCents: 0,
         contexts: { 'school-ctx-1': { type: 'classroom', role: 'member' } },
-        contextIds: ['school-ctx-1'],
+        contextId: 'school-ctx-1',
         ownerUids: [OWNER_UID],
         schoolId: SCHOOL_ID,
         gradeLevel: '4',
@@ -535,7 +535,7 @@ describe('firestore.rules — school security matrix', () => {
       setDoc(doc(grantee, 'students/school-student-1'), {
         ...studentData,
         contexts: { 'school-ctx-2': { type: 'classroom', role: 'member' } },
-        contextIds: ['school-ctx-2'],
+        contextId: 'school-ctx-2',
       }),
     );
     // Reassign into a classroom they have no access to at all — denied,
@@ -544,7 +544,7 @@ describe('firestore.rules — school security matrix', () => {
       setDoc(doc(grantee, 'students/school-student-1'), {
         ...studentData,
         contexts: { 'school-ctx-3': { type: 'classroom', role: 'member' } },
-        contextIds: ['school-ctx-3'],
+        contextId: 'school-ctx-3',
       }),
     );
   });
@@ -581,6 +581,104 @@ describe('firestore.rules — school security matrix', () => {
       setDoc(doc(grantee, 'students/school-student-1'), { displayName: 'Nope' }, { merge: true }),
     );
     await assertFails(deleteDoc(doc(grantee, 'contexts/school-ctx-1')));
+  });
+
+  it('resolves the classroom roster LIST query for every access path, and denies an outsider — not just single-document reads', async () => {
+    // Regression test for the architecture bug that caused "students no
+    // longer show up in any class": a rule that authorizes a LIST query by
+    // reading a field the query itself doesn't filter on (e.g. checking
+    // ownerUids/schoolId while the query filters by contextId) denies the
+    // whole query, even for a caller who would pass a single-document get.
+    // isReadableClassroom's get()-on-the-classroom-document fix must be
+    // exercised via a real query()/getDocs(), not getDoc(), to catch this.
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'grades', grades: ['4'] },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${SPECIALIST_UID}`), {
+      role: 'teacher',
+      displayName: 'Coach Kim',
+      email: 'kim@example.com',
+      scope: { type: 'own' },
+      classroomGrants: { 'school-ctx-1': 'award' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+    await seedClassroomAndStudent('4');
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(owner, 'contexts/school-ctx-1/transactions/tx-1'), {
+        studentId: 'school-student-1',
+        type: 'earn',
+        amountCents: 200,
+        reason: 'Starting balance',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+        schoolId: SCHOOL_ID,
+        gradeLevel: '4',
+      }),
+    );
+
+    const roles = [OWNER_UID, SUPER_ADMIN_UID, GRADE_TEACHER_UID, SPECIALIST_UID];
+    for (const uid of roles) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      const rosterSnapshot = await assertSucceeds(
+        getDocs(query(collection(db, 'students'), where('contextId', '==', 'school-ctx-1'))),
+      );
+      if (rosterSnapshot.empty) {
+        throw new Error(`expected the roster query to return the seeded student for ${uid}, got zero docs`);
+      }
+      const txSnapshot = await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'contexts/school-ctx-1/transactions'),
+            where('studentId', '==', 'school-student-1'),
+          ),
+        ),
+      );
+      if (txSnapshot.empty) {
+        throw new Error(`expected the transactions query to return the seeded transaction for ${uid}, got zero docs`);
+      }
+    }
+    const outsiderDb = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(getDocs(query(collection(outsiderDb, 'students'), where('contextId', '==', 'school-ctx-1'))));
+    await assertFails(
+      getDocs(
+        query(
+          collection(outsiderDb, 'contexts/school-ctx-1/transactions'),
+          where('studentId', '==', 'school-student-1'),
+        ),
+      ),
+    );
+  });
+
+  it("resolves useStudentsInSchool's schoolId-filtered LIST query for an admin, and denies a non-admin teacher", async () => {
+    // Regression test for a real bug found during review: fixing the
+    // contextId-filtered roster query (above) initially dropped the
+    // schoolId-filtered query StudentsPage/ArchiveStudentsPage/
+    // PromoteStudentsPage rely on (useStudentsInSchool), since contextId
+    // isn't the field that query filters on. Only admins ever call it with
+    // a real schoolId (UI-gated), so only admin access needs to work here.
+    await seedSchoolWithAdmins();
+    await seedClassroomAndStudent('4');
+
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+    const snapshot = await assertSucceeds(
+      getDocs(query(collection(superAdmin, 'students'), where('schoolId', '==', SCHOOL_ID))),
+    );
+    if (snapshot.empty) {
+      throw new Error('expected the schoolId-filtered query to return the seeded student for an admin, got zero docs');
+    }
+
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await assertFails(getDocs(query(collection(owner, 'students'), where('schoolId', '==', SCHOOL_ID))));
   });
 
   it('denies an own-scope teacher reading a classroom they do not own, even in the same school', async () => {
@@ -734,6 +832,37 @@ describe('firestore.rules — school security matrix', () => {
         createdAt: new Date(),
       }),
     );
+  });
+
+  it("resolves useMembersOfSchool's LIST query for a plain teacher (any member) and an admin; denies an outsider", async () => {
+    // Regression test for a real bug found live: isOwner(memberUid) is
+    // only true for exactly one document in a multi-member LIST scan, so
+    // it can never uniformly authorize the whole query — Firestore denies
+    // the entire request the moment the scanned set includes even one
+    // OTHER member's document. useMembersOfSchool (shown to any classroom
+    // owner picking a delegate on ClassroomDetailPage, not just admins)
+    // needs "is the caller some member of this school" instead, which IS
+    // uniform (schoolId + request.auth.uid are fixed for the whole query).
+    await seedSchoolWithAdmins();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    await setDoc(doc(delegate, `schools/${SCHOOL_ID}/members/${GRADE_TEACHER_UID}`), {
+      role: 'teacher',
+      displayName: 'Plain Teacher',
+      email: 'plain-teacher@example.com',
+      scope: { type: 'own' },
+      addedByUid: DELEGATE_UID,
+      createdAt: new Date(),
+    });
+
+    for (const uid of [SUPER_ADMIN_UID, GRADE_TEACHER_UID]) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      const snapshot = await assertSucceeds(getDocs(collection(db, `schools/${SCHOOL_ID}/members`)));
+      if (snapshot.size < 2) {
+        throw new Error(`expected ${uid} to see all school members, got ${snapshot.size}`);
+      }
+    }
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(getDocs(collection(outsider, `schools/${SCHOOL_ID}/members`)));
   });
 });
 
@@ -960,6 +1089,33 @@ describe('firestore.rules — accessRequests', () => {
     await assertSucceeds(getDoc(doc(target, 'accessRequests/req-12')));
     await assertFails(getDoc(doc(outsider, 'accessRequests/req-12')));
   });
+
+  it("resolves useAccessRequestsForContext's contextId-filtered LIST query for the classroom owner and an admin; denies an outsider", async () => {
+    // Regression test for the same bug class as the students/transactions
+    // list queries above: this rule used to check isAtLeastAdmin(schoolId)
+    // directly, but the only real query here filters by contextId, not
+    // schoolId — denying the whole query for every admin. isReadableClassroom
+    // fixes it the same way, using contextId (already scalar here, no
+    // array-indexing limitation to work around).
+    await seedSchoolOwnerAndTarget();
+    const owner = testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore();
+    await setDoc(doc(owner, 'accessRequests/req-13'), pendingRequestData());
+
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+
+    for (const db of [owner, delegate]) {
+      const snapshot = await assertSucceeds(
+        getDocs(query(collection(db, 'accessRequests'), where('contextId', '==', CONTEXT_ID))),
+      );
+      if (snapshot.empty) {
+        throw new Error('expected the accessRequests query to return the seeded request, got zero docs');
+      }
+    }
+    await assertFails(
+      getDocs(query(collection(outsider, 'accessRequests'), where('contextId', '==', CONTEXT_ID))),
+    );
+  });
 });
 
 describe('firestore.rules — student self-access (BR-1.3.3/1.4.1)', () => {
@@ -1020,7 +1176,7 @@ describe('firestore.rules — student self-access (BR-1.3.3/1.4.1)', () => {
       displayName: 'Alex Rivera',
       balanceCents: 500,
       contexts: { [CONTEXT_ID]: { type: 'classroom', role: 'member' } },
-      contextIds: [CONTEXT_ID],
+      contextId: CONTEXT_ID,
       ownerUids: [OWNER_TEACHER_UID],
       schoolId: SCHOOL_ID,
       gradeLevel: '4',
@@ -1032,7 +1188,7 @@ describe('firestore.rules — student self-access (BR-1.3.3/1.4.1)', () => {
       displayName: 'Jamie Chen',
       balanceCents: 200,
       contexts: { [CONTEXT_ID]: { type: 'classroom', role: 'member' } },
-      contextIds: [CONTEXT_ID],
+      contextId: CONTEXT_ID,
       ownerUids: [OWNER_TEACHER_UID],
       schoolId: SCHOOL_ID,
       gradeLevel: '4',

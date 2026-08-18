@@ -36,7 +36,7 @@
       "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "contextIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "contextId", "order": "ASCENDING" },
         { "fieldPath": "displayName", "order": "ASCENDING" }
       ]
     }

@@ -109,7 +109,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   @override
   Stream<List<Student>> studentsInClassroom(String contextId) {
     return _students
-        .where('contextIds', arrayContains: contextId)
+        .where('contextId', isEqualTo: contextId)
         .orderBy('displayName')
         .snapshots()
         .map((snapshot) => snapshot.docs.map(_studentFromDoc).toList());
@@ -137,7 +137,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       'contexts': {
         contextId: {'type': 'classroom', 'role': 'member'},
       },
-      'contextIds': [contextId],
+      'contextId': contextId,
       'ownerUids': ownerUids,
       if (schoolId != null) 'schoolId': schoolId,
       if (gradeLevel != null) 'gradeLevel': gradeLevel,
@@ -300,7 +300,6 @@ class FirestoreClassroomRepository implements ClassroomRepository {
 
   Student _studentFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
-    final contextIds = data['contextIds'] as List?;
     return Student(
       id: doc.id,
       firstName: data['firstName'] as String? ?? '',
@@ -311,7 +310,7 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       ownerUids: List<String>.from(data['ownerUids'] as List),
       schoolId: data['schoolId'] as String?,
       gradeLevel: data['gradeLevel'] as String?,
-      contextId: contextIds != null && contextIds.isNotEmpty ? contextIds.first as String : null,
+      contextId: data['contextId'] as String?,
       contextName: data['contextName'] as String?,
       linkedUid: data['linkedUid'] as String?,
     );

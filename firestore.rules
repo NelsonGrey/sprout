@@ -16,7 +16,8 @@ service cloud.firestore {
     // needed, which keeps rule evaluation cheap even under bulk writes.
     // get('ownerUids', []), not the bare data.ownerUids: ownerUids is
     // always set on write, but this helper backs LIST-query read rules
-    // (e.g. a classroom roster filtered by contextIds, not ownerUids) —
+    // (e.g. useClassrooms' ownerUids array-contains query itself, or a
+    // student roster's cross-document isReadableClassroom lookup) —
     // for those, direct dot access on a field the query itself doesn't
     // constrain throws "Property ownerUids is undefined" and silently
     // denies the whole query, not just this OR-branch.
@@ -132,9 +133,35 @@ service cloud.firestore {
     function isLinkedStudentSelf(data) {
       return isAuthenticated() && data.get('linkedUid', null) == request.auth.uid;
     }
+
+    // Resolves classroom-based access via get() on the classroom's own
+    // document, rather than reading schoolId/gradeLevel/ownerUids directly
+    // off a scanned document in a LIST query. Firestore's list-query rule
+    // evaluator can only safely use fields the query's own where-clause
+    // constrains (or request.auth, or a get()/exists() path built from a
+    // scalar query-constrained field) — reading any OTHER field off the
+    // scanned document denies the whole query for that caller, even when
+    // done safely via .get(field, default). get()-ing a FOREIGN document
+    // (here, the classroom itself, keyed by a query-constrained scalar
+    // contextId) sidesteps that restriction entirely, since the foreign
+    // document's fields aren't subject to the same-query provability rule.
+    // Confirmed empirically: indexing into an ARRAY field to build the
+    // get() path (e.g. contextIds[0]) does NOT work under any variant —
+    // Firestore throws "Function not found error: Name: [size]"/"[[]]" —
+    // which is why students/contexts use a scalar contextId, not an array.
+    function isReadableClassroom(contextId) {
+      return exists(/databases/$(database)/documents/contexts/$(contextId)) &&
+        isReadableClassroomData(get(/databases/$(database)/documents/contexts/$(contextId)).data, contextId);
+    }
+    function isReadableClassroomData(ctx, contextId) {
+      return isContextOwner(ctx) || (
+        ctx.get('schoolId', null) != null &&
+        hasAwardAccess(ctx.get('schoolId', null), ctx.get('gradeLevel', null), contextId)
+      );
+    }
     // Manage/owner access to the classroom that actually owns [studentId] —
     // derived by reading students/{studentId} directly (which already
-    // denormalizes schoolId/gradeLevel/contextIds) rather than trusting a
+    // denormalizes schoolId/gradeLevel/contextId) rather than trusting a
     // caller-supplied contextId/schoolId, so a pendingStudentLinks create
     // can't be spoofed by naming a classroom the caller manages while
     // actually targeting a student who belongs to a different one.
@@ -144,7 +171,7 @@ service cloud.firestore {
           get(/databases/$(database)/documents/students/$(studentId)).data.schoolId != null &&
           hasManageAccess(
             get(/databases/$(database)/documents/students/$(studentId)).data.schoolId,
-            get(/databases/$(database)/documents/students/$(studentId)).data.contextIds[0]
+            get(/databases/$(database)/documents/students/$(studentId)).data.contextId
           )
         )
       );
@@ -181,7 +208,26 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin(schoolId);
 
       match /members/{memberUid} {
-        allow read: if isOwner(memberUid) || isAtLeastAdmin(schoolId);
+        // isOwner(memberUid) alone would look right for useMyMembership's
+        // single-document get (a teacher checking their own role/scope) —
+        // and it IS correct there — but useMembersOfSchool's LIST query
+        // (every school member, not gated to admins: ClassroomDetailPage
+        // shows it to any classroom owner picking a delegate) scans the
+        // WHOLE members subcollection, and isOwner(memberUid) is only true
+        // for exactly one of those documents (the caller's own) — never
+        // uniformly true or false across the scanned set. Confirmed
+        // empirically: Firestore denies the ENTIRE list query whenever a
+        // rule's truth value could vary per scanned document, even when
+        // that variance is just "does this document's own id match mine,"
+        // not just for arbitrary data fields. exists(memberPath(...)) is
+        // the fix — schoolId (this subcollection's own path segment) and
+        // request.auth.uid are both fixed/uniform for every document the
+        // query could scan, so "is the caller SOME member of this school"
+        // is provable once, not per-document. exists(memberPath(...))
+        // subsumes isAtLeastAdmin(schoolId) here (an admin is also "some
+        // member"), so that's not repeated as a separate branch.
+        allow read: if isOwner(memberUid)
+          || (isAuthenticated() && exists(memberPath(schoolId, request.auth.uid)));
         allow create: if
           (request.resource.data.role in ['super_admin', 'admin'] && isSuperAdmin(schoolId)) ||
           (request.resource.data.role == 'teacher' && isAtLeastAdmin(schoolId)) ||
@@ -274,13 +320,13 @@ service cloud.firestore {
       // context — no update/delete once created. Recording an earn/spend
       // IS "granting an award," so award-level access is sufficient.
       match /transactions/{transactionId} {
-        // get('schoolId', null): same reasoning as contexts/students above
-        // — this read rule also governs useTransactions' LIST query
-        // (filtered by studentId, not schoolId), and schoolId is optional.
-        allow read: if isContextOwner(resource.data) || (
-          resource.data.get('schoolId', null) != null
-            && hasAwardAccess(resource.data.get('schoolId', null), resource.data.gradeLevel, contextId)
-        ) || (
+        // isReadableClassroom(contextId): contextId here is the match-path
+        // segment, not a document field — always safe to reference in a
+        // LIST query (same standing as request.auth). Resolves owner/
+        // award-access via a get() on the classroom's own document rather
+        // than reading schoolId/gradeLevel off the scanned transaction —
+        // see isReadableClassroom's comment above for why that's required.
+        allow read: if isReadableClassroom(contextId) || (
           exists(/databases/$(database)/documents/students/$(resource.data.studentId))
             && isLinkedStudentSelf(get(/databases/$(database)/documents/students/$(resource.data.studentId)).data)
         );
@@ -298,35 +344,47 @@ service cloud.firestore {
 
     // A student's roster entry + denormalized balance. Top-level (not
     // nested under contexts) so a student can belong to more than one
-    // context later (classroom + family) without restructuring. schoolId
-    // is denormalized from the owning classroom at creation time so scoped
-    // access doesn't need an extra context lookup. contextIds[0] is used
-    // for the manage/grant check below — same single-context assumption
-    // the rest of this file already makes implicitly via the singular
-    // schoolId/gradeLevel fields (every creation path uses exactly one
-    // context today).
+    // context later (classroom + family) without restructuring — see the
+    // write-only `contexts` map field for that future work; contextId
+    // (scalar) is the current, Phase-1, single-context source of truth.
+    // schoolId is denormalized from the owning classroom at creation time
+    // so scoped access doesn't need an extra context lookup for the write
+    // rules below (single-document operations, safe to read directly).
     match /students/{studentId} {
-      // get('schoolId', null), not the bare .schoolId used elsewhere in
-      // this match block — those are all single-document write rules,
-      // fine with direct field access. This is the read rule, which also
-      // governs LIST queries (e.g. a classroom roster filtered by
-      // contextIds, not by schoolId) — for those, schoolId isn't
-      // constrained by the query itself, and direct dot access throws
-      // "Property schoolId is undefined" for any caller relying on this
-      // second branch (hasAwardAccess) rather than isContextOwner, which
-      // silently denies the whole query instead of just this branch.
-      allow read: if isContextOwner(resource.data) || (
-        hasAwardAccess(
-          resource.data.get('schoolId', null),
-          resource.data.get('gradeLevel', null),
-          resource.data.get('contextIds', []).size() > 0 ? resource.data.get('contextIds', [])[0] : ''
-        )
-      ) || isLinkedStudentSelf(resource.data);
+      // isReadableClassroom resolves owner/award-access via a get() on the
+      // classroom document itself, keyed by the scalar contextId field —
+      // NOT by reading schoolId/gradeLevel/ownerUids off this scanned
+      // student document, and NOT by indexing into an array. This read
+      // rule also governs LIST queries (e.g. a classroom roster filtered
+      // by contextId) — see isReadableClassroom's comment for why a
+      // get()-on-a-foreign-document is required here, not just a
+      // null-safe field read. isLinkedStudentSelf here is a safe no-op for
+      // that list query (linkedUid isn't query-constrained) but still
+      // works correctly for a single-document get, e.g. a student loading
+      // their own record by id.
+      //
+      // Second LIST-query shape this rule must also serve:
+      // useStudentsInSchool/StudentsPage/ArchiveStudentsPage/
+      // PromoteStudentsPage all filter by schoolId == (contextId isn't
+      // constrained by THAT query), and are only ever called with a real
+      // schoolId when the caller is already admin-gated in the UI
+      // (isAtLeastAdmin ? schoolId : undefined) — so schoolId alone,
+      // checked directly (query-constrained, safe) against isAtLeastAdmin
+      // (which itself only touches schoolId + request.auth, never an
+      // unconstrained field), correctly and safely covers that query
+      // shape without reintroducing the original bug.
+      allow read: if isLinkedStudentSelf(resource.data) || (
+        resource.data.get('contextId', null) != null &&
+        isReadableClassroom(resource.data.get('contextId', null))
+      ) || (
+        resource.data.get('schoolId', null) != null &&
+        isAtLeastAdmin(resource.data.get('schoolId', null))
+      );
       // Three ways to update, and exactly one of them may ever change
       // linkedUid to a new non-null value:
       //  1. Staff's normal manage-gated update (rename/regrade/move
       //     classroom) — checks manage-access on BOTH the current and the
-      //     destination classroom (contextIds[0] before vs. after), same
+      //     destination classroom (contextId before vs. after), same
       //     reasoning as before, and now additionally requires linkedUid
       //     stay byte-for-byte unchanged. Without this, an ordinary staff
       //     write could silently hand an arbitrary uid read access to a
@@ -338,20 +396,20 @@ service cloud.firestore {
         (
           isContextOwner(resource.data) || (
             resource.data.schoolId != null
-              && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+              && hasManageAccess(resource.data.schoolId, resource.data.contextId)
           )
         ) && (
-          request.resource.data.contextIds[0] == resource.data.contextIds[0] ||
+          request.resource.data.contextId == resource.data.contextId ||
           isContextOwner(request.resource.data) || (
             request.resource.data.schoolId != null
-              && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextIds[0])
+              && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextId)
           )
         ) && request.resource.data.get('linkedUid', null) == resource.data.get('linkedUid', null)
       ) || (
         (
           isContextOwner(resource.data) || (
             resource.data.schoolId != null
-              && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+              && hasManageAccess(resource.data.schoolId, resource.data.contextId)
           )
         )
         && request.resource.data.get('linkedUid', null) == null
@@ -359,7 +417,7 @@ service cloud.firestore {
       ) || isValidStudentLinkClaim(studentId, resource.data, request.resource.data);
       allow delete: if isContextOwner(resource.data) || (
         resource.data.schoolId != null
-          && hasManageAccess(resource.data.schoolId, resource.data.contextIds[0])
+          && hasManageAccess(resource.data.schoolId, resource.data.contextId)
       );
       // A manage-level classroom grant lets that teacher add students to
       // the one classroom they've been delegated (roster management is
@@ -367,7 +425,7 @@ service cloud.firestore {
       // whole-school scope, does not.
       allow create: if isContextOwner(request.resource.data)
         || (request.resource.data.schoolId != null
-          && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextIds[0]));
+          && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextId));
     }
 
     // A classroom owner's request that a colleague (an existing active
@@ -378,14 +436,22 @@ service cloud.firestore {
     // is a separate app-layer write to the target's classroomGrants,
     // already permitted by the existing members update rule above.
     match /accessRequests/{requestId} {
-      // get('schoolId', null): schoolId is always set by the create rule
-      // below, but LIST queries here are commonly filtered by contextId
-      // (useAccessRequestsForContext), not schoolId — direct dot access
-      // on a field the query itself doesn't constrain throws "Property
-      // schoolId is undefined" and silently denies the whole query for
-      // this branch, same issue as the students read rule above.
+      // isReadableClassroom(contextId): the only LIST query here
+      // (useAccessRequestsForContext/accessRequestsForContext, both
+      // platforms) filters by contextId == — schoolId isn't constrained by
+      // that query, so checking isAtLeastAdmin(schoolId) directly (as this
+      // used to) denies the whole query for every admin, same bug class as
+      // the students read rule above. contextId is a scalar (not an
+      // array), so — unlike students' contextId — no array-indexing
+      // limitation applies; it's used directly to build isReadableClassroom's
+      // get() path. requestedByUid/targetUid stay as-is: safe no-ops for
+      // this specific list query (unconstrained field, but .get()-guarded
+      // so it degrades to a clean false rather than denying the query),
+      // and still correct for any future single-document get of one's own
+      // request.
       allow read: if isAuthenticated() && (
-        isAtLeastAdmin(resource.data.get('schoolId', null))
+        (resource.data.get('contextId', null) != null
+          && isReadableClassroom(resource.data.get('contextId', null)))
           || resource.data.get('requestedByUid', null) == request.auth.uid
           || resource.data.get('targetUid', null) == request.auth.uid
       );

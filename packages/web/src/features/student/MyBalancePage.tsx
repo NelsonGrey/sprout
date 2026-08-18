@@ -10,7 +10,7 @@ import { PageHeader } from '../../components/ui/page-header';
  * landing decision in App.tsx).
  */
 export function MyBalancePage({ student }: { student: Student }) {
-  const transactions = useTransactions(student.contextIds[0], student.id);
+  const transactions = useTransactions(student.contextId, student.id);
 
   return (
     <div className="flex min-h-full flex-col">

@@ -25,7 +25,7 @@ abstract class ClassroomRepository {
   /// visible to this viewer.
   Stream<ClassroomContext?> classroom(String contextId);
 
-  /// Rename or re-grade a classroom. Not cascading — students' contextIds
+  /// Rename or re-grade a classroom. Not cascading — students' contextId
   /// pointing at a since-deleted classroom aren't cleaned up by
   /// [deleteClassroom]; there's no batch/cascade infrastructure for that yet.
   Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel});

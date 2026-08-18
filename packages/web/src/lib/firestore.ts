@@ -55,7 +55,7 @@ export function studentFromDoc(d: QueryDocumentSnapshot<DocumentData>): Student 
     studentId: data.studentId,
     balanceCents: data.balanceCents,
     contexts: data.contexts,
-    contextIds: data.contextIds,
+    contextId: data.contextId,
     ownerUids: data.ownerUids,
     schoolId: data.schoolId,
     gradeLevel: data.gradeLevel,
@@ -192,7 +192,7 @@ export async function createClassroom({
   await batch.commit();
 }
 
-/** Rename or re-grade a classroom. Not cascading — students' contextIds
+/** Rename or re-grade a classroom. Not cascading — students' contextId
  * pointing at a since-deleted classroom aren't cleaned up by deleteClassroom
  * below; there's no batch/cascade infrastructure for that yet. */
 export async function updateClassroom(
@@ -212,7 +212,7 @@ export function useStudents(contextId: string): Student[] {
   useEffect(() => {
     const q = query(
       collection(db, 'students'),
-      where('contextIds', 'array-contains', contextId),
+      where('contextId', '==', contextId),
       orderBy('displayName'),
     );
     // Archived (graduated) students never belong in an active classroom
@@ -250,7 +250,7 @@ export async function addStudent({
     ...(studentId ? { studentId } : {}),
     balanceCents: 0,
     contexts: { [contextId]: { type: 'classroom', role: 'member' } },
-    contextIds: [contextId],
+    contextId,
     ownerUids,
     ...(schoolId ? { schoolId } : {}),
     ...(gradeLevel ? { gradeLevel } : {}),
@@ -305,7 +305,7 @@ export function useStudentsInSchool(schoolId: string | undefined, gradeLevels?: 
   return students;
 }
 
-/** Reassigns a student to a different classroom — contextIds/ownerUids/
+/** Reassigns a student to a different classroom — contextId/ownerUids/
  * schoolId/gradeLevel/contextName, never touches name/studentId.
  * ownerUids must be the destination classroom's actual owner(s), not left
  * stale from the old one: otherwise a non-admin teacher whose classroom
@@ -318,7 +318,7 @@ export async function moveStudentToClassroom(
   target: { contextId: string; ownerUids: string[]; schoolId?: string; gradeLevel?: string; contextName?: string },
 ): Promise<void> {
   await updateDoc(doc(db, 'students', studentId), {
-    contextIds: [target.contextId],
+    contextId: target.contextId,
     contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
     ownerUids: target.ownerUids,
     ...(target.schoolId ? { schoolId: target.schoolId } : {}),
@@ -340,7 +340,7 @@ export async function bulkMoveStudents(
     const batch = writeBatch(db);
     for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
       batch.update(doc(db, 'students', id), {
-        contextIds: [target.contextId],
+        contextId: target.contextId,
         contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
         ownerUids: target.ownerUids,
         ...(target.schoolId ? { schoolId: target.schoolId } : {}),
@@ -389,7 +389,7 @@ export async function restoreStudents(
     const batch = writeBatch(db);
     for (const id of studentIds.slice(i, i + BULK_CHUNK_SIZE)) {
       batch.update(doc(db, 'students', id), {
-        contextIds: [target.contextId],
+        contextId: target.contextId,
         contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
         ownerUids: target.ownerUids,
         ...(target.schoolId ? { schoolId: target.schoolId } : {}),
@@ -571,7 +571,7 @@ export function useLinkedStudent(uid: string): Student | null | undefined {
  * within the school, computed by the caller against useStudentsInSchool's
  * already-loaded data) — absent means create new. Reassignment is never
  * an implicit side effect of importing: a matched row updates
- * name/studentId/gradeLevel only, never contextIds/ownerUids, even if the
+ * name/studentId/gradeLevel only, never contextId/ownerUids, even if the
  * chosen destination classroom differs from where the student already is. */
 export interface StudentImportRow {
   firstName: string;
@@ -609,7 +609,7 @@ export async function commitStudentImport(
           ...(row.studentId ? { studentId: row.studentId } : {}),
           balanceCents: 0,
           contexts: { [target.contextId]: { type: 'classroom', role: 'member' } },
-          contextIds: [target.contextId],
+          contextId: target.contextId,
           ownerUids: target.ownerUids,
           schoolId: target.schoolId,
           ...(gradeLevel ? { gradeLevel } : {}),
