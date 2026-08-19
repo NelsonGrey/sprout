@@ -47,6 +47,9 @@ export function DashboardPage({ user }: { user: User }) {
         actions={
           <>
             <Button onClick={() => navigate('/app/classrooms/new')}>Add Classroom</Button>
+            <Button variant="secondary" onClick={() => navigate('/app/students/new')}>
+              Add Student
+            </Button>
             {/* Admins already have School in the sidebar — this is the
              * only path a schoolless or non-admin member has to found a
              * school (CreateSchoolPage) or see their own role/scope. */}

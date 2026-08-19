@@ -18,6 +18,7 @@ import { AddStaffPage } from './features/school/AddStaffPage';
 import { GradesOfferedPage } from './features/school/GradesOfferedPage';
 import { SchoolPage } from './features/school/SchoolPage';
 import { StaffPage } from './features/school/StaffPage';
+import { AddStudentPage } from './features/students/AddStudentPage';
 import { StudentsPage } from './features/students/StudentsPage';
 import { StudentImportPage } from './features/students/StudentImportPage';
 import { PromoteStudentsPage } from './features/students/PromoteStudentsPage';
@@ -121,6 +122,9 @@ function App() {
         </Route>
         <Route path="/app/school">
           <SchoolPage user={user} />
+        </Route>
+        <Route path="/app/students/new">
+          <AddStudentPage user={user} />
         </Route>
         <Route path="/app/students/import">
           <StudentImportPage user={user} />

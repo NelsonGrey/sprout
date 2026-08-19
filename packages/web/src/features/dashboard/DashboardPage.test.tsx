@@ -61,6 +61,19 @@ describe('DashboardPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/new');
   });
 
+  it('the Add Student button navigates to the top-level add-student page', () => {
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<DashboardPage user={user} />);
+
+    fireEvent.click(screen.getByText('Add Student'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/new');
+  });
+
   it('the School button navigates to /app/school for a schoolless (non-admin) user', () => {
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
