@@ -38,25 +38,25 @@ export function MarketingHomePage() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-[#dfe9dd]">
+      <section className="relative overflow-hidden border-b border-border">
         <div
           className="marketing-grid absolute inset-0 opacity-60"
           aria-hidden="true"
         />
         <div
-          className="absolute -right-36 -top-40 h-[520px] w-[520px] rounded-full bg-[#d9f2dc] blur-3xl"
+          className="absolute -right-36 -top-40 h-[520px] w-[520px] rounded-full bg-mint blur-3xl"
           aria-hidden="true"
         />
-        <div className="relative mx-auto grid max-w-[1480px] items-center gap-14 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.05fr_.95fr] lg:px-12 lg:py-28">
+        <div className="relative mx-auto grid site-container items-center gap-14 py-20 sm:py-24 lg:grid-cols-[1.05fr_.95fr] lg:py-28">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#bedbc5] bg-white/80 px-3 py-1.5 text-xs font-black uppercase tracking-[0.13em] text-[#166b4f] shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface/80 px-3 py-1.5 text-xs font-black uppercase tracking-[0.13em] text-brand shadow-sm">
               <Sprout size={14} /> Pre-launch · Pre-K–6 first
             </div>
-            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.055em] text-[#102a26] sm:text-6xl lg:text-[76px]">
+            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.055em] text-ink sm:text-6xl lg:text-[76px]">
               Money habits take root in{' '}
-              <span className="text-[#e56845]">ordinary moments.</span>
+              <span className="text-accent">ordinary moments.</span>
             </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-[#49685f] sm:text-xl">
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-muted sm:text-xl">
               Sprout Streak is being built to turn everyday choices into
               age-aware practice—so students learn to earn, plan, save, spend,
               and reflect across school and home.
@@ -64,7 +64,7 @@ export function MarketingHomePage() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/curriculum"
-                className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#166b4f] px-6 py-3.5 text-sm font-black text-white shadow-[0_12px_30px_rgba(22,107,79,0.2)] transition hover:-translate-y-0.5 hover:bg-[#105b43]"
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-brand px-6 py-3.5 text-sm font-black text-on-dark shadow-brand transition hover:-translate-y-0.5 hover:bg-brand-strong"
               >
                 Explore the learning library{' '}
                 <ArrowRight
@@ -74,21 +74,21 @@ export function MarketingHomePage() {
               </Link>
               <Link
                 href="/readiness"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bdd0c2] bg-white px-6 py-3.5 text-sm font-black text-[#173b32] transition hover:border-[#789f86]"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-border-strong bg-surface px-6 py-3.5 text-sm font-black text-ink-soft transition hover:border-border-strong"
               >
                 See what is live and planned
               </Link>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs font-bold text-[#527067]">
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs font-bold text-muted">
               <span className="flex items-center gap-1.5">
-                <Check size={14} className="text-[#16805b]" /> No advertising
+                <Check size={14} className="text-brand-bright" /> No advertising
               </span>
               <span className="flex items-center gap-1.5">
-                <Check size={14} className="text-[#16805b]" /> No bank account
+                <Check size={14} className="text-brand-bright" /> No bank account
                 needed
               </span>
               <span className="flex items-center gap-1.5">
-                <Check size={14} className="text-[#16805b]" /> Honest readiness
+                <Check size={14} className="text-brand-bright" /> Honest readiness
                 labels
               </span>
             </div>
@@ -96,21 +96,21 @@ export function MarketingHomePage() {
 
           <div className="relative mx-auto w-full max-w-[610px]">
             <div
-              className="absolute -left-8 top-10 h-40 w-40 rounded-full bg-[#ffd7bf] blur-3xl"
+              className="absolute -left-8 top-10 h-40 w-40 rounded-full bg-warning-soft blur-3xl"
               aria-hidden="true"
             />
-            <div className="relative rotate-1 rounded-[34px] border border-white/80 bg-[#102a26] p-4 shadow-[0_30px_80px_rgba(25,68,56,0.2)] sm:p-6">
-              <div className="rounded-[26px] bg-[#f8fbf5] p-5 sm:p-7">
+            <div className="relative rotate-1 rounded-[34px] border border-on-dark/80 bg-ink p-4 shadow-panel sm:p-6">
+              <div className="rounded-[26px] bg-canvas p-5 sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.15em] text-[#668178]">
+                    <p className="text-xs font-black uppercase tracking-[0.15em] text-muted">
                       Today’s mission
                     </p>
                     <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">
                       Build a goal trail
                     </h2>
                   </div>
-                  <span className="rounded-full bg-[#dff3e7] px-3 py-1.5 text-xs font-black text-[#166b4f]">
+                  <span className="rounded-full bg-mint px-3 py-1.5 text-xs font-black text-brand">
                     Grades 3–4
                   </span>
                 </div>
@@ -122,39 +122,39 @@ export function MarketingHomePage() {
                   {[0, 1, 2, 3, 4, 5].map(step => (
                     <div
                       key={step}
-                      className={`h-3 flex-1 rounded-full ${step < 4 ? 'bg-[#e56845]' : 'bg-[#dce7dc]'}`}
+                      className={`h-3 flex-1 rounded-full ${step < 4 ? 'bg-accent' : 'bg-border'}`}
                     />
                   ))}
                 </div>
-                <div className="mt-3 flex justify-between text-xs font-bold text-[#657d75]">
+                <div className="mt-3 flex justify-between text-xs font-bold text-muted">
                   <span>12 saved</span>
                   <span>Goal: 18</span>
                 </div>
 
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-[#dce8de] bg-white p-4">
+                  <div className="rounded-2xl border border-border bg-surface p-4">
                     <div className="flex items-center gap-2 text-sm font-black">
-                      <CircleDollarSign size={17} className="text-[#16805b]" />{' '}
+                      <CircleDollarSign size={17} className="text-brand-bright" />{' '}
                       Choice check
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-[#60776f]">
+                    <p className="mt-2 text-sm leading-6 text-muted">
                       If you use 3 now, what changes on your trail?
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-[#dce8de] bg-white p-4">
+                  <div className="rounded-2xl border border-border bg-surface p-4">
                     <div className="flex items-center gap-2 text-sm font-black">
-                      <HeartHandshake size={17} className="text-[#e56845]" />{' '}
+                      <HeartHandshake size={17} className="text-accent" />{' '}
                       Reflection
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-[#60776f]">
+                    <p className="mt-2 text-sm leading-6 text-muted">
                       There is no shame in changing a plan.
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-2xl bg-[#e6f4eb] p-4">
+                <div className="mt-6 rounded-2xl bg-mint p-4">
                   <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-full bg-[#166b4f] text-white">
+                    <div className="grid h-10 w-10 place-items-center rounded-full bg-brand text-on-dark">
                       <Sprout size={19} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -162,16 +162,16 @@ export function MarketingHomePage() {
                         <span>Goal progress</span>
                         <span>67%</span>
                       </div>
-                      <div className="mt-2 h-2 rounded-full bg-white">
-                        <div className="h-2 w-2/3 rounded-full bg-[#166b4f]" />
+                      <div className="mt-2 h-2 rounded-full bg-surface">
+                        <div className="h-2 w-2/3 rounded-full bg-brand" />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="absolute -bottom-7 -left-3 -rotate-3 rounded-2xl border border-[#edc99f] bg-[#fff4dd] px-4 py-3 shadow-lg sm:-left-10">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9b6220]">
+            <div className="absolute -bottom-7 -left-3 -rotate-3 rounded-2xl border border-warning-soft bg-warning-soft px-4 py-3 shadow-lg sm:-left-10">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-warning">
                 Practice → reflect → grow
               </p>
             </div>
@@ -179,18 +179,18 @@ export function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
-        <div className="mx-auto max-w-[1480px]">
+      <section className="bg-surface py-20 lg:py-24">
+        <div className="mx-auto site-container">
           <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#16805b]">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-bright">
                 One direction, many responsibilities
               </p>
               <h2 className="mt-4 text-4xl font-black tracking-[-0.045em] sm:text-5xl">
                 Built to answer the question each stakeholder actually asks.
               </h2>
             </div>
-            <p className="max-w-2xl text-lg leading-8 text-[#59736a] lg:justify-self-end">
+            <p className="max-w-2xl text-lg leading-8 text-muted lg:justify-self-end">
               District leaders need evidence and controls. Teachers need less
               friction. Families need respectful continuity. Students need
               agency. The experience should connect those needs without
@@ -205,18 +205,18 @@ export function MarketingHomePage() {
                 <Link
                   key={audience.slug}
                   href={`/${audience.slug}`}
-                  className={`group rounded-[24px] border p-5 transition hover:-translate-y-1 hover:shadow-xl ${index === 0 || index === 1 ? 'border-[#b9d8c1] bg-[#eaf6ed]' : 'border-[#dfe8de] bg-[#fbfcf9]'}`}
+                  className={`group rounded-[24px] border p-5 transition hover:-translate-y-1 hover:shadow-xl ${index === 0 || index === 1 ? 'border-border-strong bg-mint' : 'border-border bg-surface-subtle'}`}
                 >
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-[#166b4f] shadow-sm">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-surface text-brand shadow-sm">
                     <Icon size={20} />
                   </div>
                   <h3 className="mt-5 text-lg font-black tracking-[-0.025em]">
                     {audience.name}
                   </h3>
-                  <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                  <p className="mt-2 text-sm leading-6 text-muted">
                     {audience.outcomes[0].title}
                   </p>
-                  <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black text-[#166b4f]">
+                  <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black text-brand">
                     Explore{' '}
                     <ArrowRight
                       size={14}
@@ -230,21 +230,21 @@ export function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-[#102a26] px-5 py-20 text-white sm:px-8 lg:px-12 lg:py-24">
+      <section className="relative overflow-hidden bg-ink py-20 text-on-dark lg:py-24">
         <div
           className="marketing-dot-field absolute inset-0 opacity-30"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-[1480px]">
+        <div className="relative mx-auto site-container">
           <div className="max-w-3xl">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#8ed2a6]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-mint-strong">
               The Sprout learning loop
             </p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.045em] sm:text-5xl">
               A ledger records a choice. Learning happens around it.
             </h2>
           </div>
-          <div className="mt-12 grid gap-px overflow-hidden rounded-[28px] bg-white/10 md:grid-cols-3">
+          <div className="mt-12 grid gap-px overflow-hidden rounded-[28px] bg-surface/10 md:grid-cols-3">
             {[
               {
                 number: '01',
@@ -265,26 +265,26 @@ export function MarketingHomePage() {
                 body: 'Use the next real moment to practice again with more information and confidence.',
               },
             ].map(({ number, icon: Icon, title, body }) => (
-              <div key={title} className="bg-[#16382f] p-7 sm:p-9">
+              <div key={title} className="bg-deep-surface p-7 sm:p-9">
                 <div className="flex items-center justify-between">
-                  <Icon className="text-[#8ed2a6]" />
-                  <span className="text-xs font-black text-white/35">
+                  <Icon className="text-mint-strong" />
+                  <span className="text-xs font-black text-on-dark/35">
                     {number}
                   </span>
                 </div>
                 <h3 className="mt-10 text-3xl font-black">{title}</h3>
-                <p className="mt-3 leading-7 text-white/65">{body}</p>
+                <p className="mt-3 leading-7 text-on-dark/65">{body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
-        <div className="mx-auto max-w-[1480px]">
+      <section className="py-20 lg:py-24">
+        <div className="mx-auto site-container">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#16805b]">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-bright">
                 Original starter lessons
               </p>
               <h2 className="mt-4 text-4xl font-black tracking-[-0.045em] sm:text-5xl">
@@ -293,7 +293,7 @@ export function MarketingHomePage() {
             </div>
             <Link
               href="/curriculum"
-              className="inline-flex items-center gap-2 text-sm font-black text-[#166b4f]"
+              className="inline-flex items-center gap-2 text-sm font-black text-brand"
             >
               View all {lessons.length} lessons <ArrowRight size={16} />
             </Link>
@@ -303,13 +303,13 @@ export function MarketingHomePage() {
               <Link
                 key={lesson.slug}
                 href={`/curriculum/${lesson.slug}`}
-                className="group overflow-hidden rounded-[28px] border border-[#dce7dc] bg-white shadow-[0_12px_40px_rgba(27,72,58,0.06)] transition hover:-translate-y-1 hover:shadow-xl"
+                className="group overflow-hidden rounded-[28px] border border-border bg-surface shadow-card transition hover:-translate-y-1 hover:shadow-xl"
               >
                 <div
-                  className={`h-2 ${index === 0 ? 'bg-[#e56845]' : index === 1 ? 'bg-[#e6ac35]' : 'bg-[#16805b]'}`}
+                  className={`h-2 ${index === 0 ? 'bg-accent' : index === 1 ? 'bg-warning' : 'bg-brand-bright'}`}
                 />
                 <div className="p-6 sm:p-7">
-                  <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.1em] text-[#668078]">
+                  <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.1em] text-muted">
                     <span>{lesson.band}</span>
                     <span className="flex items-center gap-1">
                       <Clock3 size={13} /> {lesson.minutes} min
@@ -318,10 +318,10 @@ export function MarketingHomePage() {
                   <h3 className="mt-6 text-2xl font-black tracking-[-0.035em]">
                     {lesson.title}
                   </h3>
-                  <p className="mt-3 leading-7 text-[#5c746c]">
+                  <p className="mt-3 leading-7 text-muted">
                     {lesson.summary}
                   </p>
-                  <span className="mt-8 inline-flex items-center gap-2 text-sm font-black text-[#166b4f]">
+                  <span className="mt-8 inline-flex items-center gap-2 text-sm font-black text-brand">
                     Open lesson{' '}
                     <ArrowRight
                       size={15}
@@ -335,21 +335,21 @@ export function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="border-y border-[#dfe9dd] bg-[#edf6ed] px-5 py-16 sm:px-8 lg:px-12">
-        <div className="mx-auto grid max-w-[1480px] gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+      <section className="border-y border-border bg-mint py-16">
+        <div className="mx-auto grid site-container gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex gap-5">
-            <div className="hidden h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#166b4f] text-white sm:grid">
+            <div className="hidden h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand text-on-dark sm:grid">
               <ShieldCheck size={26} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#166b4f]">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-brand">
                 Trust before procurement
               </p>
               <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
                 The product foundation is real. District readiness is still in
                 progress.
               </h2>
-              <p className="mt-3 max-w-3xl leading-7 text-[#577067]">
+              <p className="mt-3 max-w-3xl leading-7 text-muted">
                 See a plain-language view of implemented capabilities, active
                 gaps, and the gates Sprout Streak must clear before
                 school-facing launch.
@@ -358,7 +358,7 @@ export function MarketingHomePage() {
           </div>
           <Link
             href="/readiness"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#102a26] px-6 py-3.5 text-sm font-black text-white"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-black text-on-dark"
           >
             Review readiness <ArrowRight size={16} />
           </Link>

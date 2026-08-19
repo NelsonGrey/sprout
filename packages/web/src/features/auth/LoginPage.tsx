@@ -148,7 +148,7 @@ export function LoginPage() {
           type="button"
           onClick={signInWithGoogle}
           disabled={busy}
-          className="w-full rounded-lg bg-brand px-4 py-3 font-medium text-white hover:bg-brand-hover disabled:opacity-50"
+          className="w-full rounded-lg bg-brand px-4 py-3 font-medium text-on-dark hover:bg-brand-hover disabled:opacity-50"
         >
           Sign in with Google
         </button>
@@ -207,7 +207,7 @@ export function LoginPage() {
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-red-500">
+          <p role="alert" className="text-sm text-danger">
             {error}
           </p>
         )}

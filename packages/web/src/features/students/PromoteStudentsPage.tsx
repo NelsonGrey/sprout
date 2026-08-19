@@ -149,7 +149,7 @@ export function PromoteStudentsPage({ user }: { user: User }) {
                   in {stayingRows} classroom{stayingRows === 1 ? '' : 's'} stay put.
                 </p>
 
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && <p className="text-sm text-danger">{error}</p>}
 
                 <Button
                   className="self-start"

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/classroom_context.dart';
@@ -38,8 +40,13 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
   bool _done = false;
   String? _error;
 
-  Future<void> _archive(List<({ClassroomContext classroom, List<Student> students})> rows) async {
-    final ids = rows.where((r) => _selected[r.classroom.id] == true).expand((r) => r.students.map((s) => s.id)).toList();
+  Future<void> _archive(
+    List<({ClassroomContext classroom, List<Student> students})> rows,
+  ) async {
+    final ids = rows
+        .where((r) => _selected[r.classroom.id] == true)
+        .expand((r) => r.students.map((s) => s.id))
+        .toList();
     if (ids.isEmpty || _archiving) return;
     setState(() {
       _archiving = true;
@@ -53,7 +60,8 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Archiving failed partway through — check Students for current state.';
+        _error =
+            'Archiving failed partway through — check Students for current state.';
       });
     } finally {
       if (mounted) setState(() => _archiving = false);
@@ -74,10 +82,14 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
         }
         final schoolId = schoolIds.first;
         return StreamBuilder<SchoolMember?>(
-          stream: widget.schoolRepository.myMembership(schoolId, widget.user.uid),
+          stream: widget.schoolRepository.myMembership(
+            schoolId,
+            widget.user.uid,
+          ),
           builder: (context, membershipSnapshot) {
             final membership = membershipSnapshot.data;
-            final isAtLeastAdmin = membership != null && membership.role != MemberRole.teacher;
+            final isAtLeastAdmin =
+                membership != null && membership.role != MemberRole.teacher;
             if (!isAtLeastAdmin) {
               return const Scaffold(
                 appBar: SproutAppBar(title: 'Archive Students'),
@@ -92,25 +104,36 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
             return StreamBuilder<List<ClassroomContext>>(
               stream: widget.classroomRepository.classroomsInSchool(schoolId),
               builder: (context, classroomsSnapshot) {
-                final classrooms = classroomsSnapshot.data ?? const <ClassroomContext>[];
+                final classrooms =
+                    classroomsSnapshot.data ?? const <ClassroomContext>[];
                 return StreamBuilder<List<Student>>(
                   stream: widget.classroomRepository.studentsInSchool(schoolId),
                   builder: (context, studentsSnapshot) {
-                    if (!studentsSnapshot.hasData || !classroomsSnapshot.hasData) {
-                      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                    if (!studentsSnapshot.hasData ||
+                        !classroomsSnapshot.hasData) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
                     }
-                    final students = studentsSnapshot.data!.where((s) => s.archivedAt == null).toList();
+                    final students = studentsSnapshot.data!
+                        .where((s) => s.archivedAt == null)
+                        .toList();
                     final rows =
                         classrooms
                             .map(
                               (c) => (
                                 classroom: c,
-                                students: students.where((s) => s.contextId == c.id).toList(),
+                                students: students
+                                    .where((s) => s.contextId == c.id)
+                                    .toList(),
                               ),
                             )
                             .where((r) => r.students.isNotEmpty)
                             .toList()
-                          ..sort((a, b) => a.classroom.name.compareTo(b.classroom.name));
+                          ..sort(
+                            (a, b) =>
+                                a.classroom.name.compareTo(b.classroom.name),
+                          );
 
                     if (_done) {
                       return Scaffold(
@@ -139,7 +162,9 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
                       );
                     }
 
-                    final canArchive = rows.any((r) => _selected[r.classroom.id] == true);
+                    final canArchive = rows.any(
+                      (r) => _selected[r.classroom.id] == true,
+                    );
 
                     return Scaffold(
                       appBar: const SproutAppBar(title: 'Archive Students'),
@@ -147,17 +172,28 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
                         children: [
                           Expanded(
                             child: rows.isEmpty
-                                ? const Center(child: Text('No occupied classrooms.'))
+                                ? const Center(
+                                    child: Text('No occupied classrooms.'),
+                                  )
                                 : ListView.builder(
                                     itemCount: rows.length,
                                     itemBuilder: (context, index) {
                                       final row = rows[index];
                                       return CheckboxListTile(
-                                        key: Key('archiveRow-${row.classroom.id}'),
+                                        key: Key(
+                                          'archiveRow-${row.classroom.id}',
+                                        ),
                                         title: Text(row.classroom.name),
-                                        subtitle: Text('${row.students.length} student(s)'),
-                                        value: _selected[row.classroom.id] ?? false,
-                                        onChanged: (v) => setState(() => _selected[row.classroom.id] = v ?? false),
+                                        subtitle: Text(
+                                          '${row.students.length} student(s)',
+                                        ),
+                                        value:
+                                            _selected[row.classroom.id] ??
+                                            false,
+                                        onChanged: (v) => setState(
+                                          () => _selected[row.classroom.id] =
+                                              v ?? false,
+                                        ),
                                       );
                                     },
                                   ),
@@ -165,15 +201,26 @@ class _ArchiveStudentsScreenState extends State<ArchiveStudentsScreen> {
                           if (_error != null)
                             Padding(
                               padding: const EdgeInsets.all(12),
-                              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                              child: Text(
+                                _error!,
+                                style: const TextStyle(
+                                  color: SproutColors.danger,
+                                ),
+                              ),
                             ),
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: ElevatedButton(
                               key: const Key('archiveAllButton'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                              onPressed: (!canArchive || _archiving) ? null : () => _archive(rows),
-                              child: Text(_archiving ? 'Archiving…' : 'Archive All'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: SproutColors.danger,
+                              ),
+                              onPressed: (!canArchive || _archiving)
+                                  ? null
+                                  : () => _archive(rows),
+                              child: Text(
+                                _archiving ? 'Archiving…' : 'Archive All',
+                              ),
                             ),
                           ),
                         ],

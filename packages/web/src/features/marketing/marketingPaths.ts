@@ -7,6 +7,10 @@ const marketingPaths = [
   '/students',
   '/curriculum',
   '/readiness',
+  '/privacy',
+  '/terms',
+  '/cookies',
+  '/support',
 ];
 
 export function isMarketingPath(path: string, signedIn: boolean) {

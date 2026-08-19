@@ -7,10 +7,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart'
     show AuthorizationErrorCode, SignInWithAppleAuthorizationException;
 
 import 'package:sprout/core/services/auth/auth_service.dart';
-
-// Dark background matching the app icon's background colour.
-const _kBg = Color(0xFF14251B);
-const _kAccent = Color(0xFF4CAF50);
+import 'package:sprout/design_system/sprout_theme.dart';
 
 /// Sign-in screen backed by [AuthService] — inject the real
 /// [FirebaseAuthService] in the app and [FakeAuthService] in tests/widget
@@ -89,17 +86,16 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     showDialog<void>(
       context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('Sign-in failed'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+      builder: (_) => AlertDialog(
+        title: const Text('Sign-in failed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
           ),
+        ],
+      ),
     );
   }
 
@@ -135,7 +131,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String _friendlyEmailError(Object error) {
-    if (error is! FirebaseAuthException) return 'Something went wrong. Please try again.';
+    if (error is! FirebaseAuthException) {
+      return 'Something went wrong. Please try again.';
+    }
     switch (error.code) {
       case 'invalid-credential':
       case 'wrong-password':
@@ -157,7 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (_emailMode == _EmailMode.signUp && password != _confirmPasswordController.text) {
+    if (_emailMode == _EmailMode.signUp &&
+        password != _confirmPasswordController.text) {
       setState(() {
         _emailError = 'Passwords do not match.';
         _emailInfo = null;
@@ -188,7 +187,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       setState(() {
-        _emailError = 'Enter your email above first, then tap "Forgot password?"';
+        _emailError =
+            'Enter your email above first, then tap "Forgot password?"';
         _emailInfo = null;
       });
       return;
@@ -200,7 +200,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await widget.authService.sendPasswordResetEmail(email);
-      if (mounted) setState(() => _emailInfo = 'Password reset email sent — check your inbox.');
+      if (mounted) {
+        setState(
+          () => _emailInfo = 'Password reset email sent — check your inbox.',
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _emailError = _friendlyEmailError(e));
     } finally {
@@ -211,178 +215,211 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: SproutColors.canvas,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            children: [
-              const SizedBox(height: 60),
-              // TODO(branding): swap for the real app icon once designed —
-              // no assets/icons/icon.png exists yet at scaffold time.
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: _kAccent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.eco, size: 52, color: Colors.white),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Sprout Streak',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Grow good habits together',
-                style: TextStyle(fontSize: 15, color: Colors.white54),
-              ),
-              const SizedBox(height: 48),
-              const Text(
-                'Sign in to manage your classroom or family account.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-              const SizedBox(height: 28),
-              if (defaultTargetPlatform == TargetPlatform.android) ...[
-                _AuthButton(
-                  key: const Key('googleSignInButton'),
-                  label: 'Sign in with Google',
-                  icon: Icons.g_mobiledata,
-                  onPressed:
-                      _authInProgress ? null : () => _signInWithGoogle(context),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (defaultTargetPlatform == TargetPlatform.iOS) ...[
-                _AuthButton(
-                  key: const Key('appleSignInButton'),
-                  label: 'Sign in with Apple',
-                  icon: Icons.apple,
-                  onPressed:
-                      _authInProgress ? null : () => _signInWithApple(context),
-                ),
-                const SizedBox(height: 12),
-              ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: Colors.white24)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('or', style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
+        child: SproutResponsiveBody(
+          maxContentWidth: SproutLayout.formMaxWidth,
+          includeGutter: true,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(height: 60),
+                // TODO(branding): swap for the real app icon once designed —
+                // no assets/icons/icon.png exists yet at scaffold time.
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: SproutColors.brand,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const Expanded(child: Divider(color: Colors.white24)),
+                  child: const Icon(
+                    Icons.eco,
+                    size: 52,
+                    color: SproutColors.onDark,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Sprout Streak',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: SproutColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Grow good habits together',
+                  style: TextStyle(fontSize: 15, color: SproutColors.muted),
+                ),
+                const SizedBox(height: 48),
+                const Text(
+                  'Sign in to manage your classroom or family account.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: SproutColors.muted),
+                ),
+                const SizedBox(height: 28),
+                if (defaultTargetPlatform == TargetPlatform.android) ...[
+                  _AuthButton(
+                    key: const Key('googleSignInButton'),
+                    label: 'Sign in with Google',
+                    icon: Icons.g_mobiledata,
+                    onPressed: _authInProgress
+                        ? null
+                        : () => _signInWithGoogle(context),
+                  ),
+                  const SizedBox(height: 12),
                 ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('emailField'),
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  labelStyle: TextStyle(color: Colors.white54),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('passwordField'),
-                controller: _passwordController,
-                obscureText: !_passwordVisible,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                  suffixIcon: IconButton(
-                    key: const Key('togglePasswordVisibility'),
-                    icon: Icon(
-                      _passwordVisible ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.white54,
-                    ),
-                    onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+                if (defaultTargetPlatform == TargetPlatform.iOS) ...[
+                  _AuthButton(
+                    key: const Key('appleSignInButton'),
+                    label: 'Sign in with Apple',
+                    icon: Icons.apple,
+                    onPressed: _authInProgress
+                        ? null
+                        : () => _signInWithApple(context),
                   ),
+                  const SizedBox(height: 12),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: SproutColors.border)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        'or',
+                        style: TextStyle(color: SproutColors.muted),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: SproutColors.border)),
+                  ],
                 ),
-              ),
-              if (_emailMode == _EmailMode.signUp) ...[
                 const SizedBox(height: 12),
                 TextField(
-                  key: const Key('confirmPasswordField'),
-                  controller: _confirmPasswordController,
-                  obscureText: !_confirmPasswordVisible,
-                  style: const TextStyle(color: Colors.white),
+                  key: const Key('emailField'),
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: SproutColors.ink),
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('passwordField'),
+                  controller: _passwordController,
+                  obscureText: !_passwordVisible,
+                  style: const TextStyle(color: SproutColors.ink),
                   decoration: InputDecoration(
-                    labelText: 'Confirm password',
-                    labelStyle: const TextStyle(color: Colors.white54),
-                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                    labelText: 'Password',
                     suffixIcon: IconButton(
-                      key: const Key('toggleConfirmPasswordVisibility'),
+                      key: const Key('togglePasswordVisibility'),
                       icon: Icon(
-                        _confirmPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.white54,
+                        _passwordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: SproutColors.muted,
                       ),
                       onPressed: () =>
-                          setState(() => _confirmPasswordVisible = !_confirmPasswordVisible),
+                          setState(() => _passwordVisible = !_passwordVisible),
                     ),
                   ),
                 ),
-              ],
-              const SizedBox(height: 12),
-              _AuthButton(
-                key: const Key('emailSubmitButton'),
-                label: _emailMode == _EmailMode.signIn ? 'Sign In' : 'Create Account',
-                icon: Icons.email,
-                onPressed: _authInProgress ? null : _handleEmailSubmit,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    key: const Key('toggleModeButton'),
-                    onPressed: () => setState(() {
-                      _emailMode = _emailMode == _EmailMode.signIn
-                          ? _EmailMode.signUp
-                          : _EmailMode.signIn;
-                      _emailError = null;
-                      _emailInfo = null;
-                    }),
-                    child: Text(
-                      _emailMode == _EmailMode.signIn
-                          ? 'Create an account'
-                          : 'Already have an account?',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                  TextButton(
-                    key: const Key('forgotPasswordButton'),
-                    onPressed: _authInProgress ? null : _handleForgotPassword,
-                    child: const Text(
-                      'Forgot password?',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                if (_emailMode == _EmailMode.signUp) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('confirmPasswordField'),
+                    controller: _confirmPasswordController,
+                    obscureText: !_confirmPasswordVisible,
+                    style: const TextStyle(color: SproutColors.ink),
+                    decoration: InputDecoration(
+                      labelText: 'Confirm password',
+                      suffixIcon: IconButton(
+                        key: const Key('toggleConfirmPasswordVisibility'),
+                        icon: Icon(
+                          _confirmPasswordVisible
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: SproutColors.muted,
+                        ),
+                        onPressed: () => setState(
+                          () => _confirmPasswordVisible =
+                              !_confirmPasswordVisible,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-              if (_emailError != null) ...[
-                const SizedBox(height: 8),
-                Text(_emailError!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                const SizedBox(height: 12),
+                _AuthButton(
+                  key: const Key('emailSubmitButton'),
+                  label: _emailMode == _EmailMode.signIn
+                      ? 'Sign In'
+                      : 'Create Account',
+                  icon: Icons.email,
+                  onPressed: _authInProgress ? null : _handleEmailSubmit,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  runAlignment: WrapAlignment.center,
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      key: const Key('toggleModeButton'),
+                      onPressed: () => setState(() {
+                        _emailMode = _emailMode == _EmailMode.signIn
+                            ? _EmailMode.signUp
+                            : _EmailMode.signIn;
+                        _emailError = null;
+                        _emailInfo = null;
+                      }),
+                      child: Text(
+                        _emailMode == _EmailMode.signIn
+                            ? 'Create an account'
+                            : 'Already have an account?',
+                        style: const TextStyle(
+                          color: SproutColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      key: const Key('forgotPasswordButton'),
+                      onPressed: _authInProgress ? null : _handleForgotPassword,
+                      child: const Text(
+                        'Forgot password?',
+                        style: TextStyle(
+                          color: SproutColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_emailError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _emailError!,
+                    style: const TextStyle(
+                      color: SproutColors.danger,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                if (_emailInfo != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _emailInfo!,
+                    style: const TextStyle(
+                      color: SproutColors.brandBright,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
               ],
-              if (_emailInfo != null) ...[
-                const SizedBox(height: 8),
-                Text(_emailInfo!, style: const TextStyle(color: Colors.greenAccent, fontSize: 13)),
-              ],
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),
@@ -408,8 +445,8 @@ class _AuthButton extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _kAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: SproutColors.brand,
+          foregroundColor: SproutColors.onDark,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -418,13 +455,16 @@ class _AuthButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 22, color: Colors.white),
+            Icon(icon, size: 22, color: SproutColors.onDark),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
+                style: const TextStyle(
+                  color: SproutColors.onDark,
+                  fontSize: 15,
+                ),
               ),
             ),
           ],

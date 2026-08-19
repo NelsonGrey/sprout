@@ -2,7 +2,7 @@
 
 > **Refreshed 2026-08-19** against actual repo state (code, tests, and deployed product status) — the previous version (1.3, written 2026-08-16) described a fresh scaffold and was badly stale within two days as Phase 1 and much of Phase 2 landed. The status column in every table below is the source of truth on what's actually built — do not assume a described requirement is implemented, or unimplemented, unless its row says so.
 
-**Version**: 2.1
+**Version**: 2.3
 **Last Updated**: August 19, 2026
 **Status**: Phase 1 MVP complete and live; Phase 2 partially complete
 **Project Owner**: Mark Nelson
@@ -39,9 +39,11 @@ Still open: offline/reliability hardening (§2.2), an accessibility pass (§2.4)
 
 | Platform | Status | Minimum Version |
 |---|---|---|
-| **iOS** | 🟢 Real Firebase config for `dev` only (staging/prod not wired); confirmed booting to login | 16.0+ (`cloud_firestore`'s iOS plugin requires 15.0+) |
-| **Android** | 🟢 Real Firebase config for `dev` only; confirmed booting to login | API 21+ (Flutter default; revisit) |
-| **Web** | 🟢 Deployed and functionally live at `nelsongrey-sprout-dev.web.app` — real product, not a placeholder | Modern browsers |
+| **Apple iPhone** | 🟢 Flutter implementation; real Firebase config for `dev` only (staging/prod not wired); confirmed booting to login | iOS 16.0+ (`cloud_firestore`'s iOS plugin requires 15.0+) |
+| **Apple iPad** | 🟡 Required deliverable; shared Flutter implementation and responsive foundation exist, but an iPad-specific device QA matrix has not been completed | iPadOS 16.0+ |
+| **Google Android phone** | 🟢 Flutter implementation; real Firebase config for `dev` only; confirmed booting to login | API 21+ (revisit before release) |
+| **Google Android tablet** | 🟡 Required deliverable; shared Flutter implementation and responsive foundation exist, but an Android-tablet device QA matrix has not been completed | API 21+ (revisit before release) |
+| **Responsive web** | 🟢 Deployed and functionally live at `nelsongrey-sprout-dev.web.app`; shared 320px-to-wide-desktop layout contract implemented | Modern browsers |
 
 Neither `google-services.json` nor `GoogleService-Info.plist` is present in the repo (gitignored, not committed) — mobile builds against real config require generating these locally via `flutterfire configure` or the Firebase console.
 
@@ -52,7 +54,7 @@ sprout/
 │   ├── web/                          # React 19 + Vite — real app
 │   │   └── src/
 │   │       ├── components/ui/         # shared Button/Input/ConfirmDialog/PageHeader/IconButton (cva-based)
-│   │       ├── components/layout/     # Layout, Header, Footer, ThemeToggle
+│   │       ├── components/layout/     # Layout, Header, Footer
 │   │       ├── features/
 │   │       │   ├── auth/              # LoginPage — Google/Apple/email sign-in+up, password reset
 │   │       │   ├── classroom/         # ClassroomsPage, ClassroomDetailPage, StudentLedgerPage, LandingRouter
@@ -65,6 +67,7 @@ sprout/
 │   │       ├── core/
 │   │       │   ├── config/firebase_options.dart      # real config for 'dev'; staging/prod/web still throw
 │   │       │   └── services/{auth,classroom,school}/  # real repositories + Fake test doubles
+│   │       ├── design_system/                          # shared palette, ThemeData, responsive breakpoints/body
 │   │       ├── features/{auth,classroom,school,student}/  # screens mirroring web's feature set
 │   │       └── widgets/                                # SproutAppBar, confirm_delete_dialog (minimal shared set)
 │   ├── shared/                 # TS domain types (Student, ClassroomContext, School, etc.) — hand-kept in sync with Dart models
@@ -158,12 +161,23 @@ This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_
 
 ### 2.9 Public Marketing & Learning Library (BR-8.3 / BR-8.4) 🟡 FOUNDATION COMPLETE
 
-- **Public routes**: Marketing home, district, school, educator, family, student, curriculum, lesson, and readiness views are implemented in `packages/web/src/features/marketing/`.
+- **Public routes**: Marketing home, district, school, educator, family, student, curriculum, lesson, readiness, Privacy, Terms, Cookies, and Support views are implemented in `packages/web/src/features/marketing/`.
 - **Auth boundary**: Signed-out `/` renders the marketing home; authenticated `/` retains the application dashboard. Public learning and stakeholder routes remain reviewable in either state.
+- **Persistent frame**: Marketing and application shells use a viewport-height flex frame with non-scrolling header/footer regions and a single independently scrolling `<main>`. Print CSS removes the constrained height and overflow so lessons and policies print in full.
 - **Curriculum foundation**: Eight original Pre-K–6 lesson starters cover all four active bands (Pre-K–K, grades 1–2, grades 3–4, grades 5–6). Each implements the BR-8.4.2 content contract and printable lesson layout.
 - **Framework posture**: Content references the CFPB youth financial-capability building blocks and CEE/Jump$tart national progression as design inputs. No state alignment or curriculum certification is claimed.
 - **Readiness posture**: The public readiness view separates working, planned, and launch-gated capabilities. Grades 7–12, family continuity, district administration, verified accessibility, and procurement materials remain explicitly incomplete.
-- **Validation**: Marketing content/route tests cover stakeholder presence, grade-band coverage, lesson completeness, and the anonymous/authenticated route boundary. Responsive browser QA covers navigation, filtering, lesson routing, and scroll restoration.
+- **Trust-page posture**: Privacy, Terms, Cookies, and Support are visibly dated working drafts. They describe current no-ads/no-analytics code posture and expected school-data practices without claiming FERPA/COPPA certification. Exact retention periods, final contacts, DPA/subprocessor details, consent operations, and legal review remain launch gates.
+- **Validation**: Marketing content/route tests cover stakeholder presence, grade-band coverage, lesson completeness, public trust routes, and the anonymous/authenticated route boundary. Responsive browser QA covers navigation, filtering, lesson routing, scroll restoration, and persistent site chrome.
+
+### 2.10 Cross-Platform Design System & Responsive Layout (BR-8.3.8–8.3.10) 🟡 FOUNDATION COMPLETE
+
+- **Palette source of truth**: `packages/web/src/index.css` defines the semantic web tokens; `packages/mobile/lib/design_system/sprout_theme.dart` mirrors the same values for Flutter. The selected direction is the marketing palette: evergreen, warm off-white, mint, coral, and semantic warning/info/danger accents. The temporary navy/teal theme switcher has been removed.
+- **Semantic usage**: Web components use named utilities such as `bg-canvas`, `text-ink`, `text-muted`, `bg-brand`, `text-accent`, and `border-border`; marketing components no longer contain literal hexadecimal/RGB brand colors. Authenticated web components inherit the same token set.
+- **Universal web boundary**: `.site-container` supplies one 1280px maximum page boundary with 20px phone, 32px tablet, and 48px desktop gutters. It is used by public headers, footers, homepage sections, stakeholder pages, curriculum, readiness, legal/support pages, and the authenticated app shell. `.reading-container` is a nested 1040px reading measure, not a competing outer page width.
+- **Flutter responsive contract**: `SproutLayout` defines phone (`600`), tablet (`840`), and wide (`1200`) breakpoints, matching responsive gutters, a 1280px content maximum, and narrower reading/form measures. `SproutResponsiveBody` provides the reusable bounded-height wrapper required by screens containing `Column`/`Expanded` layouts.
+- **Current mobile application**: `MaterialApp` now uses `SproutTheme.light`; sign-in is responsive and palette-aligned, while shared Material theming brings the rest of the application into the same visual system. Full screen-by-screen iPad and Android-tablet layout QA remains open and must not be inferred from a shared Flutter codebase alone.
+- **Acceptance matrix**: Web changes require representative phone, tablet, laptop, and desktop browser checks. Mobile releases require separate iPhone, iPad, Android-phone, and Android-tablet checks, including orientation, text scaling, overflow, touch targets, keyboard behavior, and screen-reader operation.
 
 ---
 
@@ -247,7 +261,7 @@ Unchanged since last review: bundle ID `com.sproutstreak.app.ios`, `Runner.entit
 Unchanged: `applicationId` `com.sproutstreak.app.android`, Google Services Gradle plugin file-exists-guarded, no `AD_ID` permission.
 
 ### 4.3 Web
-No longer a bare scaffold — a real, multi-feature React app. See §1.3 for the directory layout and §2 for the full feature inventory. `packages/web/src/index.css` currently carries **two** competing CSS-variable color palettes ("path"/default and "balance") behind a live `ThemeToggle`, explicitly marked in-code as "temporary comparison scaffolding, not a permanent multi-theme system" (`index.css:3-7`, `ThemeToggle.tsx:15-19`) — a final palette decision is still pending; source comps exist at `assets/brand-concepts/` (three concepts on disk, only two wired in).
+No longer a bare scaffold — a real, multi-feature React app. See §1.3 for the directory layout and §2 for the full feature inventory. `packages/web/src/index.css` is now the single web design-token source of truth; the former two-palette comparison switcher has been removed and public/authenticated surfaces use the selected marketing palette and universal content boundary (§2.10).
 
 ---
 
@@ -270,7 +284,7 @@ No longer a bare scaffold — a real, multi-feature React app. See §1.3 for the
 | Test Type | Coverage | Status |
 |---|---|---|
 | Web tests | 14 test files, 94 tests — auth, every feature page, `firestore.ts` | ✅ Passing |
-| Mobile widget tests | 8 test files, 47 tests — auth, classroom, school, student features | ✅ Passing |
+| Mobile unit/widget tests | 17 test files, 86 tests — auth, classroom, school, student, and design-system coverage | ✅ Passing |
 | Mobile `flutter analyze` | Whole `lib/` | ✅ 0 errors/warnings — 36 pre-existing `info`-level lints, all `deprecated_member_use` on `RadioListTile` (Flutter 3.32+ deprecation), concentrated in `school_admin_screen.dart` |
 | Firestore security rules tests | `firestore.rules.test.ts`, 43 tests across 4 describe blocks | ✅ Passing — includes list-query regression tests (§2.5, §3.2) added 2026-08-18, closing a gap where the suite previously only ever exercised single-document get/set/update/delete and couldn't catch that bug class |
 | Functions tests | None yet (repo not even scaffolded with logic here) | 🔴 Not started |
@@ -290,14 +304,14 @@ Firebase Authentication — Google, Apple (pending provider config), and email/p
 
 ### 7.2 Data Security ✅ Rules implemented / 🟡 no independent security review yet
 - Firestore security rules: **implemented**, ~490 lines, 43 passing tests (§3.2, §6.1) — the previous version of this document said "not written," which was already wrong when it was current (the rules existed by then) and is now badly wrong.
-- No sensitive PII beyond what auth providers give (name, email). Students sign in with a real account, the same Google/Apple/email providers teachers use — most K-12 students already have a school-managed Google Workspace for Education account, and school-directed ed-tech use under those accounts is the pattern COPPA's school-official consent exception covers (district-level consent, not per-parent-per-app). A student's account is *linked* to their existing roster record via invite-and-claim (`pendingStudentLinks`/`claimPendingStudentLinkIfAny`), not provisioned separately — see §2.3/§3.2's `isLinkedStudentSelf`/`isValidStudentLinkClaim`. A linked student's access is strictly read-only and scoped to exactly their own balance/history — never the classroom roster, other students, or any admin tooling.
+- The service handles personal and school-linked information beyond authentication fields, including student names, grade/class placement, contextual balances, transaction history, notes, and access assignments. Data minimization, field-by-field classification, retention, and verified deletion still require a formal inventory. Students sign in with a real account using the same configured providers as adults; a student's account is *linked* to an existing roster record via invite-and-claim (`pendingStudentLinks`/`claimPendingStudentLinkIfAny`), not provisioned separately — see §2.3/§3.2's `isLinkedStudentSelf`/`isValidStudentLinkClaim`. A linked student's access is strictly read-only and scoped to exactly their own balance/history — never the classroom roster, other students, or any admin tooling. Whether a school may authorize a particular under-13 use depends on the educational purpose, contract, notice, applicable law, and district policy; the implementation does not itself establish valid consent.
 - No independent third-party security review or pen test has happened. The 2026-08-18 architecture fix (§2.5, §3.2) was found through live production symptoms, not a proactive audit — worth treating as a signal that a deliberate rules-review pass could be valuable before broader rollout.
 
-### 7.3 Privacy Compliance 🔴 NOT STARTED (program) — HIGHER BAR THAN THE ORG'S OTHER APPS
+### 7.3 Privacy Compliance 🟡 PUBLIC DRAFT FOUNDATION / PROGRAM INCOMPLETE — HIGHER BAR THAN THE ORG'S OTHER APPS
 | Regulation | Status | Notes |
 |---|---|---|
-| **COPPA** | 🟡 Design rationale resolved; program not started | No behavioral ads (structural). The consent-model *design* is resolved (§7.2); the actual privacy policy / parental-notice artifacts are not written |
-| **FERPA** | 🔴 Not started | A data processing agreement / district-facing compliance statement is required before any school-facing marketing (BR §9) |
+| **COPPA** | 🟡 Public draft; controls and review incomplete | No behavioral ads in current code. The public privacy/cookie drafts identify child-directed use, adult authorization, data minimization, and no student profiling, but verified notice/consent operations, retention, vendor inventory, and legal review remain open |
+| **FERPA** | 🟡 Public draft; institutional program incomplete | The public privacy draft describes school control and limited educational purpose. A final data processing agreement, direct-control/use restrictions, subprocessor terms, data-return/deletion process, and district-facing review package are still required |
 | **Accessibility (WCAG 2.1 AA-equivalent)** | 🔴 Not started (minimal incidental coverage, §2.4) | Still a release gate for v1.0 per BR-1.3.4/1.4.4, not yet scheduled |
 
 This remains a meaningfully higher compliance bar than the org's other three apps carry — see [[feedback_no_live_users_yet]] (modulo-squares/vehicle-vitals/wishlist-wizard have zero public users and no institutional data-handling obligations yet); Sprout Streak's K-12/school-facing ambition means COPPA/FERPA readiness needs to land before the first real classroom signs up, not be retrofitted after.
@@ -309,7 +323,7 @@ This remains a meaningfully higher compliance bar than the org's other three app
 ### 8.1 Current Limitations
 - No offline/reliability hardening — no explicit Firestore persistence config, no network-transition testing, on either platform (§2.2).
 - No accessibility audit — only incidental `aria-`/`role` coverage exists (§2.4).
-- No compliance program artifacts (privacy policy, DPA, district statement) — the design-level COPPA rationale is resolved but nothing is published (§7.3).
+- Public privacy/terms/cookie/support drafts now exist, but the compliance program remains incomplete: no final legal review, DPA, retention schedule, verified support/privacy contact, subprocessor inventory, consent operations, or district review package (§7.3).
 - No interest/compound-growth mechanics — schema and UI both absent (§2.5).
 - No family context — `type: 'family'` exists only as an unused enum value; every real write path is classroom-only (§2.5).
 - Mobile has no bulk operations or CSV import — both are web-only (§2.7).
@@ -390,9 +404,9 @@ The same five accounts exist in the real `nelsongrey-sprout-dev` project too (`s
 | Product data model | 100% implemented | Was "0% — proposed only" as of the previous version; now live with 43 passing rules tests |
 | Product features — Phase 1 | ~85% | Core loop, self-service, invites all done; reliability + accessibility still open |
 | Product features — Phase 2 | ~50% | Bulk ops/CSV import done (web); multi-context identity, interest mechanics, mobile parity still open |
-| Compliance (COPPA/FERPA) | Design rationale resolved; program 0% | See §7.3 |
+| Compliance (COPPA/FERPA) | Public draft foundation; operational/legal program incomplete | See §7.3 |
 | Accessibility | Minimal incidental coverage only | See §2.4 |
-| Testing | Strong across the board | Web: 131 tests/24 files. Mobile: 47 tests/8 files. Firestore rules: 43 tests |
+| Testing | Strong across the board | Web: 131 tests/24 files. Mobile: 86 tests/17 files. Firestore rules: 43 tests |
 
 **Status**: 🟢 **Phase 1 MVP live at `nelsongrey-sprout-dev.web.app`. Phase 2 partially complete. Next priorities for a v1.0-readiness pass: reliability/offline hardening, accessibility, and the compliance program — none of which are started.**
 
@@ -408,6 +422,8 @@ The same five accounts exist in the real `nelsongrey-sprout-dev` project too (`s
 | 1.3 | Aug 16, 2026 | Mark Nelson | Corrected hierarchy to three-tier super_admin/admin/teacher; expanded scoped access to full CRUD; added NCES lookup and emulator test accounts |
 | 2.0 | Aug 18, 2026 | Mark Nelson (with Claude) | Full refresh against actual repo state, which had drifted far ahead of the doc in two days: marked Phase 1 MVP complete (student self-service, invite/delegation flow, security rules all live); marked CSV import and bulk roster operations complete (web); corrected test-coverage numbers across web/mobile/rules; documented the Firestore list-query authorization constraint found and fixed this session (root cause of a production incident where classroom rosters showed empty for every caller — see `firestore.rules`' `isReadableClassroom`); corrected the internal contradiction in §7.2 (rules were marked both "not written" and, two lines later, described as implemented); flagged mobile's lack of bulk-ops/CSV parity and family-context's schema-only status as open gaps |
 | 2.1 | Aug 19, 2026 | Mark Nelson | Added the public marketing and Pre-K–6 learning-library foundation, stakeholder/readiness routes, content contract, route boundary, updated web test count, and responsive browser-validation status |
+| 2.2 | Aug 19, 2026 | Mark Nelson | Added public Privacy, Terms, Cookies, and Support draft routes; documented the fixed site frame and social-link posture; corrected the student-data inventory description and replaced the prior overbroad school-consent claim with an explicit operational/legal launch gate |
+| 2.3 | Aug 19, 2026 | Mark Nelson | Added the universal web/Flutter design-token contract, standardized public and authenticated web content width/gutters, removed the palette comparison switcher, and made Apple/Google phone/tablet deliverables and their remaining QA gates explicit |
 
 ---
 

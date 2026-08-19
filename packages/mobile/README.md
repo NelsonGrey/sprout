@@ -1,17 +1,27 @@
-# sprout
+# Sprout Streak mobile
 
-A new Flutter project.
+The shared Flutter application for four required form factors:
 
-## Getting Started
+- Apple iPhone
+- Apple iPad
+- Google Android phone
+- Google Android tablet
 
-This project is a starting point for a Flutter application.
+The application uses `SproutTheme.light` from
+`lib/design_system/sprout_theme.dart`, matching the public and authenticated
+web palette. `SproutLayout` defines the phone/tablet/wide breakpoints,
+20/32/48px responsive gutters, and the universal 1280px content boundary.
+Use `SproutResponsiveBody` for new screens instead of introducing one-off
+maximum widths.
 
-A few resources to get you started if this is your first Flutter project:
+## Validation
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter analyze --no-fatal-infos
+flutter test
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+A shared Flutter codebase does not by itself establish tablet readiness.
+Release QA must separately cover iPhone, iPad, Android phone, and Android
+tablet dimensions, including portrait/landscape, text scaling, keyboard and
+safe-area behavior, overflow, touch targets, and VoiceOver/TalkBack.

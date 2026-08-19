@@ -3,6 +3,12 @@ import { Route, Switch } from 'wouter';
 import { AudiencePage } from './AudiencePage';
 import { CurriculumPage } from './CurriculumPage';
 import { LessonPage } from './LessonPage';
+import {
+  CookiesPage,
+  PrivacyPage,
+  SupportPage,
+  TermsPage,
+} from './LegalPages';
 import { MarketingHomePage } from './MarketingHomePage';
 import { MarketingLayout } from './MarketingLayout';
 import { ReadinessPage } from './ReadinessPage';
@@ -26,6 +32,18 @@ export function MarketingRoutes({ user }: { user: User | null }) {
         </Route>
         <Route path="/readiness">
           <ReadinessPage />
+        </Route>
+        <Route path="/privacy">
+          <PrivacyPage />
+        </Route>
+        <Route path="/terms">
+          <TermsPage />
+        </Route>
+        <Route path="/cookies">
+          <CookiesPage />
+        </Route>
+        <Route path="/support">
+          <SupportPage />
         </Route>
         {audiences.map(audience => (
           <Route key={audience.slug} path={`/${audience.slug}`}>

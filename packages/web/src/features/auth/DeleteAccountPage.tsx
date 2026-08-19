@@ -94,7 +94,7 @@ export function DeleteAccountPage({ user }: { user: User }) {
       <PageHeader title="Delete Account" backTo="/" />
       <div className="flex max-w-md flex-col gap-6 px-6 py-4">
         {soleSuperAdminOf.length > 0 ? (
-          <section className="rounded-lg border border-red-500/40 bg-red-500/5 p-4">
+          <section className="rounded-lg border border-danger/40 bg-danger/5 p-4">
             <h2 className="font-semibold">You can't delete your account yet</h2>
             <p className="mt-2 text-sm text-ink-muted">
               You're the only super admin of {soleSuperAdminOf.map((m) => m.schoolName).join(', ')}. Promote another
@@ -127,7 +127,7 @@ export function DeleteAccountPage({ user }: { user: User }) {
                 </ul>
               )}
               {summary.standaloneClassrooms.length > 0 && (
-                <p className="mt-2 text-sm text-red-500">
+                <p className="mt-2 text-sm text-danger">
                   These personal classrooms and their students will be permanently deleted:{' '}
                   {summary.standaloneClassrooms.map((c) => c.name).join(', ')}.
                 </p>
@@ -158,7 +158,7 @@ export function DeleteAccountPage({ user }: { user: User }) {
 
             {deleting && <p className="text-sm text-ink-muted">Deleting your account…</p>}
             {error && (
-              <p role="alert" className="text-sm text-red-500">
+              <p role="alert" className="text-sm text-danger">
                 {error}
               </p>
             )}

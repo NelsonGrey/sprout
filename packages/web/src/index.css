@@ -1,47 +1,89 @@
 @import 'tailwindcss';
 
-/* Two comparison palettes — see /assets/brand-concepts. "path" (default)
- * is the One Path direction (navy/teal/coral); "balance" is Growing
- * Balance (evergreen/mint/gold). ThemeToggle flips data-theme on <html>
- * so both can be compared live before one is picked; this whole block is
- * temporary comparison scaffolding, not a permanent multi-theme system. */
+/* Sprout Streak design tokens
+ *
+ * This is the single web source of truth for product and marketing color,
+ * page width, and responsive gutters. The matching Flutter constants live in
+ * packages/mobile/lib/design_system/sprout_theme.dart. Components should use
+ * semantic Tailwind classes (bg-canvas, text-muted, border-border, etc.) and
+ * must not introduce literal brand colors or one-off outer max widths. */
 :root {
-  --bg: #f4f8fd;
-  --surface: #ffffff;
-  --header-bg: #ffffff;
-  --footer-bg: #16264d;
-  --ink: #16264d;
-  --ink-muted: #5a6b8c;
-  --border: #e1e8f2;
-  --brand: #14b8a6;
-  --brand-hover: #0f9c8c;
-  --accent: #ff6f5e;
-}
-
-:root[data-theme='balance'] {
-  --bg: #fffbf0;
-  --surface: #ffffff;
-  --header-bg: #ffffff;
-  --footer-bg: #1b4332;
-  --ink: #1b4332;
-  --ink-muted: #5c7a6c;
-  --border: #ede6d3;
-  --brand: #16a34a;
-  --brand-hover: #15803d;
-  --accent: #f5a623;
+  --sprout-canvas: #f8fbf5;
+  --sprout-surface: #ffffff;
+  --sprout-surface-subtle: #fbfcf9;
+  --sprout-on-dark: #ffffff;
+  --sprout-ink: #102a26;
+  --sprout-ink-soft: #24483e;
+  --sprout-muted: #587168;
+  --sprout-muted-soft: #6a8078;
+  --sprout-border: #dce7dc;
+  --sprout-border-strong: #bdd0c2;
+  --sprout-brand: #166b4f;
+  --sprout-brand-strong: #105b43;
+  --sprout-brand-bright: #16805b;
+  --sprout-mint: #e3f3e7;
+  --sprout-mint-strong: #8ed2a6;
+  --sprout-deep-surface: #16382f;
+  --sprout-accent: #e56845;
+  --sprout-accent-soft: #fff0e8;
+  --sprout-warning: #9b6220;
+  --sprout-warning-soft: #fff7e8;
+  --sprout-info: #2c6791;
+  --sprout-info-soft: #e1eef9;
+  --sprout-purple: #6850a0;
+  --sprout-purple-soft: #ece8f8;
+  --sprout-danger: #b65033;
+  --sprout-content-max-width: 80rem;
+  --sprout-page-gutter: 1.25rem;
+  --sprout-shadow-brand: 0 12px 30px rgb(22 107 79 / 20%);
+  --sprout-shadow-panel: 0 30px 80px rgb(25 68 56 / 20%);
+  --sprout-shadow-card: 0 12px 40px rgb(27 72 58 / 6%);
+  --sprout-shadow-logo: 0 8px 22px rgb(22 107 79 / 18%);
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-header-bg: var(--header-bg);
-  --color-footer-bg: var(--footer-bg);
-  --color-ink: var(--ink);
-  --color-ink-muted: var(--ink-muted);
-  --color-border: var(--border);
-  --color-brand: var(--brand);
-  --color-brand-hover: var(--brand-hover);
-  --color-accent: var(--accent);
+  --color-canvas: var(--sprout-canvas);
+  --color-bg: var(--sprout-canvas);
+  --color-surface: var(--sprout-surface);
+  --color-surface-subtle: var(--sprout-surface-subtle);
+  --color-on-dark: var(--sprout-on-dark);
+  --color-header-bg: var(--sprout-surface);
+  --color-footer-bg: var(--sprout-ink);
+  --color-ink: var(--sprout-ink);
+  --color-ink-soft: var(--sprout-ink-soft);
+  --color-ink-muted: var(--sprout-muted);
+  --color-muted: var(--sprout-muted);
+  --color-muted-soft: var(--sprout-muted-soft);
+  --color-border: var(--sprout-border);
+  --color-border-strong: var(--sprout-border-strong);
+  --color-brand: var(--sprout-brand);
+  --color-brand-hover: var(--sprout-brand-strong);
+  --color-brand-strong: var(--sprout-brand-strong);
+  --color-brand-bright: var(--sprout-brand-bright);
+  --color-mint: var(--sprout-mint);
+  --color-mint-strong: var(--sprout-mint-strong);
+  --color-deep-surface: var(--sprout-deep-surface);
+  --color-accent: var(--sprout-accent);
+  --color-accent-soft: var(--sprout-accent-soft);
+  --color-warning: var(--sprout-warning);
+  --color-warning-soft: var(--sprout-warning-soft);
+  --color-info: var(--sprout-info);
+  --color-info-soft: var(--sprout-info-soft);
+  --color-purple: var(--sprout-purple);
+  --color-purple-soft: var(--sprout-purple-soft);
+  --color-danger: var(--sprout-danger);
+}
+
+@media (min-width: 40rem) {
+  :root {
+    --sprout-page-gutter: 2rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --sprout-page-gutter: 3rem;
+  }
 }
 
 html {
@@ -54,18 +96,49 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--brand) 24%, transparent);
+  background: color-mix(in srgb, var(--sprout-brand) 24%, transparent);
+}
+
+.site-container {
+  width: min(100%, var(--sprout-content-max-width));
+  margin-inline: auto;
+  padding-inline: var(--sprout-page-gutter);
+}
+
+/* A deliberately narrower reading measure still shares the same responsive
+ * gutter rhythm. Use this only inside the universal site boundary for long
+ * lessons or policy prose, never as a competing page-section width. */
+.reading-container {
+  width: min(100%, 65rem);
+  margin-inline: auto;
+  padding-inline: var(--sprout-page-gutter);
+}
+
+.shadow-brand {
+  box-shadow: var(--sprout-shadow-brand);
+}
+
+.shadow-panel {
+  box-shadow: var(--sprout-shadow-panel);
+}
+
+.shadow-card {
+  box-shadow: var(--sprout-shadow-card);
+}
+
+.shadow-logo {
+  box-shadow: var(--sprout-shadow-logo);
 }
 
 .marketing-grid {
   background-image:
     linear-gradient(
-      color-mix(in srgb, var(--brand) 7%, transparent) 1px,
+      color-mix(in srgb, var(--sprout-brand) 7%, transparent) 1px,
       transparent 1px
     ),
     linear-gradient(
       90deg,
-      color-mix(in srgb, var(--brand) 7%, transparent) 1px,
+      color-mix(in srgb, var(--sprout-brand) 7%, transparent) 1px,
       transparent 1px
     );
   background-size: 36px 36px;
@@ -73,7 +146,7 @@ body {
 
 .marketing-dot-field {
   background-image: radial-gradient(
-    color-mix(in srgb, var(--brand) 24%, transparent) 1px,
+    color-mix(in srgb, var(--sprout-brand) 24%, transparent) 1px,
     transparent 1px
   );
   background-size: 18px 18px;
@@ -85,11 +158,20 @@ body {
   }
 
   body {
-    color: #102a26;
+    color: var(--sprout-ink);
     background: white;
   }
 
   article {
     max-width: none !important;
+  }
+
+  .site-shell {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .site-scroll-region {
+    overflow: visible !important;
   }
 }

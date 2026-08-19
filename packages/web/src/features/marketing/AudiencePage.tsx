@@ -35,46 +35,46 @@ export function AudiencePage({ audience }: { audience: Audience }) {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-[#dfe9dd] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
+      <section className="relative overflow-hidden border-b border-border py-20 lg:py-28">
         <div
           className="marketing-grid absolute inset-0 opacity-50"
           aria-hidden="true"
         />
         <div
-          className="absolute right-[-10%] top-[-30%] h-[520px] w-[520px] rounded-full bg-[#ddefdf] blur-3xl"
+          className="absolute right-[-10%] top-[-30%] h-[520px] w-[520px] rounded-full bg-mint blur-3xl"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-[1200px]">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#16805b]">
+        <div className="relative mx-auto site-container">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-bright">
             {audience.eyebrow}
           </p>
           <h1 className="mt-5 max-w-5xl text-5xl font-black leading-[1.02] tracking-[-0.052em] sm:text-6xl lg:text-7xl">
             {audience.headline}
           </h1>
-          <p className="mt-7 max-w-3xl text-lg leading-8 text-[#526f66] sm:text-xl">
+          <p className="mt-7 max-w-3xl text-lg leading-8 text-muted sm:text-xl">
             {audience.summary}
           </p>
-          <div className="mt-8 max-w-3xl rounded-2xl border border-[#cfe0d1] bg-white/75 px-5 py-4 text-sm font-semibold leading-6 text-[#49665d] shadow-sm">
+          <div className="mt-8 max-w-3xl rounded-2xl border border-border-strong bg-surface/75 px-5 py-4 text-sm font-semibold leading-6 text-muted shadow-sm">
             {notes[audience.slug]}
           </div>
         </div>
       </section>
 
-      <section className="bg-white px-5 py-20 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-[1200px]">
+      <section className="bg-surface py-20">
+        <div className="mx-auto site-container">
           <div className="grid gap-4 md:grid-cols-3">
             {audience.outcomes.map((outcome, index) => (
               <article
                 key={outcome.title}
-                className="rounded-[26px] border border-[#dce7dc] bg-[#fbfcf9] p-6"
+                className="rounded-[26px] border border-border bg-surface-subtle p-6"
               >
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e3f3e7] text-sm font-black text-[#166b4f]">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint text-sm font-black text-brand">
                   0{index + 1}
                 </span>
                 <h2 className="mt-8 text-xl font-black tracking-[-0.025em]">
                   {outcome.title}
                 </h2>
-                <p className="mt-3 text-sm leading-6 text-[#5b746c]">
+                <p className="mt-3 text-sm leading-6 text-muted">
                   {outcome.body}
                 </p>
               </article>
@@ -83,16 +83,16 @@ export function AudiencePage({ audience }: { audience: Audience }) {
         </div>
       </section>
 
-      <section className="bg-[#102a26] px-5 py-20 text-white sm:px-8 lg:px-12">
-        <div className="mx-auto grid max-w-[1200px] gap-12 lg:grid-cols-[.72fr_1.28fr]">
+      <section className="bg-ink py-20 text-on-dark">
+        <div className="mx-auto grid site-container gap-12 lg:grid-cols-[.72fr_1.28fr]">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#8ed2a6]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-mint-strong">
               A practical rhythm
             </p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.045em]">
               Start small enough to learn what works.
             </h2>
-            <p className="mt-5 leading-7 text-white/65">
+            <p className="mt-5 leading-7 text-on-dark/65">
               Sprout Streak is designed around repeatable practice, not a
               one-time assembly or a dashboard nobody revisits.
             </p>
@@ -101,14 +101,14 @@ export function AudiencePage({ audience }: { audience: Audience }) {
             {audience.workflow.map(item => (
               <div
                 key={item.step}
-                className="grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 sm:grid-cols-[52px_1fr] sm:items-start"
+                className="grid gap-4 rounded-2xl border border-on-dark/10 bg-surface/5 p-5 sm:grid-cols-[52px_1fr] sm:items-start"
               >
-                <span className="text-sm font-black text-[#8ed2a6]">
+                <span className="text-sm font-black text-mint-strong">
                   {item.step}
                 </span>
                 <div>
                   <h3 className="text-lg font-black">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-white/60">
+                  <p className="mt-2 text-sm leading-6 text-on-dark/60">
                     {item.body}
                   </p>
                 </div>
@@ -118,30 +118,30 @@ export function AudiencePage({ audience }: { audience: Audience }) {
         </div>
       </section>
 
-      <section className="px-5 py-20 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-[1200px]">
+      <section className="py-20">
+        <div className="mx-auto site-container">
           <div className="grid gap-12 lg:grid-cols-[.7fr_1.3fr]">
             <div>
-              <CircleHelp className="text-[#e56845]" size={30} />
+              <CircleHelp className="text-accent" size={30} />
               <h2 className="mt-5 text-4xl font-black tracking-[-0.045em]">
                 Questions worth answering early.
               </h2>
-              <p className="mt-4 leading-7 text-[#5b746c]">
+              <p className="mt-4 leading-7 text-muted">
                 Clear expectations are part of the product. These answers
                 distinguish today’s foundation from the intended future
                 platform.
               </p>
             </div>
-            <div className="divide-y divide-[#dce7dc] border-y border-[#dce7dc]">
+            <div className="divide-y divide-border border-y border-border">
               {audience.questions.map(item => (
                 <details key={item.question} className="group py-5">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-lg font-black">
                     {item.question}
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e5f2e7] text-[#166b4f] transition group-open:rotate-45">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-mint text-brand transition group-open:rotate-45">
                       +
                     </span>
                   </summary>
-                  <p className="max-w-3xl pt-4 leading-7 text-[#5a736a]">
+                  <p className="max-w-3xl pt-4 leading-7 text-muted">
                     {item.answer}
                   </p>
                 </details>
@@ -151,21 +151,21 @@ export function AudiencePage({ audience }: { audience: Audience }) {
         </div>
       </section>
 
-      <section className="px-5 pb-20 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-[1200px] overflow-hidden rounded-[30px] bg-[#e5f3e8] p-7 sm:p-10">
+      <section className="pb-20">
+        <div className="mx-auto site-container overflow-hidden rounded-[30px] bg-mint p-7 sm:p-10">
           <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
             <div className="flex gap-4">
-              <span className="hidden h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#166b4f] text-white sm:grid">
+              <span className="hidden h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand text-on-dark sm:grid">
                 <Compass size={23} />
               </span>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#16805b]">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-brand-bright">
                   Your next useful step
                 </p>
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
                   {audience.cta}
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#587168]">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
                   Explore concrete material now. Pilot requests will stay gated
                   by the readiness work described on the site.
                 </p>
@@ -173,7 +173,7 @@ export function AudiencePage({ audience }: { audience: Audience }) {
             </div>
             <Link
               href={ctaRoutes[audience.slug]}
-              className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#102a26] px-6 py-3.5 text-sm font-black text-white"
+              className="group inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-black text-on-dark"
             >
               Continue{' '}
               <ArrowRight
@@ -182,7 +182,7 @@ export function AudiencePage({ audience }: { audience: Audience }) {
               />
             </Link>
           </div>
-          <div className="mt-8 flex flex-wrap gap-3 border-t border-[#cfe0d1] pt-6 text-xs font-bold text-[#547067]">
+          <div className="mt-8 flex flex-wrap gap-3 border-t border-border-strong pt-6 text-xs font-bold text-muted">
             <span className="inline-flex items-center gap-1.5">
               <CheckCircle2 size={14} /> Age-aware
             </span>

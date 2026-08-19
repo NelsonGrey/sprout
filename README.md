@@ -3,16 +3,19 @@
 Sprout Streak is a subscription-based classroom and family financial-literacy app — a
 digital reward/behavior-tracking system with no ads, built for schools and
 families rather than the ad-monetized arcade-game portfolio this org also
-ships. This repo is a fresh scaffold: the auth layer and infra conventions
-are wired up and tested; the actual product screens and Firestore schema
-don't exist yet.
+ships. The repository contains a working web/mobile product foundation,
+public stakeholder and curriculum pages, school/classroom workflows, and the
+implemented Firestore schema and security rules.
 
 ## Key Features
 
-Not yet built. This scaffold currently provides:
+The current foundation provides:
 
-- Google/Apple sign-in (mobile), Google sign-in (web)
-- A monorepo skeleton (web, mobile, shared types, Firebase utils)
+- Google, Apple, and email/password authentication paths
+- School, classroom, staff-access, roster, student-ledger, and bulk-operation workflows
+- A responsive public website with stakeholder, curriculum, readiness, privacy, terms, cookies, and support routes
+- Eight original Pre-K–6 starter lessons
+- A shared evergreen/mint/coral design system for public web, authenticated web, and Flutter
 - Firebase project config for dev/staging/prod, a consolidated backend
   (single `api` Cloud Function behind a Hosting `/api/**` rewrite)
 - CI/CD wired to the same `develop` → `staging` → `main` promotion model as
@@ -22,7 +25,8 @@ Not yet built. This scaffold currently provides:
 
 This project consists of:
 - **Web App**: React 19 + TypeScript + Vite (`packages/web/`)
-- **Mobile App**: Flutter app for iOS and Android (`packages/mobile/`)
+- **Mobile App**: Flutter app for Apple iPhone/iPad and Google Android
+  phone/tablet form factors (`packages/mobile/`)
 - **Backend**: Firebase Functions — the live API. Real backend source lives
   in a private companion repo (`NelsonGrey/sprout-functions`);
   `packages/functions/` is gitignored here and must be cloned separately for
@@ -73,6 +77,10 @@ npm run test:mobile    # Flutter widget tests
   surface small and centralize auth/dispatch in one place
   (`sprout-functions`'s `src/router.ts`)
 - **Mobile**: Flutter, `go_router` for navigation, `provider` for state
+- **Design system**: semantic CSS/Tailwind tokens in
+  `packages/web/src/index.css` and matching Flutter palette/breakpoints in
+  `packages/mobile/lib/design_system/sprout_theme.dart`; one 1280px web
+  content boundary with responsive 20/32/48px gutters
 - **Auth**: Google + Apple sign-in, both platforms behind an `AuthService`
   interface (`packages/mobile/lib/core/services/auth/`) extracted from the
   org's shared `game-shell` package's auth layer — everything else in
@@ -82,7 +90,8 @@ npm run test:mobile    # Flutter widget tests
 
 ### System Requirements
 - **Browser Support**: Chrome, Firefox, Safari, Edge (latest versions)
-- **Mobile Support**: iOS 16+ and Android 8.0+
+- **Mobile Support**: iPhone/iPad on iOS/iPadOS 16+; Android phones/tablets
+  on the project API 21+ minimum. Each form factor requires its own release QA.
 
 ### Firebase Projects
 Three environments, one Firebase project each — see `.firebaserc`:
@@ -120,4 +129,4 @@ npm run deploy:web      # deploy web only
 
 ---
 
-© 2026 Mark Nelson. All rights reserved.
+© 2026 Sprout Streak, a product of Nelson Grey LLC. All rights reserved.

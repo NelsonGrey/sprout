@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/classroom_context.dart';
@@ -43,17 +45,19 @@ class _StudentsScreenState extends State<StudentsScreen> {
   bool _bulkInFlight = false;
 
   List<Student> _visibleStudents(List<Student> students) {
-    final base = _showArchived ? students : students.where((s) => s.archivedAt == null).toList();
+    final base = _showArchived
+        ? students
+        : students.where((s) => s.archivedAt == null).toList();
     final term = _search.trim().toLowerCase();
     final filtered = term.isEmpty
         ? base
         : base
-            .where(
-              (s) =>
-                  s.displayName.toLowerCase().contains(term) ||
-                  (s.studentId?.toLowerCase().contains(term) ?? false),
-            )
-            .toList();
+              .where(
+                (s) =>
+                    s.displayName.toLowerCase().contains(term) ||
+                    (s.studentId?.toLowerCase().contains(term) ?? false),
+              )
+              .toList();
     filtered.sort((a, b) {
       switch (_sortKey) {
         case _SortKey.name:
@@ -77,8 +81,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
   Future<void> _rename(Student student) async {
     final firstController = TextEditingController(text: student.firstName);
     final lastController = TextEditingController(text: student.lastName);
-    final studentIdController = TextEditingController(text: student.studentId ?? '');
-    final gradeController = TextEditingController(text: student.gradeLevel ?? '');
+    final studentIdController = TextEditingController(
+      text: student.studentId ?? '',
+    );
+    final gradeController = TextEditingController(
+      text: student.gradeLevel ?? '',
+    );
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -109,7 +117,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             key: const Key('saveEditStudentButton'),
             onPressed: () => Navigator.pop(context, true),
@@ -123,8 +134,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
       student.id,
       firstName: firstController.text.trim(),
       lastName: lastController.text.trim(),
-      studentId: studentIdController.text.trim().isEmpty ? null : studentIdController.text.trim(),
-      gradeLevel: gradeController.text.trim().isEmpty ? null : gradeController.text.trim(),
+      studentId: studentIdController.text.trim().isEmpty
+          ? null
+          : studentIdController.text.trim(),
+      gradeLevel: gradeController.text.trim().isEmpty
+          ? null
+          : gradeController.text.trim(),
     );
     if (mounted) setState(() {});
   }
@@ -143,21 +158,32 @@ class _StudentsScreenState extends State<StudentsScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          final chosen = targetId == null ? null : classrooms.firstWhere((c) => c.id == targetId);
+          final chosen = targetId == null
+              ? null
+              : classrooms.firstWhere((c) => c.id == targetId);
           return AlertDialog(
             title: Text(title),
             content: DropdownButton<String>(
               key: const Key('classroomTargetDropdown'),
               hint: const Text('Choose a classroom…'),
               value: targetId,
-              items: classrooms.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+              items: classrooms
+                  .map(
+                    (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
+                  )
+                  .toList(),
               onChanged: (v) => setDialogState(() => targetId = v),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
               TextButton(
                 key: const Key('confirmClassroomTargetButton'),
-                onPressed: chosen == null ? null : () => Navigator.pop(context, chosen),
+                onPressed: chosen == null
+                    ? null
+                    : () => Navigator.pop(context, chosen),
                 child: Text(confirmLabel),
               ),
             ],
@@ -171,7 +197,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (mounted) setState(() => _bulkInFlight = false);
   }
 
-  Future<void> _bulkMove(List<ClassroomContext> classrooms) => _pickClassroomAndAct(
+  Future<void> _bulkMove(List<ClassroomContext> classrooms) =>
+      _pickClassroomAndAct(
         classrooms: classrooms,
         title: 'Move ${_selected.length} student(s) to…',
         confirmLabel: 'Move',
@@ -189,7 +216,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         },
       );
 
-  Future<void> _bulkRestore(List<ClassroomContext> classrooms) => _pickClassroomAndAct(
+  Future<void> _bulkRestore(List<ClassroomContext> classrooms) =>
+      _pickClassroomAndAct(
         classrooms: classrooms,
         title: 'Restore ${_selected.length} student(s) into…',
         confirmLabel: 'Restore',
@@ -243,17 +271,23 @@ class _StudentsScreenState extends State<StudentsScreen> {
         }
         final schoolId = schoolIds.first;
         return StreamBuilder<SchoolMember?>(
-          stream: widget.schoolRepository.myMembership(schoolId, widget.user.uid),
+          stream: widget.schoolRepository.myMembership(
+            schoolId,
+            widget.user.uid,
+          ),
           builder: (context, membershipSnapshot) {
             final membership = membershipSnapshot.data;
-            final isAtLeastAdmin = membership != null && membership.role != MemberRole.teacher;
+            final isAtLeastAdmin =
+                membership != null && membership.role != MemberRole.teacher;
             if (!isAtLeastAdmin) {
               return const Scaffold(
                 appBar: SproutAppBar(title: 'Students'),
                 body: Center(
                   child: Padding(
                     padding: EdgeInsets.all(24),
-                    child: Text('Only school admins can manage the full student roster.'),
+                    child: Text(
+                      'Only school admins can manage the full student roster.',
+                    ),
                   ),
                 ),
               );
@@ -261,17 +295,23 @@ class _StudentsScreenState extends State<StudentsScreen> {
             return StreamBuilder<List<ClassroomContext>>(
               stream: widget.classroomRepository.classroomsInSchool(schoolId),
               builder: (context, classroomsSnapshot) {
-                final classrooms = classroomsSnapshot.data ?? const <ClassroomContext>[];
+                final classrooms =
+                    classroomsSnapshot.data ?? const <ClassroomContext>[];
                 return StreamBuilder<List<Student>>(
                   stream: widget.classroomRepository.studentsInSchool(schoolId),
                   builder: (context, studentsSnapshot) {
                     if (!studentsSnapshot.hasData) {
-                      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
                     }
                     final visible = _visibleStudents(studentsSnapshot.data!);
-                    final selectedStudents = visible.where((s) => _selected.contains(s.id)).toList();
+                    final selectedStudents = visible
+                        .where((s) => _selected.contains(s.id))
+                        .toList();
                     final canRestore =
-                        selectedStudents.isNotEmpty && selectedStudents.every((s) => s.archivedAt != null);
+                        selectedStudents.isNotEmpty &&
+                        selectedStudents.every((s) => s.archivedAt != null);
 
                     return Scaffold(
                       appBar: SproutAppBar(
@@ -303,8 +343,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                 Expanded(
                                   child: TextField(
                                     key: const Key('studentSearchField'),
-                                    decoration: const InputDecoration(labelText: 'Search'),
-                                    onChanged: (v) => setState(() => _search = v),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Search',
+                                    ),
+                                    onChanged: (v) =>
+                                        setState(() => _search = v),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -312,25 +355,39 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                   key: const Key('sortKeyDropdown'),
                                   value: _sortKey,
                                   items: const [
-                                    DropdownMenuItem(value: _SortKey.name, child: Text('Sort: Name')),
-                                    DropdownMenuItem(value: _SortKey.grade, child: Text('Sort: Grade')),
-                                    DropdownMenuItem(value: _SortKey.classroom, child: Text('Sort: Classroom')),
+                                    DropdownMenuItem(
+                                      value: _SortKey.name,
+                                      child: Text('Sort: Name'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: _SortKey.grade,
+                                      child: Text('Sort: Grade'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: _SortKey.classroom,
+                                      child: Text('Sort: Classroom'),
+                                    ),
                                   ],
-                                  onChanged: (v) => setState(() => _sortKey = v ?? _sortKey),
+                                  onChanged: (v) =>
+                                      setState(() => _sortKey = v ?? _sortKey),
                                 ),
                                 const SizedBox(width: 8),
                                 const Text('Show archived'),
                                 Switch(
                                   key: const Key('showArchivedSwitch'),
                                   value: _showArchived,
-                                  onChanged: (v) => setState(() => _showArchived = v),
+                                  onChanged: (v) =>
+                                      setState(() => _showArchived = v),
                                 ),
                               ],
                             ),
                           ),
                           if (_selected.isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               child: Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
@@ -339,23 +396,33 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                   Text('${_selected.length} selected'),
                                   ElevatedButton(
                                     key: const Key('bulkMoveButton'),
-                                    onPressed: _bulkInFlight ? null : () => _bulkMove(classrooms),
+                                    onPressed: _bulkInFlight
+                                        ? null
+                                        : () => _bulkMove(classrooms),
                                     child: const Text('Move to classroom…'),
                                   ),
                                   ElevatedButton(
                                     key: const Key('bulkArchiveButton'),
-                                    onPressed: _bulkInFlight ? null : _bulkArchive,
+                                    onPressed: _bulkInFlight
+                                        ? null
+                                        : _bulkArchive,
                                     child: const Text('Archive'),
                                   ),
                                   ElevatedButton(
                                     key: const Key('bulkRestoreButton'),
-                                    onPressed: (_bulkInFlight || !canRestore) ? null : () => _bulkRestore(classrooms),
+                                    onPressed: (_bulkInFlight || !canRestore)
+                                        ? null
+                                        : () => _bulkRestore(classrooms),
                                     child: const Text('Restore…'),
                                   ),
                                   ElevatedButton(
                                     key: const Key('bulkDeleteButton'),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                    onPressed: _bulkInFlight ? null : _bulkDelete,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: SproutColors.danger,
+                                    ),
+                                    onPressed: _bulkInFlight
+                                        ? null
+                                        : _bulkDelete,
                                     child: const Text('Delete'),
                                   ),
                                 ],
@@ -363,26 +430,35 @@ class _StudentsScreenState extends State<StudentsScreen> {
                             ),
                           Expanded(
                             child: visible.isEmpty
-                                ? const Center(child: Text('No students match.'))
+                                ? const Center(
+                                    child: Text('No students match.'),
+                                  )
                                 : ListView.builder(
                                     itemCount: visible.length,
                                     itemBuilder: (context, index) {
                                       final student = visible[index];
                                       final subtitleParts = [
-                                        if (student.gradeLevel != null) 'Grade ${student.gradeLevel}',
-                                        if (student.contextName != null) student.contextName!,
-                                        if (student.archivedAt != null) 'Archived',
+                                        if (student.gradeLevel != null)
+                                          'Grade ${student.gradeLevel}',
+                                        if (student.contextName != null)
+                                          student.contextName!,
+                                        if (student.archivedAt != null)
+                                          'Archived',
                                       ];
                                       return CheckboxListTile(
                                         key: Key('studentRow-${student.id}'),
-                                        controlAffinity: ListTileControlAffinity.leading,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
                                         value: _selected.contains(student.id),
-                                        onChanged: (_) => _toggleSelected(student.id),
+                                        onChanged: (_) =>
+                                            _toggleSelected(student.id),
                                         title: GestureDetector(
                                           onTap: () => _rename(student),
                                           child: Text(student.displayName),
                                         ),
-                                        subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
+                                        subtitle: subtitleParts.isEmpty
+                                            ? null
+                                            : Text(subtitleParts.join(' · ')),
                                       );
                                     },
                                   ),

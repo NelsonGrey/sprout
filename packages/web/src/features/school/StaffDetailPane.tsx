@@ -99,7 +99,7 @@ export function StaffDetailPane({
                     type="button"
                     onClick={() => handleUnassign(classroom.id)}
                     aria-label={`Unassign ${classroom.name}`}
-                    className="text-ink-muted hover:text-red-500"
+                    className="text-ink-muted hover:text-danger"
                   >
                     <X size={12} />
                   </button>
@@ -137,7 +137,7 @@ export function StaffDetailPane({
                   type="button"
                   onClick={() => revokeClassroomGrant(schoolId, member.uid, contextId)}
                   aria-label={`Revoke access to classroom ${contextId}`}
-                  className="text-ink-muted hover:text-red-500"
+                  className="text-ink-muted hover:text-danger"
                 >
                   <X size={12} />
                 </button>

@@ -28,7 +28,7 @@ export function MyBalancePage({ student }: { student: Student }) {
                 className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 text-ink"
               >
                 <span>{transaction.reason}</span>
-                <span className={transaction.type === 'earn' ? 'text-brand' : 'text-red-500'}>
+                <span className={transaction.type === 'earn' ? 'text-brand' : 'text-danger'}>
                   {transaction.type === 'earn' ? '+' : '-'}$
                   {(transaction.amountCents / 100).toFixed(2)}
                 </span>

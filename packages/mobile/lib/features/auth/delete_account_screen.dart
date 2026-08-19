@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/school.dart';
@@ -112,16 +114,25 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     final memberships = <_SchoolMembershipSummary>[];
     for (final schoolId in schoolIds) {
       final school = await widget.schoolRepository.getSchool(schoolId);
-      final member = await widget.schoolRepository.myMembership(schoolId, uid).first;
+      final member = await widget.schoolRepository
+          .myMembership(schoolId, uid)
+          .first;
       final role = member?.role ?? MemberRole.teacher;
-      final allMembers = await widget.schoolRepository.membersOfSchool(schoolId).first;
-      final superAdminCount = allMembers.where((m) => m.role == MemberRole.superAdmin).length;
-      memberships.add(_SchoolMembershipSummary(
-        schoolId: schoolId,
-        schoolName: school?.name ?? 'Unknown School',
-        role: role,
-        isSoleSuperAdmin: role == MemberRole.superAdmin && superAdminCount <= 1,
-      ));
+      final allMembers = await widget.schoolRepository
+          .membersOfSchool(schoolId)
+          .first;
+      final superAdminCount = allMembers
+          .where((m) => m.role == MemberRole.superAdmin)
+          .length;
+      memberships.add(
+        _SchoolMembershipSummary(
+          schoolId: schoolId,
+          schoolName: school?.name ?? 'Unknown School',
+          role: role,
+          isSoleSuperAdmin:
+              role == MemberRole.superAdmin && superAdminCount <= 1,
+        ),
+      );
     }
 
     final owned = await widget.classroomRepository.myClassrooms(uid).first;
@@ -130,7 +141,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         .map((c) => (id: c.id, name: c.name))
         .toList();
 
-    final linkedStudent = await widget.classroomRepository.linkedStudentForUser(uid).first;
+    final linkedStudent = await widget.classroomRepository
+        .linkedStudentForUser(uid)
+        .first;
 
     if (!mounted) return;
     setState(() {
@@ -144,7 +157,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
   String _friendlyDeleteError(Object error) {
     if (error is! FirebaseAuthException) {
-      return kDebugMode ? error.toString() : 'Something went wrong. Please try again.';
+      return kDebugMode
+          ? error.toString()
+          : 'Something went wrong. Please try again.';
     }
     switch (error.code) {
       case 'invalid-credential':
@@ -174,12 +189,19 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
     for (final membership in summary.schoolMemberships) {
       await widget.schoolRepository.removeMember(membership.schoolId, uid);
-      await widget.schoolRepository.removeSchoolIdForSelf(membership.schoolId, uid);
+      await widget.schoolRepository.removeSchoolIdForSelf(
+        membership.schoolId,
+        uid,
+      );
     }
 
     for (final classroom in summary.standaloneClassrooms) {
-      final students = await widget.classroomRepository.studentsInClassroom(classroom.id).first;
-      await widget.classroomRepository.bulkDeleteStudents(students.map((s) => s.id).toList());
+      final students = await widget.classroomRepository
+          .studentsInClassroom(classroom.id)
+          .first;
+      await widget.classroomRepository.bulkDeleteStudents(
+        students.map((s) => s.id).toList(),
+      );
       await widget.classroomRepository.deleteClassroom(classroom.id);
     }
 
@@ -199,7 +221,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         case 'apple.com':
           await widget.authService.reauthenticateWithApple();
         default:
-          await widget.authService.reauthenticateWithEmail(_passwordController.text);
+          await widget.authService.reauthenticateWithEmail(
+            _passwordController.text,
+          );
       }
       await _deleteAccountData();
       // No further state update needed on success — deleteAccount() clears
@@ -248,7 +272,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
               key: const Key('deleteAccountPasswordField'),
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm your password'),
+              decoration: const InputDecoration(
+                labelText: 'Confirm your password',
+              ),
             ),
           ],
         ),
@@ -259,7 +285,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           ),
           TextButton(
             key: const Key('confirmDeleteButton'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: SproutColors.danger),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
@@ -281,7 +307,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   }
 
   Widget _buildBody(BuildContext context, _AccountDeletionSummary summary) {
-    final soleSuperAdminOf = summary.schoolMemberships.where((m) => m.isSoleSuperAdmin).toList();
+    final soleSuperAdminOf = summary.schoolMemberships
+        .where((m) => m.isSoleSuperAdmin)
+        .toList();
     final needsAcknowledgement = summary.standaloneClassrooms.isNotEmpty;
     final canDelete = !needsAcknowledgement || _acknowledged;
 
@@ -323,7 +351,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('What happens', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'What happens',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           for (final membership in summary.schoolMemberships)
             Padding(
@@ -339,7 +370,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             Text(
               'These personal classrooms and their students will be permanently deleted: '
               '${summary.standaloneClassrooms.map((c) => c.name).join(', ')}.',
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: SproutColors.danger),
             ),
           ],
           if (summary.linkedStudentName != null) ...[
@@ -356,7 +387,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               value: _acknowledged,
-              onChanged: (value) => setState(() => _acknowledged = value ?? false),
+              onChanged: (value) =>
+                  setState(() => _acknowledged = value ?? false),
               title: const Text(
                 'I understand my personal classroom(s) and their students '
                 'will be permanently deleted.',
@@ -366,7 +398,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             key: const Key('deleteAccountButton'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SproutColors.danger,
+              foregroundColor: SproutColors.onDark,
+            ),
             onPressed: (!canDelete || _deleting) ? null : _confirmAndDelete,
             child: const Text('Delete My Account'),
           ),
@@ -376,7 +411,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           ],
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(_error!, style: const TextStyle(color: SproutColors.danger)),
           ],
         ],
       ),

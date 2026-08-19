@@ -43,6 +43,10 @@ describe('marketing route boundaries', () => {
   it('keeps public content available to signed-in and signed-out visitors', () => {
     expect(isMarketingPath('/districts', false)).toBe(true);
     expect(isMarketingPath('/curriculum/goal-trail', true)).toBe(true);
+    expect(isMarketingPath('/privacy', false)).toBe(true);
+    expect(isMarketingPath('/terms', true)).toBe(true);
+    expect(isMarketingPath('/cookies', false)).toBe(true);
+    expect(isMarketingPath('/support', true)).toBe(true);
     expect(isMarketingPath('/classrooms/class-1', false)).toBe(false);
   });
 });

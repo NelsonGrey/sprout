@@ -20,16 +20,16 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
 
   return (
     <article>
-      <header className="border-b border-[#dfe9dd] bg-white px-5 py-12 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-[1040px]">
+      <header className="border-b border-border bg-surface py-12">
+        <div className="mx-auto reading-container">
           <Link
             href="/curriculum"
-            className="inline-flex items-center gap-2 text-sm font-black text-[#166b4f]"
+            className="inline-flex items-center gap-2 text-sm font-black text-brand"
           >
             <ArrowLeft size={16} /> All lessons
           </Link>
-          <div className="mt-10 flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-[0.12em] text-[#617970]">
-            <span className="rounded-full bg-[#e3f3e7] px-3 py-1.5 text-[#166b4f]">
+          <div className="mt-10 flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted">
+            <span className="rounded-full bg-mint px-3 py-1.5 text-brand">
               {lesson.band}
             </span>
             <span>{lesson.strand}</span>
@@ -41,40 +41,40 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
           <h1 className="mt-5 text-5xl font-black tracking-[-0.052em] sm:text-6xl">
             {lesson.title}
           </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#567168]">
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">
             {lesson.summary}
           </p>
           <div data-no-print className="mt-8 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-full bg-[#102a26] px-5 py-3 text-sm font-black text-white"
+              className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-black text-on-dark"
             >
               <Printer size={16} /> Print lesson
             </button>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#cfddcf] px-5 py-3 text-sm font-bold text-[#4e6a61]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-5 py-3 text-sm font-bold text-muted">
               <Sprout size={16} /> {lesson.buildingBlock}
             </span>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1040px] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[.67fr_1.33fr] lg:px-12 lg:py-16">
+      <div className="mx-auto grid reading-container gap-10 py-12 lg:grid-cols-[.67fr_1.33fr] lg:py-16">
         <aside className="space-y-5">
-          <section className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+          <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="flex items-center gap-2 font-black">
-              <Lightbulb size={18} className="text-[#d88a16]" /> Learning
+              <Lightbulb size={18} className="text-warning" /> Learning
               objective
             </div>
-            <p className="mt-3 text-sm leading-6 text-[#5c746c]">
+            <p className="mt-3 text-sm leading-6 text-muted">
               {lesson.objective}
             </p>
           </section>
-          <section className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+          <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="flex items-center gap-2 font-black">
-              <PackageOpen size={18} className="text-[#16805b]" /> Materials
+              <PackageOpen size={18} className="text-brand-bright" /> Materials
             </div>
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#5c746c]">
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-muted">
               {lesson.materials.map(item => (
                 <li key={item} className="flex gap-2">
                   <span aria-hidden="true">•</span>
@@ -83,13 +83,13 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
               ))}
             </ul>
           </section>
-          <section className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+          <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="font-black">Words to grow</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {lesson.vocabulary.map(word => (
                 <span
                   key={word}
-                  className="rounded-full bg-[#edf5ed] px-3 py-1.5 text-xs font-bold text-[#49685e]"
+                  className="rounded-full bg-mint px-3 py-1.5 text-xs font-bold text-muted"
                 >
                   {word}
                 </span>
@@ -100,17 +100,17 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
 
         <div className="space-y-10">
           <section>
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-[#16805b]">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-brand-bright">
               Open the conversation
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
               Warm-up
             </h2>
-            <p className="mt-4 leading-8 text-[#526e65]">{lesson.warmup}</p>
+            <p className="mt-4 leading-8 text-muted">{lesson.warmup}</p>
           </section>
 
           <section>
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-[#e56845]">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-accent">
               Student mission
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
@@ -120,14 +120,14 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
               {lesson.mission.map((step, index) => (
                 <div
                   key={step.title}
-                  className="grid gap-4 rounded-2xl border border-[#dbe6dc] bg-white p-5 sm:grid-cols-[42px_1fr]"
+                  className="grid gap-4 rounded-2xl border border-border-strong bg-surface p-5 sm:grid-cols-[42px_1fr]"
                 >
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#fff0e8] text-sm font-black text-[#b95336]">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent-soft text-sm font-black text-accent">
                     {index + 1}
                   </span>
                   <div>
                     <h3 className="font-black">{step.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                    <p className="mt-2 text-sm leading-6 text-muted">
                       {step.instructions}
                     </p>
                   </div>
@@ -136,14 +136,14 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
             </div>
           </section>
 
-          <section className="rounded-[26px] bg-[#102a26] p-6 text-white sm:p-8">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.15em] text-[#8ed2a6]">
+          <section className="rounded-[26px] bg-ink p-6 text-on-dark sm:p-8">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.15em] text-mint-strong">
               <Sparkles size={15} /> Reflect
             </div>
             <ul className="mt-5 space-y-4">
               {lesson.reflect.map(question => (
                 <li key={question} className="flex gap-3 leading-7">
-                  <span className="text-[#8ed2a6]">→</span>
+                  <span className="text-mint-strong">→</span>
                   <span>{question}</span>
                 </li>
               ))}
@@ -154,56 +154,56 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
             <h2 className="text-2xl font-black tracking-[-0.035em]">
               Quick learning check
             </h2>
-            <p className="mt-3 leading-7 text-[#587168]">{lesson.check}</p>
+            <p className="mt-3 leading-7 text-muted">{lesson.check}</p>
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-[#dce7dc] bg-white p-5">
-              <Home size={20} className="text-[#e56845]" />
+            <div className="rounded-2xl border border-border bg-surface p-5">
+              <Home size={20} className="text-accent" />
               <h2 className="mt-4 font-black">Family bridge</h2>
-              <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+              <p className="mt-2 text-sm leading-6 text-muted">
                 {lesson.familyBridge}
               </p>
             </div>
-            <div className="rounded-2xl border border-[#dce7dc] bg-white p-5">
-              <Sprout size={20} className="text-[#16805b]" />
+            <div className="rounded-2xl border border-border bg-surface p-5">
+              <Sprout size={20} className="text-brand-bright" />
               <h2 className="mt-4 font-black">Inside Sprout Streak</h2>
-              <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+              <p className="mt-2 text-sm leading-6 text-muted">
                 {lesson.productConnection}
               </p>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#f0d5c9] bg-[#fff8f4] p-5">
+          <section className="rounded-2xl border border-accent-soft bg-accent-soft p-5">
             <div className="flex items-center gap-2 font-black">
-              <ShieldCheck size={18} className="text-[#c45b3b]" /> Teach without
+              <ShieldCheck size={18} className="text-accent" /> Teach without
               shame
             </div>
-            <p className="mt-3 text-sm leading-6 text-[#6d5f59]">
+            <p className="mt-3 text-sm leading-6 text-muted">
               {lesson.inclusionNote}
             </p>
           </section>
 
-          <section className="border-t border-[#dce7dc] pt-8">
+          <section className="border-t border-border pt-8">
             <div className="flex items-start gap-3">
               <CheckCircle2
                 size={19}
-                className="mt-1 shrink-0 text-[#16805b]"
+                className="mt-1 shrink-0 text-brand-bright"
               />
               <div>
                 <h2 className="font-black">Framework connection</h2>
-                <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                <p className="mt-2 text-sm leading-6 text-muted">
                   {lesson.standardsNote}
                 </p>
               </div>
             </div>
-            <p className="mt-4 text-xs leading-5 text-[#72877f]">
+            <p className="mt-4 text-xs leading-5 text-muted">
               This is a design alignment note, not a state-standards
               certification. Curriculum teams should complete local review.
             </p>
             <div
               data-no-print
-              className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[#166b4f]"
+              className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-brand"
             >
               <a
                 href="https://www.consumerfinance.gov/consumer-tools/educator-tools/youth-financial-education/learn/"

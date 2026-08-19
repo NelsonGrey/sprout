@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/ledger_transaction.dart';
@@ -199,36 +201,54 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
                           padding: const EdgeInsets.all(12),
                           child: student?.linkedUid != null
                               ? Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Expanded(
                                       child: Text(
                                         'Linked — the student can sign in and see this on their own',
-                                        style: TextStyle(color: Colors.green),
+                                        style: TextStyle(
+                                          color: SproutColors.brandBright,
+                                        ),
                                       ),
                                     ),
                                     TextButton(
                                       key: const Key('unlinkStudentButton'),
-                                      onPressed: () => widget.classroomRepository
-                                          .unlinkStudentAccount(widget.studentId),
+                                      onPressed: () => widget
+                                          .classroomRepository
+                                          .unlinkStudentAccount(
+                                            widget.studentId,
+                                          ),
                                       child: const Text('Unlink'),
                                     ),
                                   ],
                                 )
                               : StreamBuilder<PendingStudentLink?>(
                                   stream: widget.classroomRepository
-                                      .pendingStudentLinkForStudent(widget.studentId),
+                                      .pendingStudentLinkForStudent(
+                                        widget.studentId,
+                                      ),
                                   builder: (context, pendingSnapshot) {
                                     final pending = pendingSnapshot.data;
                                     if (pending != null) {
                                       return Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Expanded(child: Text('Invite sent to ${pending.email}')),
+                                          Expanded(
+                                            child: Text(
+                                              'Invite sent to ${pending.email}',
+                                            ),
+                                          ),
                                           TextButton(
-                                            key: const Key('cancelStudentLinkButton'),
-                                            onPressed: () => widget.classroomRepository
-                                                .cancelStudentLink(pending.email),
+                                            key: const Key(
+                                              'cancelStudentLinkButton',
+                                            ),
+                                            onPressed: () => widget
+                                                .classroomRepository
+                                                .cancelStudentLink(
+                                                  pending.email,
+                                                ),
                                             child: const Text('Cancel invite'),
                                           ),
                                         ],
@@ -238,17 +258,24 @@ class _StudentLedgerScreenState extends State<StudentLedgerScreen> {
                                       children: [
                                         Expanded(
                                           child: TextField(
-                                            key: const Key('linkStudentEmailField'),
+                                            key: const Key(
+                                              'linkStudentEmailField',
+                                            ),
                                             controller: _linkEmailController,
                                             decoration: const InputDecoration(
-                                              labelText: "Student's school email",
+                                              labelText:
+                                                  "Student's school email",
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         ElevatedButton(
-                                          key: const Key('sendLinkInviteButton'),
-                                          onPressed: _linking ? null : _sendLinkInvite,
+                                          key: const Key(
+                                            'sendLinkInviteButton',
+                                          ),
+                                          onPressed: _linking
+                                              ? null
+                                              : _sendLinkInvite,
                                           child: const Text('Link'),
                                         ),
                                       ],

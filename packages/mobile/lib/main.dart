@@ -11,6 +11,7 @@ import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/classroom/firestore_classroom_repository.dart';
 import 'package:sprout/core/services/school/firestore_school_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:sprout/features/auth/delete_account_screen.dart';
 import 'package:sprout/features/auth/login_screen.dart';
 import 'package:sprout/features/classroom/classroom_detail_screen.dart';
@@ -25,11 +26,13 @@ import 'package:sprout/features/student/students_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(SproutApp(
-    authService: FirebaseAuthService(),
-    classroomRepository: FirestoreClassroomRepository(),
-    schoolRepository: FirestoreSchoolRepository(),
-  ));
+  runApp(
+    SproutApp(
+      authService: FirebaseAuthService(),
+      classroomRepository: FirestoreClassroomRepository(),
+      schoolRepository: FirestoreSchoolRepository(),
+    ),
+  );
 }
 
 class SproutApp extends StatelessWidget {
@@ -38,7 +41,11 @@ class SproutApp extends StatelessWidget {
     required this.authService,
     required this.classroomRepository,
     required this.schoolRepository,
-  }) : _router = _buildRouter(authService, classroomRepository, schoolRepository);
+  }) : _router = _buildRouter(
+         authService,
+         classroomRepository,
+         schoolRepository,
+       );
 
   final AuthService authService;
   final ClassroomRepository classroomRepository;
@@ -185,7 +192,7 @@ class SproutApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Sprout Streak',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.green)),
+      theme: SproutTheme.light,
       routerConfig: _router,
     );
   }
@@ -213,7 +220,10 @@ class _AuthStateRefresh extends ChangeNotifier {
           email: email,
           displayName: user.displayName,
         );
-        classroomRepository.claimPendingStudentLinkIfAny(uid: user.uid, email: email);
+        classroomRepository.claimPendingStudentLinkIfAny(
+          uid: user.uid,
+          email: email,
+        );
       }
     });
   }

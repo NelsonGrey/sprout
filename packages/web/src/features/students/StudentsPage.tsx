@@ -193,7 +193,7 @@ export function StudentsPage({ user }: { user: User }) {
                 key={key}
                 type="button"
                 onClick={() => setSortKey(key)}
-                className={`rounded-full px-3 py-1 ${sortKey === key ? 'bg-brand text-white' : 'border border-border text-ink-muted hover:text-ink'}`}
+                className={`rounded-full px-3 py-1 ${sortKey === key ? 'bg-brand text-on-dark' : 'border border-border text-ink-muted hover:text-ink'}`}
               >
                 {key === 'name' ? 'Name' : key === 'grade' ? 'Grade' : 'Classroom'}
               </button>

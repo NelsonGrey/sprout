@@ -168,7 +168,7 @@ export function StudentImportPage({ user }: { user: User }) {
                 className="text-sm text-ink-muted disabled:opacity-50"
               />
               {fileName && <p className="mt-1 text-xs text-ink-muted">{fileName}</p>}
-              {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+              {error && <p className="mt-2 text-sm text-danger">{error}</p>}
             </section>
 
             {rows && (
@@ -200,7 +200,7 @@ export function StudentImportPage({ user }: { user: User }) {
                           <td className="px-3 py-2">{row.gradeLevel || '—'}</td>
                           <td className="px-3 py-2">
                             {row.status === 'error' ? (
-                              <span className="text-red-500">Error: {row.error}</span>
+                              <span className="text-danger">Error: {row.error}</span>
                             ) : row.status === 'update' ? (
                               <span className="text-ink-muted">Will update</span>
                             ) : (

@@ -2,7 +2,7 @@
 
 > **Product-intent baseline:** This document defines the business target, not implementation status. The product has advanced beyond its original 2026-08-16 scaffold; see [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md) §2 for the current, evidence-backed implementation table.
 
-**Version**: 1.2
+**Version**: 1.4
 **Last Updated**: August 19, 2026
 **Status**: Draft
 **Owner**: Mark Nelson
@@ -24,6 +24,16 @@ Sprout Streak is a native mobile (Flutter, iOS + Android) and web (React) app, b
 - Fixes every specific failure mode identified in ETM Machine (see §1.3): no forced logout, real student/parent balance visibility, accessibility built in from day one, no physical-card dependency, actively maintained.
 - Goes beyond ClassBank's classroom-only, web-only, free-tier-crippled model with a real native mobile experience, cross-context continuity between classroom and family use, and deeper financial-literacy content (not just a re-skinned points ledger).
 - Ships with COPPA/FERPA-appropriate data handling from the start rather than as an afterthought, since this app is squarely aimed at K-12 children's data.
+
+**Required deliverables and form factors**:
+
+| Deliverable | Required form factors |
+|---|---|
+| Public marketing, curriculum, legal/support, and authenticated web application | Responsive modern browsers from 320px phone widths through tablet, laptop, and wide desktop |
+| Apple mobile application | Native Flutter experience for iPhone and iPad |
+| Google mobile application | Native Flutter experience for Android phones and Android tablets |
+
+The four mobile form factors are product requirements, not incidental results of using Flutter. Phone and tablet layouts must be intentionally reviewed on both Apple and Google platforms before release.
 
 **Key Metrics Target**:
 | Metric | Current (Aug 2026) | 6-Month Target | 12-Month Target |
@@ -276,6 +286,18 @@ Firebase (Auth, Firestore, Functions, Hosting) scales with usage; no physical ha
 
 **BR-8.3.4 — Student-safe messaging**: Student-facing material must use direct, age-appropriate language; avoid public balance comparison, shame, or labeling a child by a financial choice; and clearly identify the classroom ledger as a simulation.
 
+**BR-8.3.5 — Public trust center**: The website must provide public Privacy, Terms, Cookies, and Support pages. Pre-launch drafts must distinguish implemented practices from intended safeguards and unresolved launch gates; they must not represent the product as legally certified or district-ready.
+
+**BR-8.3.6 — Persistent site frame**: On interactive webpages, the header and compact legal footer remain visible while the body is the only scrolling region. Print layouts may remove that fixed frame so lesson content prints in full.
+
+**BR-8.3.7 — Adult-facing social presence**: Social-media links are optional. If added, they must be plain outbound links directed to adult stakeholders, must not embed third-party feeds, pixels, or tracking widgets, and must not encourage students to share personal information or seek support through social media.
+
+**BR-8.3.8 — Universal visual system**: Marketing, authenticated web, iPhone, iPad, Android phone, and Android tablet surfaces must use one named semantic palette, typography hierarchy, spacing rhythm, corner-radius language, and interaction-state vocabulary. Brand colors may not be reintroduced as one-off component literals.
+
+**BR-8.3.9 — Universal content boundary**: Every web section must align to one 1280px maximum outer content boundary with responsive 20px phone, 32px tablet, and 48px desktop gutters. Intentionally narrower reading or form measures may exist inside that boundary, but may not establish a competing page edge.
+
+**BR-8.3.10 — Responsive acceptance**: Every new or materially changed view must be evaluated at phone, tablet, laptop, and desktop widths on web, and at phone and tablet dimensions on both Apple and Google mobile builds. Responsive behavior includes layout, density, touch targets, typography, overflow, fixed chrome, and assistive-technology scaling—not merely whether content technically fits.
+
 ### 8.4 Financial Learning Content Requirements
 
 **BR-8.4.1 — Developmental progression**: Pre-K–6 content must progress from planning, focus, and self-control to financial habits and norms, then toward financial knowledge and decision-making. National frameworks are design inputs; local/state alignment remains a curriculum-team responsibility.
@@ -326,6 +348,8 @@ Full teardown conducted 2026-08-16 as the origin of this project. Summary of fin
 | 1.0 | Aug 16, 2026 | Mark Nelson | Initial BRD, including ETM Machine source analysis and ClassBank competitive deep dive |
 | 1.1 | Aug 16, 2026 | Mark Nelson | Added BR-1.3.9–1.3.12 (bulk actions, mass deposit, secondary/multi-section teachers, scoped specialist role) from direct ETM Machine teacher field feedback |
 | 1.2 | Aug 19, 2026 | Mark Nelson | Added Pre-K–6 primary curriculum scope, optional secondary expansion, public stakeholder paths, readiness-claim gates, and financial-learning content requirements |
+| 1.3 | Aug 19, 2026 | Mark Nelson | Added public Privacy, Terms, Cookies, and Support requirements; persistent header/footer behavior; and child-safe social-link constraints |
+| 1.4 | Aug 19, 2026 | Mark Nelson | Standardized the cross-platform palette, universal 1280px web boundary and responsive gutters; made iPhone, iPad, Android phone, and Android tablet explicit deliverables; and added responsive acceptance requirements |
 
 ---
 

@@ -121,7 +121,7 @@ export function ArchiveStudentsPage({ user }: { user: User }) {
                   {selectedRows.length === 1 ? '' : 's'} will be archived.
                 </p>
 
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && <p className="text-sm text-danger">{error}</p>}
 
                 <Button
                   className="self-start"

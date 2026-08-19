@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/classroom_context.dart';
@@ -13,7 +15,8 @@ import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/features/student/student_import_preview.dart';
 import 'package:sprout/widgets/sprout_app_bar.dart';
 
-const _bulkChunkSize = 400; // matches ClassroomRepository's write-batch chunk size
+const _bulkChunkSize =
+    400; // matches ClassroomRepository's write-batch chunk size
 
 /// CSV roster import. Mirrors web's StudentImportPage: destination classroom
 /// chosen first (file picking is disabled until then), rows matched by
@@ -48,7 +51,9 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
   bool _done = false;
   String? _commitError;
 
-  List<ImportPreviewRow> get _validRows => (_rows ?? const []).where((r) => r.status != ImportRowStatus.error).toList();
+  List<ImportPreviewRow> get _validRows => (_rows ?? const [])
+      .where((r) => r.status != ImportRowStatus.error)
+      .toList();
 
   Future<void> _pickFile(List<Student> existingStudents) async {
     final result = await FilePicker.platform.pickFiles(
@@ -92,7 +97,10 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
       );
       setState(() => _done = true);
     } catch (e) {
-      setState(() => _commitError = 'Import failed partway through — check Students for current state.');
+      setState(
+        () => _commitError =
+            'Import failed partway through — check Students for current state.',
+      );
     } finally {
       if (mounted) setState(() => _committing = false);
     }
@@ -112,10 +120,14 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
         }
         final schoolId = schoolIds.first;
         return StreamBuilder<SchoolMember?>(
-          stream: widget.schoolRepository.myMembership(schoolId, widget.user.uid),
+          stream: widget.schoolRepository.myMembership(
+            schoolId,
+            widget.user.uid,
+          ),
           builder: (context, membershipSnapshot) {
             final membership = membershipSnapshot.data;
-            final isAtLeastAdmin = membership != null && membership.role != MemberRole.teacher;
+            final isAtLeastAdmin =
+                membership != null && membership.role != MemberRole.teacher;
             if (!isAtLeastAdmin) {
               return const Scaffold(
                 appBar: SproutAppBar(title: 'Import CSV'),
@@ -130,12 +142,16 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
             return StreamBuilder<List<ClassroomContext>>(
               stream: widget.classroomRepository.classroomsInSchool(schoolId),
               builder: (context, classroomsSnapshot) {
-                final classrooms = classroomsSnapshot.data ?? const <ClassroomContext>[];
+                final classrooms =
+                    classroomsSnapshot.data ?? const <ClassroomContext>[];
                 return StreamBuilder<List<Student>>(
                   stream: widget.classroomRepository.studentsInSchool(schoolId),
                   builder: (context, studentsSnapshot) {
-                    if (!studentsSnapshot.hasData || !classroomsSnapshot.hasData) {
-                      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                    if (!studentsSnapshot.hasData ||
+                        !classroomsSnapshot.hasData) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
                     }
                     final existingStudents = studentsSnapshot.data!;
 
@@ -158,8 +174,12 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
                       );
                     }
 
-                    final target = classrooms.where((c) => c.id == _targetContextId).firstOrNull;
-                    final hasBlankStudentId = _validRows.any((r) => r.studentId == null);
+                    final target = classrooms
+                        .where((c) => c.id == _targetContextId)
+                        .firstOrNull;
+                    final hasBlankStudentId = _validRows.any(
+                      (r) => r.studentId == null,
+                    );
 
                     return Scaffold(
                       appBar: const SproutAppBar(title: 'Import CSV'),
@@ -174,21 +194,34 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
                               hint: const Text('Choose a classroom…'),
                               value: _targetContextId,
                               items: classrooms
-                                  .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+                                  .map(
+                                    (c) => DropdownMenuItem(
+                                      value: c.id,
+                                      child: Text(c.name),
+                                    ),
+                                  )
                                   .toList(),
-                              onChanged: (v) => setState(() => _targetContextId = v),
+                              onChanged: (v) =>
+                                  setState(() => _targetContextId = v),
                             ),
                             const SizedBox(height: 16),
                             const Text('2. CSV file'),
                             ElevatedButton(
                               key: const Key('pickCsvFileButton'),
-                              onPressed: _targetContextId == null ? null : () => _pickFile(existingStudents),
+                              onPressed: _targetContextId == null
+                                  ? null
+                                  : () => _pickFile(existingStudents),
                               child: const Text('Choose file…'),
                             ),
                             if (_parseError != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8),
-                                child: Text(_parseError!, style: const TextStyle(color: Colors.red)),
+                                child: Text(
+                                  _parseError!,
+                                  style: const TextStyle(
+                                    color: SproutColors.danger,
+                                  ),
+                                ),
                               ),
                             if (_rows != null) ...[
                               const SizedBox(height: 16),
@@ -204,7 +237,9 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
                                   child: Text(
                                     'Some rows have no student ID — those will always create a new '
                                     'student, even if you import this same file again.',
-                                    style: TextStyle(fontStyle: FontStyle.italic),
+                                    style: TextStyle(
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                 ),
                               Expanded(
@@ -215,17 +250,27 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
                                     final statusText = switch (row.status) {
                                       ImportRowStatus.newStudent => 'New',
                                       ImportRowStatus.update => 'Will update',
-                                      ImportRowStatus.error => 'Error: ${row.error}',
+                                      ImportRowStatus.error =>
+                                        'Error: ${row.error}',
                                     };
                                     return ListTile(
                                       key: Key('importPreviewRow-$index'),
                                       dense: true,
-                                      title: Text('${row.firstName} ${row.lastName}'.trim()),
-                                      subtitle: Text('ID: ${row.rawStudentId}  Grade: ${row.gradeLevel ?? ''}'),
+                                      title: Text(
+                                        '${row.firstName} ${row.lastName}'
+                                            .trim(),
+                                      ),
+                                      subtitle: Text(
+                                        'ID: ${row.rawStudentId}  Grade: ${row.gradeLevel ?? ''}',
+                                      ),
                                       trailing: Text(
                                         statusText,
                                         style: TextStyle(
-                                          color: row.status == ImportRowStatus.error ? Colors.red : null,
+                                          color:
+                                              row.status ==
+                                                  ImportRowStatus.error
+                                              ? SproutColors.danger
+                                              : null,
                                         ),
                                       ),
                                     );
@@ -235,16 +280,28 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
                               if (_commitError != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: Text(_commitError!, style: const TextStyle(color: Colors.red)),
+                                  child: Text(
+                                    _commitError!,
+                                    style: const TextStyle(
+                                      color: SproutColors.danger,
+                                    ),
+                                  ),
                                 ),
                               Padding(
                                 padding: const EdgeInsets.only(top: 8),
                                 child: ElevatedButton(
                                   key: const Key('commitImportButton'),
-                                  onPressed: (target == null || _validRows.isEmpty || _committing)
+                                  onPressed:
+                                      (target == null ||
+                                          _validRows.isEmpty ||
+                                          _committing)
                                       ? null
                                       : () => _commit(target),
-                                  child: Text(_committing ? 'Importing…' : 'Import ${_validRows.length} students'),
+                                  child: Text(
+                                    _committing
+                                        ? 'Importing…'
+                                        : 'Import ${_validRows.length} students',
+                                  ),
                                 ),
                               ),
                             ],

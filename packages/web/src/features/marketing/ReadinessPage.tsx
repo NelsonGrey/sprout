@@ -85,19 +85,19 @@ export function ReadinessPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-[#dfe9dd] px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
+      <section className="relative overflow-hidden border-b border-border py-20 lg:py-24">
         <div
           className="marketing-grid absolute inset-0 opacity-45"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-[1200px]">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#e7c39c] bg-[#fff5df] px-3 py-1.5 text-xs font-black uppercase tracking-[0.13em] text-[#8c5b1e]">
+        <div className="relative mx-auto site-container">
+          <div className="inline-flex items-center gap-2 rounded-full border border-warning-soft bg-warning-soft px-3 py-1.5 text-xs font-black uppercase tracking-[0.13em] text-warning">
             <AlertTriangle size={14} /> Pre-launch transparency
           </div>
           <h1 className="mt-6 max-w-4xl text-5xl font-black leading-[1.02] tracking-[-0.052em] sm:text-6xl lg:text-7xl">
             Trust starts with saying what is not ready.
           </h1>
-          <p className="mt-7 max-w-3xl text-lg leading-8 text-[#526f66] sm:text-xl">
+          <p className="mt-7 max-w-3xl text-lg leading-8 text-muted sm:text-xl">
             Sprout Streak has a working product foundation and an original
             learning library. It has not completed the privacy, accessibility,
             operational, or district-control work required for institutional
@@ -106,23 +106,23 @@ export function ReadinessPage() {
         </div>
       </section>
 
-      <section className="bg-white px-5 py-16 sm:px-8 lg:px-12 lg:py-20">
-        <div className="mx-auto max-w-[1200px]">
+      <section className="bg-surface py-16 lg:py-20">
+        <div className="mx-auto site-container">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#16805b]">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-brand-bright">
                 Capability map
               </p>
               <h2 className="mt-3 text-4xl font-black tracking-[-0.045em]">
                 Working, planned, and gated.
               </h2>
             </div>
-            <p className="max-w-md text-sm leading-6 text-[#627a72]">
+            <p className="max-w-md text-sm leading-6 text-muted">
               Status reflects the repository implementation and planning
               documents as of August 2026.
             </p>
           </div>
-          <div className="mt-10 overflow-hidden rounded-[26px] border border-[#dce7dc]">
+          <div className="mt-10 overflow-hidden rounded-[26px] border border-border">
             {readiness.map((item, index) => {
               const Icon =
                 item.tone === 'ready'
@@ -132,24 +132,24 @@ export function ReadinessPage() {
                     : CircleDotDashed;
               const tone =
                 item.tone === 'ready'
-                  ? 'bg-[#e4f3e8] text-[#166b4f]'
+                  ? 'bg-mint text-brand'
                   : item.tone === 'blocked'
-                    ? 'bg-[#fff0e8] text-[#b65033]'
-                    : 'bg-[#eef1ef] text-[#5b7069]';
+                    ? 'bg-accent-soft text-danger'
+                    : 'bg-surface-subtle text-muted';
               return (
                 <div
                   key={item.area}
-                  className={`grid gap-4 bg-white p-5 sm:grid-cols-[1fr_190px_1.5fr] sm:items-start sm:p-6 ${index ? 'border-t border-[#e2ebe2]' : ''}`}
+                  className={`grid gap-4 bg-surface p-5 sm:grid-cols-[1fr_190px_1.5fr] sm:items-start sm:p-6 ${index ? 'border-t border-border' : ''}`}
                 >
                   <div className="flex items-center gap-3 font-black">
                     <Icon
                       size={18}
                       className={
                         item.tone === 'ready'
-                          ? 'text-[#16805b]'
+                          ? 'text-brand-bright'
                           : item.tone === 'blocked'
-                            ? 'text-[#d45f3d]'
-                            : 'text-[#6a7e77]'
+                            ? 'text-danger'
+                            : 'text-muted'
                       }
                     />
                     {item.area}
@@ -161,7 +161,7 @@ export function ReadinessPage() {
                       {item.status}
                     </span>
                   </div>
-                  <p className="text-sm leading-6 text-[#5c746c]">
+                  <p className="text-sm leading-6 text-muted">
                     {item.detail}
                   </p>
                 </div>
@@ -171,14 +171,14 @@ export function ReadinessPage() {
         </div>
       </section>
 
-      <section className="px-5 py-16 sm:px-8 lg:px-12 lg:py-20">
-        <div className="mx-auto grid max-w-[1200px] gap-12 lg:grid-cols-[.68fr_1.32fr]">
+      <section className="py-16 lg:py-20">
+        <div className="mx-auto grid site-container gap-12 lg:grid-cols-[.68fr_1.32fr]">
           <div>
-            <ShieldCheck size={30} className="text-[#16805b]" />
+            <ShieldCheck size={30} className="text-brand-bright" />
             <h2 className="mt-5 text-4xl font-black tracking-[-0.045em]">
               District launch gates
             </h2>
-            <p className="mt-4 leading-7 text-[#5b746c]">
+            <p className="mt-4 leading-7 text-muted">
               These are product obligations, not paperwork decorations. A pilot
               involving student data should not begin until its applicable gates
               are satisfied and documented.
@@ -188,12 +188,12 @@ export function ReadinessPage() {
             {gates.map((gate, index) => (
               <li
                 key={gate}
-                className="grid gap-4 rounded-2xl border border-[#dce7dc] bg-white p-5 sm:grid-cols-[42px_1fr] sm:items-start"
+                className="grid gap-4 rounded-2xl border border-border bg-surface p-5 sm:grid-cols-[42px_1fr] sm:items-start"
               >
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e3f3e7] text-sm font-black text-[#166b4f]">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint text-sm font-black text-brand">
                   {index + 1}
                 </span>
-                <p className="pt-1 text-sm font-semibold leading-7 text-[#4f6b62]">
+                <p className="pt-1 text-sm font-semibold leading-7 text-muted">
                   {gate}
                 </p>
               </li>
@@ -202,23 +202,23 @@ export function ReadinessPage() {
         </div>
       </section>
 
-      <section className="bg-[#102a26] px-5 py-16 text-white sm:px-8 lg:px-12">
-        <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+      <section className="bg-ink py-16 text-on-dark">
+        <div className="mx-auto grid site-container gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8ed2a6]">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-mint-strong">
               Review what can be reviewed now
             </p>
             <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">
               Start with the learning approach, not a sales promise.
             </h2>
-            <p className="mt-3 max-w-3xl leading-7 text-white/65">
+            <p className="mt-3 max-w-3xl leading-7 text-on-dark/65">
               Educators and curriculum teams can inspect, print, and critique
               the starter lessons while readiness work continues.
             </p>
           </div>
           <Link
             href="/curriculum"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-black text-[#102a26]"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-surface px-6 py-3.5 text-sm font-black text-ink"
           >
             Explore lessons <ArrowRight size={16} />
           </Link>

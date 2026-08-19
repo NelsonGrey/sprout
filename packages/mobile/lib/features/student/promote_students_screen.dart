@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'package:sprout/design_system/sprout_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/classroom_context.dart';
@@ -33,7 +35,8 @@ class PromoteStudentsScreen extends StatefulWidget {
 }
 
 class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
-  final Map<String, String> _mapping = {}; // sourceContextId -> destinationContextId
+  final Map<String, String> _mapping =
+      {}; // sourceContextId -> destinationContextId
   bool _promoting = false;
   bool _done = false;
   String? _error;
@@ -42,7 +45,9 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
     List<({ClassroomContext classroom, List<Student> students})> rows,
     List<ClassroomContext> classrooms,
   ) async {
-    final mappedRows = rows.where((r) => _mapping[r.classroom.id] != null).toList();
+    final mappedRows = rows
+        .where((r) => _mapping[r.classroom.id] != null)
+        .toList();
     if (mappedRows.isEmpty || _promoting) return;
     setState(() {
       _promoting = true;
@@ -50,7 +55,9 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
     });
     try {
       for (final row in mappedRows) {
-        final target = classrooms.firstWhere((c) => c.id == _mapping[row.classroom.id]);
+        final target = classrooms.firstWhere(
+          (c) => c.id == _mapping[row.classroom.id],
+        );
         await widget.classroomRepository.bulkMoveStudents(
           row.students.map((s) => s.id).toList(),
           contextId: target.id,
@@ -66,7 +73,8 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Promotion failed partway through — check Students for current state.';
+        _error =
+            'Promotion failed partway through — check Students for current state.';
       });
     } finally {
       if (mounted) setState(() => _promoting = false);
@@ -87,10 +95,14 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
         }
         final schoolId = schoolIds.first;
         return StreamBuilder<SchoolMember?>(
-          stream: widget.schoolRepository.myMembership(schoolId, widget.user.uid),
+          stream: widget.schoolRepository.myMembership(
+            schoolId,
+            widget.user.uid,
+          ),
           builder: (context, membershipSnapshot) {
             final membership = membershipSnapshot.data;
-            final isAtLeastAdmin = membership != null && membership.role != MemberRole.teacher;
+            final isAtLeastAdmin =
+                membership != null && membership.role != MemberRole.teacher;
             if (!isAtLeastAdmin) {
               return const Scaffold(
                 appBar: SproutAppBar(title: 'Promote Students'),
@@ -105,12 +117,16 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
             return StreamBuilder<List<ClassroomContext>>(
               stream: widget.classroomRepository.classroomsInSchool(schoolId),
               builder: (context, classroomsSnapshot) {
-                final classrooms = classroomsSnapshot.data ?? const <ClassroomContext>[];
+                final classrooms =
+                    classroomsSnapshot.data ?? const <ClassroomContext>[];
                 return StreamBuilder<List<Student>>(
                   stream: widget.classroomRepository.studentsInSchool(schoolId),
                   builder: (context, studentsSnapshot) {
-                    if (!studentsSnapshot.hasData || !classroomsSnapshot.hasData) {
-                      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                    if (!studentsSnapshot.hasData ||
+                        !classroomsSnapshot.hasData) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
                     }
                     final students = studentsSnapshot.data!;
                     final rows =
@@ -118,12 +134,17 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
                             .map(
                               (c) => (
                                 classroom: c,
-                                students: students.where((s) => s.contextId == c.id).toList(),
+                                students: students
+                                    .where((s) => s.contextId == c.id)
+                                    .toList(),
                               ),
                             )
                             .where((r) => r.students.isNotEmpty)
                             .toList()
-                          ..sort((a, b) => a.classroom.name.compareTo(b.classroom.name));
+                          ..sort(
+                            (a, b) =>
+                                a.classroom.name.compareTo(b.classroom.name),
+                          );
 
                     if (_done) {
                       return Scaffold(
@@ -144,7 +165,9 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
                       );
                     }
 
-                    final canPromote = rows.any((r) => _mapping[r.classroom.id] != null);
+                    final canPromote = rows.any(
+                      (r) => _mapping[r.classroom.id] != null,
+                    );
 
                     return Scaffold(
                       appBar: const SproutAppBar(title: 'Promote Students'),
@@ -152,20 +175,38 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
                         children: [
                           Expanded(
                             child: rows.isEmpty
-                                ? const Center(child: Text('No occupied classrooms.'))
+                                ? const Center(
+                                    child: Text('No occupied classrooms.'),
+                                  )
                                 : ListView.builder(
                                     itemCount: rows.length,
                                     itemBuilder: (context, index) {
                                       final row = rows[index];
-                                      final destinations = classrooms.where((c) => c.id != row.classroom.id).toList()
-                                        ..sort((a, b) => a.name.compareTo(b.name));
+                                      final destinations =
+                                          classrooms
+                                              .where(
+                                                (c) => c.id != row.classroom.id,
+                                              )
+                                              .toList()
+                                            ..sort(
+                                              (a, b) =>
+                                                  a.name.compareTo(b.name),
+                                            );
                                       return ListTile(
-                                        key: Key('promoteRow-${row.classroom.id}'),
+                                        key: Key(
+                                          'promoteRow-${row.classroom.id}',
+                                        ),
                                         title: Text(row.classroom.name),
-                                        subtitle: Text('${row.students.length} student(s)'),
+                                        subtitle: Text(
+                                          '${row.students.length} student(s)',
+                                        ),
                                         trailing: DropdownButton<String?>(
-                                          key: Key('promoteTargetDropdown-${row.classroom.id}'),
-                                          hint: const Text('— Leave in place —'),
+                                          key: Key(
+                                            'promoteTargetDropdown-${row.classroom.id}',
+                                          ),
+                                          hint: const Text(
+                                            '— Leave in place —',
+                                          ),
                                           value: _mapping[row.classroom.id],
                                           items: [
                                             const DropdownMenuItem<String?>(
@@ -173,7 +214,10 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
                                               child: Text('— Leave in place —'),
                                             ),
                                             ...destinations.map(
-                                              (c) => DropdownMenuItem<String?>(value: c.id, child: Text(c.name)),
+                                              (c) => DropdownMenuItem<String?>(
+                                                value: c.id,
+                                                child: Text(c.name),
+                                              ),
                                             ),
                                           ],
                                           onChanged: (v) => setState(() {
@@ -191,14 +235,23 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
                           if (_error != null)
                             Padding(
                               padding: const EdgeInsets.all(12),
-                              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                              child: Text(
+                                _error!,
+                                style: const TextStyle(
+                                  color: SproutColors.danger,
+                                ),
+                              ),
                             ),
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: ElevatedButton(
                               key: const Key('promoteAllButton'),
-                              onPressed: (!canPromote || _promoting) ? null : () => _promote(rows, classrooms),
-                              child: Text(_promoting ? 'Promoting…' : 'Promote All'),
+                              onPressed: (!canPromote || _promoting)
+                                  ? null
+                                  : () => _promote(rows, classrooms),
+                              child: Text(
+                                _promoting ? 'Promoting…' : 'Promote All',
+                              ),
                             ),
                           ),
                         ],
