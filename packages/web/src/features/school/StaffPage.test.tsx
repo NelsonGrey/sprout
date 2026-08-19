@@ -5,9 +5,10 @@ import { StaffPage } from './StaffPage';
 import * as schoolLib from '../../lib/school';
 
 const navigateMock = vi.fn();
-vi.mock('wouter', () => ({
-  useLocation: () => ['/app/school/staff', navigateMock],
-}));
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/app/school/staff', navigateMock] };
+});
 
 vi.mock('../../lib/school', () => ({
   getSchool: vi.fn(),

@@ -22,9 +22,10 @@ vi.mock('../../lib/school', () => ({
 }));
 
 const navigateMock = vi.fn();
-vi.mock('wouter', () => ({
-  useLocation: () => ['/app/students', navigateMock],
-}));
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/app/students', navigateMock] };
+});
 
 const user = { uid: 'admin-1', displayName: 'Office Manager', email: 'admin@example.com' } as User;
 

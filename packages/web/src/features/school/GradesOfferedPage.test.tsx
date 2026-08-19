@@ -4,9 +4,10 @@ import type { User } from 'firebase/auth';
 import { GradesOfferedPage } from './GradesOfferedPage';
 import * as schoolLib from '../../lib/school';
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/app/school/grades', vi.fn()],
-}));
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/app/school/grades', vi.fn()] };
+});
 
 vi.mock('../../lib/school', () => ({
   getSchool: vi.fn(),

@@ -148,7 +148,11 @@ export function StudentsPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Students" backTo="/app/school" />
+        <PageHeader
+          title="Students"
+          backTo="/app/school"
+          breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }]}
+        />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage the full student roster.</p>
       </div>
     );
@@ -159,6 +163,7 @@ export function StudentsPage({ user }: { user: User }) {
       <PageHeader
         title="Students"
         backTo="/app/school"
+        breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }]}
         actions={
           <>
             <Button variant="secondary" onClick={() => navigate('/app/students/promote')}>

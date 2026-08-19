@@ -18,9 +18,10 @@ vi.mock('../../lib/school', () => ({
 }));
 
 const navigateMock = vi.fn();
-vi.mock('wouter', () => ({
-  useLocation: () => ['/app/students/promote', navigateMock],
-}));
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/app/students/promote', navigateMock] };
+});
 
 const user = { uid: 'admin-1', displayName: 'Office Manager', email: 'admin@example.com' } as User;
 
@@ -131,7 +132,7 @@ describe('PromoteStudentsPage', () => {
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ctx-4' } });
     fireEvent.click(screen.getByText('Promote All'));
-    fireEvent.click(screen.getByText('Promote'));
+    fireEvent.click(screen.getByRole('button', { name: 'Promote' }));
 
     await waitFor(() =>
       expect(firestoreLib.bulkMoveStudents).toHaveBeenCalledWith(['student-1'], {
@@ -159,7 +160,7 @@ describe('PromoteStudentsPage', () => {
     fireEvent.change(selects[0], { target: { value: 'ctx-5' } });
     fireEvent.change(selects[1], { target: { value: 'ctx-5' } });
     fireEvent.click(screen.getByText('Promote All'));
-    fireEvent.click(screen.getByText('Promote'));
+    fireEvent.click(screen.getByRole('button', { name: 'Promote' }));
 
     await waitFor(() => expect(firestoreLib.bulkMoveStudents).toHaveBeenCalledTimes(2));
     expect(firestoreLib.bulkMoveStudents).toHaveBeenCalledWith(['student-1'], expect.objectContaining({ contextId: 'ctx-5' }));
@@ -180,7 +181,7 @@ describe('PromoteStudentsPage', () => {
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ctx-4' } });
     fireEvent.click(screen.getByText('Promote All'));
-    fireEvent.click(screen.getByText('Promote'));
+    fireEvent.click(screen.getByRole('button', { name: 'Promote' }));
 
     await waitFor(() => screen.getByText('Back to Students'));
     fireEvent.click(screen.getByText('Back to Students'));

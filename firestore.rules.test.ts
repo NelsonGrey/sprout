@@ -1424,6 +1424,46 @@ describe('firestore.rules — accessRequests', () => {
       getDocs(query(collection(outsider, 'accessRequests'), where('contextId', '==', CONTEXT_ID))),
     );
   });
+
+  it("resolves usePendingAccessRequestsForSchool's schoolId-filtered LIST query for admins; denies an outsider", async () => {
+    // Regression test: this rule had no schoolId branch at all, so
+    // AccessRequestsPage's (and now the dashboard/School-hub badge's)
+    // schoolId + status query was silently denied for every admin — the
+    // pending count just stayed 0 with a console-only permission error,
+    // never a visible failure. Fixed the same way as the contextId branch
+    // above: isAtLeastAdmin(schoolId) resolved via a get()/exists() on the
+    // caller's own member doc, keyed by the query-constrained schoolId.
+    await seedSchoolOwnerAndTarget();
+    await setDoc(doc(testEnv.authenticatedContext(OWNER_TEACHER_UID).firestore(), 'accessRequests/req-14'), pendingRequestData());
+
+    const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN_UID).firestore();
+    const delegate = testEnv.authenticatedContext(DELEGATE_UID).firestore();
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+
+    for (const db of [superAdmin, delegate]) {
+      const snapshot = await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'accessRequests'),
+            where('schoolId', '==', SCHOOL_ID),
+            where('status', '==', 'pending'),
+          ),
+        ),
+      );
+      if (snapshot.empty) {
+        throw new Error('expected the accessRequests query to return the seeded request, got zero docs');
+      }
+    }
+    await assertFails(
+      getDocs(
+        query(
+          collection(outsider, 'accessRequests'),
+          where('schoolId', '==', SCHOOL_ID),
+          where('status', '==', 'pending'),
+        ),
+      ),
+    );
+  });
 });
 
 describe('firestore.rules — student self-access (BR-1.3.3/1.4.1)', () => {

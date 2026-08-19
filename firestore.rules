@@ -564,22 +564,30 @@ service cloud.firestore {
     // is a separate app-layer write to the target's classroomGrants,
     // already permitted by the existing members update rule above.
     match /accessRequests/{requestId} {
-      // isReadableClassroom(contextId): the only LIST query here
-      // (useAccessRequestsForContext/accessRequestsForContext, both
-      // platforms) filters by contextId == — schoolId isn't constrained by
-      // that query, so checking isAtLeastAdmin(schoolId) directly (as this
-      // used to) denies the whole query for every admin, same bug class as
-      // the students read rule above. contextId is a scalar (not an
-      // array), so — unlike students' contextId — no array-indexing
-      // limitation applies; it's used directly to build isReadableClassroom's
-      // get() path. requestedByUid/targetUid stay as-is: safe no-ops for
-      // this specific list query (unconstrained field, but .get()-guarded
-      // so it degrades to a clean false rather than denying the query),
-      // and still correct for any future single-document get of one's own
-      // request.
+      // Two LIST query shapes read this collection, each constraining a
+      // different field, so each gets its own branch built from a get()/
+      // exists() on a FOREIGN document keyed by that one scalar — never by
+      // reading a second, unconstrained field off THIS scanned resource
+      // (same bug class as the students read rule above):
+      //  - useAccessRequestsForContext filters by contextId == : resolved
+      //    via isReadableClassroom(contextId)'s get() on the classroom doc.
+      //  - usePendingAccessRequestsForSchool (AccessRequestsPage's admin
+      //    list, also surfaced as a dashboard/School-hub pending-request
+      //    count) filters by schoolId == + status == : resolved via
+      //    isAtLeastAdmin(schoolId)'s exists() on the caller's own member
+      //    doc. Missing this branch was a real bug — it silently zeroed
+      //    every admin's pending-request count instead of erroring
+      //    visibly, until the dashboard's live badge made the denied
+      //    listener impossible to miss.
+      // requestedByUid/targetUid stay as-is: safe no-ops for both list
+      // queries (unconstrained field, but .get()-guarded so it degrades to
+      // a clean false rather than denying the query), and still correct
+      // for any future single-document get of one's own request.
       allow read: if isAuthenticated() && (
         (resource.data.get('contextId', null) != null
           && isReadableClassroom(resource.data.get('contextId', null)))
+          || (resource.data.get('schoolId', null) != null
+            && isAtLeastAdmin(resource.data.get('schoolId', null)))
           || resource.data.get('requestedByUid', null) == request.auth.uid
           || resource.data.get('targetUid', null) == request.auth.uid
       );

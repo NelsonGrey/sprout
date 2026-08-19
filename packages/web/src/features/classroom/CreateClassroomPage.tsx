@@ -8,7 +8,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 
-/** A dedicated page for creating a classroom — reached from ClassroomsPage's
+/** A dedicated page for creating a classroom — reached from DashboardPage's
  * "Add Classroom" button rather than an inline form, matching the
  * standalone-page convention used elsewhere (CSV import/promote/archive/
  * add student/request access). */

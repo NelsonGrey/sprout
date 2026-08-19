@@ -79,7 +79,7 @@ describe('ClassroomDetailPage', () => {
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
-    expect(screen.getByText('4th Grade')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '4th Grade' })).toBeTruthy();
     expect(screen.getByText('No students yet — create one below.')).toBeTruthy();
   });
 

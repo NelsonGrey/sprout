@@ -62,7 +62,11 @@ export function ArchiveStudentsPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Archive Students" backTo="/app/students" />
+        <PageHeader
+          title="Archive Students"
+          backTo="/app/students"
+          breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }, { label: 'Archive', href: '/app/students/archive' }]}
+        />
         <p className="px-6 py-4 text-ink-muted">Only school admins can archive students.</p>
       </div>
     );
@@ -70,7 +74,11 @@ export function ArchiveStudentsPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Archive Students" backTo="/app/students" />
+      <PageHeader
+        title="Archive Students"
+        backTo="/app/students"
+        breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }, { label: 'Archive', href: '/app/students/archive' }]}
+      />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {done ? (

@@ -17,6 +17,7 @@ vi.mock('../../lib/firestore', () => ({
 vi.mock('../../lib/school', () => ({
   useSchoolIdsForUser: vi.fn(),
   useMyMembership: vi.fn(),
+  usePendingAccessRequestsForSchool: vi.fn(),
   getSchool: vi.fn(),
 }));
 
@@ -61,16 +62,17 @@ describe('LandingRouter', () => {
     expect(screen.getByText('$5.00')).toBeTruthy();
   });
 
-  it('shows the staff classrooms view for an unlinked user', () => {
+  it('shows the staff dashboard for an unlinked user', () => {
     vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue(null);
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
     vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
     vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<LandingRouter user={user} />);
 
-    expect(screen.getByText('My Classrooms')).toBeTruthy();
+    expect(screen.getByText('Welcome back, Alex')).toBeTruthy();
   });
 
   it('defaults to the staff view for a dual-role user (linked student who also has staff access)', () => {
@@ -79,10 +81,11 @@ describe('LandingRouter', () => {
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
     vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
     vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
 
     render(<LandingRouter user={user} />);
 
-    expect(screen.getByText('My Classrooms')).toBeTruthy();
+    expect(screen.getByText('Welcome back, Alex')).toBeTruthy();
   });
 
   it('renders nothing while the linked-student lookup is still loading', () => {

@@ -1,4 +1,5 @@
 import type { Student } from '@sprout/shared';
+import { Sprout } from 'lucide-react';
 import { useGoals, useTransactions } from '../../lib/firestore';
 import { PageHeader } from '../../components/ui/page-header';
 import { GoalProgressCard } from '../../components/ui/goal-progress-card';
@@ -10,7 +11,7 @@ import { SpendCategoryBadge } from '../../components/ui/spend-category-badge';
  * history — no earn/spend controls, no goal create/delete, no navigation
  * elsewhere. This is the entire student-facing experience (BR-1.3.3/1.4.1):
  * sign in with the same real account a teacher would use, land here
- * automatically instead of "My Classrooms" (see the landing decision in
+ * automatically instead of the staff dashboard (see the landing decision in
  * App.tsx). Goals are set up by staff via StudentDetailPane — a student can
  * see their own trail here but not create or remove one.
  */
@@ -21,7 +22,18 @@ export function MyBalancePage({ student }: { student: Student }) {
   return (
     <div className="flex min-h-full flex-col">
       <PageHeader title={student.contextName ?? 'My Balance'} />
-      <p className="px-6 pt-4 text-3xl font-bold text-ink">${(student.balanceCents / 100).toFixed(2)}</p>
+
+      <div className="px-6 pt-5">
+        <div className="flex items-center gap-4 rounded-[26px] bg-ink p-6 text-on-dark shadow-panel">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand">
+            <Sprout size={22} />
+          </span>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-on-dark/60">Your balance</p>
+            <p className="mt-1 text-4xl font-black tracking-tight">${(student.balanceCents / 100).toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
 
       {goals.length > 0 && (
         <div className="flex flex-col gap-2 px-6 pt-4">
@@ -39,7 +51,7 @@ export function MyBalancePage({ student }: { student: Student }) {
             {transactions.map((transaction) => (
               <li
                 key={transaction.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 text-ink"
+                className="flex items-center justify-between rounded-xl border border-border-strong bg-surface px-4 py-3 text-ink shadow-card"
               >
                 <span className="flex items-center gap-2">
                   {transaction.reason}

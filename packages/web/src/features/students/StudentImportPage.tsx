@@ -119,7 +119,11 @@ export function StudentImportPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Import students" backTo="/app/students" />
+      <PageHeader
+        title="Import students"
+        backTo="/app/students"
+        breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }, { label: 'Import', href: '/app/students/import' }]}
+      />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {done ? (

@@ -1,27 +1,45 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
+import { Menu } from 'lucide-react';
 import { firebaseClient } from '../../lib/firebase';
 
-/** Persistent site chrome — logo/home link, account menu, sign-out.
- * Deliberately minimal nav this pass (no role-aware links like "School")
- * to avoid duplicating LandingRouter's staff/student detection logic here
- * too; existing contextual links (e.g. ClassroomsPage's "School" button)
- * stay where they are. */
-export function Header({ user }: { user: User | null }) {
+/** Persistent top bar — account menu, sign-out, and (mobile only) the
+ * hamburger that opens Sidebar's drawer plus the logo, since Sidebar
+ * carries the brand mark on desktop instead. Signed-out (login page)
+ * shows just the logo, unchanged from before Sidebar existed. */
+export function Header({
+  user,
+  onOpenMobileNav,
+}: {
+  user: User | null;
+  onOpenMobileNav?: () => void;
+}) {
   const [, navigate] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="z-20 shrink-0 border-b border-border bg-header-bg">
-      <div className="site-container flex items-center justify-between py-3">
-        <button
-          type="button"
-          onClick={() => navigate(user ? '/app' : '/')}
-          className="text-lg font-extrabold tracking-tight text-ink"
-        >
-          Sprout <span className="text-brand">Streak</span>
-        </button>
+      <div className="flex items-center justify-between px-4 py-3 lg:px-6">
+        <div className="flex items-center gap-2">
+          {user && (
+            <button
+              type="button"
+              onClick={onOpenMobileNav}
+              aria-label="Open navigation"
+              className="grid h-9 w-9 place-items-center rounded-lg border border-border text-ink-soft lg:hidden"
+            >
+              <Menu size={18} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate(user ? '/app' : '/')}
+            className={`text-lg font-extrabold tracking-tight text-ink ${user ? 'lg:hidden' : ''}`}
+          >
+            Sprout <span className="text-brand">Streak</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-3">
           {user && (

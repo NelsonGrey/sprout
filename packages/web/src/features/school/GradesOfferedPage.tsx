@@ -40,7 +40,11 @@ export function GradesOfferedPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Grades Offered" backTo="/app/school" />
+        <PageHeader
+          title="Grades Offered"
+          backTo="/app/school"
+          breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Grades Offered', href: '/app/school/grades' }]}
+        />
         <p className="px-6 py-4 text-ink-muted">Only school admins can view grades offered.</p>
       </div>
     );
@@ -48,7 +52,11 @@ export function GradesOfferedPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Grades Offered" backTo="/app/school" />
+      <PageHeader
+        title="Grades Offered"
+        backTo="/app/school"
+        breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Grades Offered', href: '/app/school/grades' }]}
+      />
       <div className="max-w-md px-6 py-4">
         <section className="rounded-lg border border-border p-4">
           {editingGrades ? (

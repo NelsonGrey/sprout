@@ -127,6 +127,7 @@ export function ClassroomDetailPage({
         <PageHeader
           title={classroom?.name ?? 'Classroom'}
           backTo="/app"
+          breadcrumbs={[{ label: 'Home', href: '/app' }, { label: classroom?.name ?? 'Classroom', href: `/app/classrooms/${contextId}` }]}
           actions={
             canManage && (
               <>
@@ -151,7 +152,7 @@ export function ClassroomDetailPage({
               {students.map((student) => (
                 <li
                   key={student.id}
-                  className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 hover:bg-bg"
+                  className="flex items-center gap-3 rounded-xl border border-border-strong bg-surface px-3 py-2.5 shadow-card hover:border-brand"
                 >
                   {canManage && (
                     <input
@@ -164,10 +165,15 @@ export function ClassroomDetailPage({
                   <button
                     type="button"
                     onClick={() => selectStudent(student.id)}
-                    className="flex flex-1 items-center justify-between text-left"
+                    className="flex flex-1 items-center gap-3 text-left"
                   >
-                    <span>{student.displayName}</span>
-                    <span>${(student.balanceCents / 100).toFixed(2)}</span>
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-xs font-bold text-on-dark">
+                      {student.displayName.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="flex-1 font-semibold">{student.displayName}</span>
+                    <span className="rounded-full bg-mint px-2.5 py-1 text-xs font-bold text-brand">
+                      ${(student.balanceCents / 100).toFixed(2)}
+                    </span>
                   </button>
                 </li>
               ))}

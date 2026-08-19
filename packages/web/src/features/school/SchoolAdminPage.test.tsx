@@ -5,14 +5,16 @@ import { SchoolAdminPage } from './SchoolAdminPage';
 import * as schoolLib from '../../lib/school';
 
 const navigateMock = vi.fn();
-vi.mock('wouter', () => ({
-  useLocation: () => ['/app/school', navigateMock],
-}));
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/app/school', navigateMock] };
+});
 
 vi.mock('../../lib/school', () => ({
   getSchool: vi.fn(),
   updateSchool: vi.fn(),
   useMyMembership: vi.fn(),
+  usePendingAccessRequestsForSchool: vi.fn(),
 }));
 
 const superAdmin = { uid: 'super-admin-1', displayName: 'Principal Lee', email: 'lee@example.com' } as User;
@@ -36,6 +38,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={teacher} schoolId="school-1" />);
 
     expect(screen.getByText(/Teacher — Grades: 3, 4/)).toBeTruthy();
@@ -53,6 +56,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
 
     for (const label of ['Staff', 'Access Requests', 'Grades Offered']) {
@@ -61,6 +65,38 @@ describe('SchoolAdminPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/app/school/staff');
     expect(navigateMock).toHaveBeenCalledWith('/app/school/requests');
     expect(navigateMock).toHaveBeenCalledWith('/app/school/grades');
+  });
+
+  it('shows a pending-request count badge on the Access Requests card', () => {
+    vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'delegate-1',
+      role: 'admin',
+      displayName: 'Office Manager',
+      email: 'om@example.com',
+      addedByUid: 'super-admin-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([
+      {
+        id: 'req-1',
+        schoolId: 'school-1',
+        contextId: 'ctx-1',
+        contextName: '4th Grade',
+        requestedByUid: 'other-teacher',
+        requestedByDisplayName: 'Coach',
+        targetUid: 'teacher-2',
+        targetDisplayName: 'Ms. Lord',
+        level: 'award',
+        status: 'pending',
+        createdAt: new Date(),
+      },
+    ]);
+
+    render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
+
+    expect(screen.getByText('1')).toBeTruthy();
+    expect(schoolLib.usePendingAccessRequestsForSchool).toHaveBeenCalledWith('school-1');
   });
 
   it('has a back button to the classroom list', async () => {
@@ -74,6 +110,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={teacher} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
@@ -93,6 +130,7 @@ describe('SchoolAdminPage', () => {
     });
     vi.mocked(schoolLib.updateSchool).mockResolvedValue(undefined);
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={superAdmin} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByLabelText('Rename school')).toBeTruthy());
 
@@ -114,6 +152,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
@@ -131,6 +170,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
@@ -149,6 +189,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
@@ -167,6 +208,7 @@ describe('SchoolAdminPage', () => {
       createdAt: new Date(),
     });
 
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 

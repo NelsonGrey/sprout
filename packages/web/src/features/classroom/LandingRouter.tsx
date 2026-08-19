@@ -2,15 +2,15 @@ import type { User } from 'firebase/auth';
 import { useLinkedStudent } from '../../lib/firestore';
 import { useSchoolIdsForUser } from '../../lib/school';
 import { useClassrooms } from '../../lib/firestore';
-import { ClassroomsPage } from './ClassroomsPage';
+import { DashboardPage } from '../dashboard/DashboardPage';
 import { MyBalancePage } from '../student/MyBalancePage';
 
 /** Routed at `/app`. Decides between the student-facing balance view and the
- * staff "My Classrooms" landing:
+ * staff dashboard:
  *   - linked student, no staff access at all -> MyBalancePage (the common
  *     case for an actual student — see BR-1.3.3/1.4.1).
  *   - everyone else (unlinked, OR linked but also staff, OR a brand-new
- *     self-serve teacher who's never linked to anything) -> ClassroomsPage,
+ *     self-serve teacher who's never linked to anything) -> DashboardPage,
  *     unchanged from before this feature existed. A dual-role user
  *     deliberately defaults to the staff experience, the rarer and more
  *     privileged path. */
@@ -25,5 +25,5 @@ export function LandingRouter({ user }: { user: User }) {
   if (linkedStudent && !hasAnyStaffAccess) {
     return <MyBalancePage student={linkedStudent} />;
   }
-  return <ClassroomsPage user={user} />;
+  return <DashboardPage user={user} />;
 }

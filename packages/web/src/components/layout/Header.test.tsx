@@ -55,4 +55,18 @@ describe('Header', () => {
     fireEvent.click(screen.getByText('Streak'));
     expect(navigateMock).toHaveBeenCalledWith('/');
   });
+
+  it('calls onOpenMobileNav when the hamburger button is clicked', () => {
+    const onOpenMobileNav = vi.fn();
+    render(<Header user={user} onOpenMobileNav={onOpenMobileNav} />);
+
+    fireEvent.click(screen.getByLabelText('Open navigation'));
+    expect(onOpenMobileNav).toHaveBeenCalled();
+  });
+
+  it('has no hamburger button when signed out', () => {
+    render(<Header user={null} />);
+
+    expect(screen.queryByLabelText('Open navigation')).toBeNull();
+  });
 });
