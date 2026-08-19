@@ -21,7 +21,7 @@ export function AccessRequestsPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Access Requests" backTo="/school" />
+        <PageHeader title="Access Requests" backTo="/app/school" />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage access requests.</p>
       </div>
     );
@@ -29,7 +29,7 @@ export function AccessRequestsPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Access Requests" backTo="/school" />
+      <PageHeader title="Access Requests" backTo="/app/school" />
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {accessRequests.length === 0 ? (
           <p className="text-ink-muted">No pending access requests.</p>

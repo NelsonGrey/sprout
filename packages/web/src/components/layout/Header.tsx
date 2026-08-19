@@ -17,7 +17,7 @@ export function Header({ user }: { user: User | null }) {
       <div className="site-container flex items-center justify-between py-3">
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(user ? '/app' : '/')}
           className="text-lg font-extrabold tracking-tight text-ink"
         >
           Sprout <span className="text-brand">Streak</span>
@@ -54,7 +54,7 @@ export function Header({ user }: { user: User | null }) {
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      navigate('/account/delete');
+                      navigate('/app/account/delete');
                     }}
                     className="w-full rounded-md px-2 py-1.5 text-left text-sm text-danger hover:bg-bg"
                   >

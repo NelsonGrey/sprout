@@ -5,7 +5,7 @@ import { AccessRequestsPage } from './AccessRequestsPage';
 import * as schoolLib from '../../lib/school';
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school/requests', vi.fn()],
+  useLocation: () => ['/app/school/requests', vi.fn()],
 }));
 
 vi.mock('../../lib/school', () => ({

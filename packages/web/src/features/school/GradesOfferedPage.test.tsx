@@ -5,7 +5,7 @@ import { GradesOfferedPage } from './GradesOfferedPage';
 import * as schoolLib from '../../lib/school';
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school/grades', vi.fn()],
+  useLocation: () => ['/app/school/grades', vi.fn()],
 }));
 
 vi.mock('../../lib/school', () => ({

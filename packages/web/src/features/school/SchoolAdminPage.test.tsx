@@ -6,7 +6,7 @@ import * as schoolLib from '../../lib/school';
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school', navigateMock],
+  useLocation: () => ['/app/school', navigateMock],
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -58,9 +58,9 @@ describe('SchoolAdminPage', () => {
     for (const label of ['Staff', 'Access Requests', 'Grades Offered']) {
       fireEvent.click(screen.getByText(label));
     }
-    expect(navigateMock).toHaveBeenCalledWith('/school/staff');
-    expect(navigateMock).toHaveBeenCalledWith('/school/requests');
-    expect(navigateMock).toHaveBeenCalledWith('/school/grades');
+    expect(navigateMock).toHaveBeenCalledWith('/app/school/staff');
+    expect(navigateMock).toHaveBeenCalledWith('/app/school/requests');
+    expect(navigateMock).toHaveBeenCalledWith('/app/school/grades');
   });
 
   it('has a back button to the classroom list', async () => {
@@ -78,7 +78,7 @@ describe('SchoolAdminPage', () => {
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
     fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/app');
   });
 
   it('lets a super admin rename the school', async () => {
@@ -120,7 +120,7 @@ describe('SchoolAdminPage', () => {
     expect(screen.queryByLabelText('Rename school')).toBeNull();
   });
 
-  it('shows Promote Students for an admin and navigates to /students/promote', async () => {
+  it('shows Promote Students for an admin and navigates to /app/students/promote', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
       uid: 'delegate-1',
@@ -135,10 +135,10 @@ describe('SchoolAdminPage', () => {
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
     fireEvent.click(screen.getByText('Promote Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/students/promote');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/promote');
   });
 
-  it('shows Archive Students for an admin and navigates to /students/archive', async () => {
+  it('shows Archive Students for an admin and navigates to /app/students/archive', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
       uid: 'delegate-1',
@@ -153,10 +153,10 @@ describe('SchoolAdminPage', () => {
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
     fireEvent.click(screen.getByText('Archive Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/students/archive');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/archive');
   });
 
-  it('shows Manage Students for an admin and navigates to /students', async () => {
+  it('shows Manage Students for an admin and navigates to /app/students', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
       uid: 'delegate-1',
@@ -171,6 +171,6 @@ describe('SchoolAdminPage', () => {
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
     fireEvent.click(screen.getByText('Manage Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/students');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students');
   });
 });

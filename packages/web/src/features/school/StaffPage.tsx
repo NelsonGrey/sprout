@@ -35,7 +35,7 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Staff" backTo="/school" />
+        <PageHeader title="Staff" backTo="/app/school" />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage staff.</p>
       </div>
     );
@@ -54,8 +54,8 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Staff"
-        backTo="/school"
-        actions={<Button onClick={() => navigate('/school/staff/new')}>Add Staff</Button>}
+        backTo="/app/school"
+        actions={<Button onClick={() => navigate('/app/school/staff/new')}>Add Staff</Button>}
       />
       <TwoPaneLayout
         left={
@@ -66,7 +66,7 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
                   type="button"
                   onClick={() => {
                     setSelected(member.uid);
-                    navigate(`/school/staff/${member.uid}`);
+                    navigate(`/app/school/staff/${member.uid}`);
                   }}
                   className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-left hover:bg-bg"
                 >
@@ -91,7 +91,7 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
               allMembers={members}
               onRemoved={() => {
                 setSelected(null);
-                navigate('/school/staff');
+                navigate('/app/school/staff');
               }}
             />
           ) : (

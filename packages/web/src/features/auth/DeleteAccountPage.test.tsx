@@ -6,7 +6,7 @@ import * as accountLib from '../../lib/account';
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/account/delete', navigateMock],
+  useLocation: () => ['/app/account/delete', navigateMock],
 }));
 
 vi.mock('../../lib/account', () => ({
@@ -56,7 +56,7 @@ describe('DeleteAccountPage', () => {
     expect(screen.queryByText('Delete My Account')).toBeNull();
 
     fireEvent.click(screen.getByText('Go to Staff — Riverside Elementary'));
-    expect(navigateMock).toHaveBeenCalledWith('/school/staff');
+    expect(navigateMock).toHaveBeenCalledWith('/app/school/staff');
   });
 
   it('requires acknowledgement before deleting when standalone classrooms will be destroyed', async () => {

@@ -5,7 +5,7 @@ import { AddStaffPage } from './AddStaffPage';
 import * as schoolLib from '../../lib/school';
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school/staff/new', vi.fn()],
+  useLocation: () => ['/app/school/staff/new', vi.fn()],
 }));
 
 vi.mock('../../lib/school', () => ({

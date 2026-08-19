@@ -48,12 +48,12 @@ export function CreateClassroomPage({ user }: { user: User }) {
       schoolId: isAtLeastAdmin && addToSchool ? schoolId : undefined,
       gradeLevel: isAtLeastAdmin && addToSchool ? gradeLevel || undefined : undefined,
     });
-    navigate('/');
+    navigate('/app');
   };
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Add Classroom" backTo="/" />
+      <PageHeader title="Add Classroom" backTo="/app" />
       <div className="flex max-w-md flex-col gap-3 px-6 py-4">
         {isAtLeastAdmin && schoolId && (
           <label className="flex items-center gap-2 text-sm text-ink-muted">

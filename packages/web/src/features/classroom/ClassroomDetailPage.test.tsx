@@ -42,7 +42,7 @@ vi.mock('../../lib/school', () => ({
 const navigateMock = vi.fn();
 vi.mock('wouter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wouter')>();
-  return { ...actual, useLocation: () => ['/classrooms/ctx-1', navigateMock] };
+  return { ...actual, useLocation: () => ['/app/classrooms/ctx-1', navigateMock] };
 });
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
@@ -82,7 +82,7 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/app');
   });
 
   it('renames the classroom', async () => {
@@ -113,7 +113,7 @@ describe('ClassroomDetailPage', () => {
     fireEvent.click(screen.getByText('Delete'));
 
     await waitFor(() => expect(firestoreLib.deleteClassroom).toHaveBeenCalledWith('ctx-1'));
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/app');
   });
 
   it("the Add Student button navigates to that classroom's create-student page", () => {
@@ -123,7 +123,7 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     fireEvent.click(screen.getByText('Add Student'));
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1/students/new');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/students/new');
   });
 
   it('hides rename/delete/Add Student for a viewer with only award-level access', () => {
@@ -186,7 +186,7 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     fireEvent.click(screen.getByText('Request access for a colleague'));
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1/request-access');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/request-access');
   });
 
   it('hides the request-access button when the school has no other teachers', () => {
@@ -210,7 +210,7 @@ describe('ClassroomDetailPage', () => {
 
     fireEvent.click(screen.getByText('Alex'));
 
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1/students/student-1');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/students/student-1');
     // StudentDetailPane content is now showing (the earn/spend form is
     // unique to the detail pane — the balance text also appears in the
     // list row, so it's not a reliable marker on its own).

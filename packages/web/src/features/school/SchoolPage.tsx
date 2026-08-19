@@ -3,7 +3,7 @@ import { useSchoolIdsForUser } from '../../lib/school';
 import { CreateSchoolPage } from './CreateSchoolPage';
 import { SchoolAdminPage } from './SchoolAdminPage';
 
-/** Routed at /school. A signed-in user with no school yet can found one;
+/** Routed at /app/school. A signed-in user with no school yet can found one;
  * otherwise shows their school. Multi-school membership/switching is
  * deferred — the first schoolId wins. */
 export function SchoolPage({ user }: { user: User }) {

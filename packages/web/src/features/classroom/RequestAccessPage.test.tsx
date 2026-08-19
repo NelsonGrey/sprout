@@ -18,7 +18,7 @@ vi.mock('../../lib/school', () => ({
 const navigateMock = vi.fn();
 vi.mock('wouter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wouter')>();
-  return { ...actual, useLocation: () => ['/classrooms/ctx-1/request-access', navigateMock] };
+  return { ...actual, useLocation: () => ['/app/classrooms/ctx-1/request-access', navigateMock] };
 });
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
@@ -95,6 +95,6 @@ describe('RequestAccessPage', () => {
     render(<RequestAccessPage user={user} contextId="ctx-1" />);
 
     fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
   });
 });

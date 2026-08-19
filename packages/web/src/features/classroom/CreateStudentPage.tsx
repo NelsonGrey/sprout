@@ -32,12 +32,12 @@ export function CreateStudentPage({ user, contextId }: { user: User; contextId: 
       gradeLevel: classroom?.gradeLevel,
       contextName: classroom?.name,
     });
-    navigate(`/classrooms/${contextId}`);
+    navigate(`/app/classrooms/${contextId}`);
   };
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title={`Add Student — ${classroom?.name ?? 'Classroom'}`} backTo={`/classrooms/${contextId}`} />
+      <PageHeader title={`Add Student — ${classroom?.name ?? 'Classroom'}`} backTo={`/app/classrooms/${contextId}`} />
       <div className="flex max-w-md flex-col gap-3 px-6 py-4">
         <Input
           value={name}

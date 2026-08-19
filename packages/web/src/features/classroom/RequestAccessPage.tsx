@@ -44,7 +44,7 @@ export function RequestAccessPage({ user, contextId }: { user: User; contextId: 
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title={`Request Access — ${classroom?.name ?? 'Classroom'}`}
-        backTo={`/classrooms/${contextId}`}
+        backTo={`/app/classrooms/${contextId}`}
       />
       <div className="flex max-w-md flex-col gap-4 px-6 py-4">
         <p className="text-xs text-ink-muted">An admin will need to approve this before your colleague gets access.</p>

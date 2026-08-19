@@ -66,7 +66,7 @@ export function AddStaffPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Add Staff" backTo="/school/staff" />
+        <PageHeader title="Add Staff" backTo="/app/school/staff" />
         <p className="px-6 py-4 text-ink-muted">Only school admins can invite staff.</p>
       </div>
     );
@@ -74,7 +74,7 @@ export function AddStaffPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Add Staff" backTo="/school/staff" />
+      <PageHeader title="Add Staff" backTo="/app/school/staff" />
       <div className="flex max-w-md flex-col gap-8 px-6 py-4">
         <section className="rounded-lg border border-border p-4">
           <div className="flex flex-col gap-3">

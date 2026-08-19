@@ -17,7 +17,7 @@ vi.mock('../../lib/school', () => ({
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/', navigateMock],
+  useLocation: () => ['/app', navigateMock],
 }));
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
@@ -40,7 +40,7 @@ describe('ClassroomsPage', () => {
     render(<ClassroomsPage user={user} />);
 
     fireEvent.click(screen.getByText('Add Classroom'));
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/new');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/new');
   });
 
   it('merges owned classrooms with school-scoped classrooms', () => {

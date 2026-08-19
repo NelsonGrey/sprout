@@ -16,7 +16,7 @@ vi.mock('../../lib/school', () => ({
 }));
 
 vi.mock('wouter', () => ({
-  useLocation: () => ['/students/import', vi.fn()],
+  useLocation: () => ['/app/students/import', vi.fn()],
 }));
 
 const user = { uid: 'admin-1', displayName: 'Office Manager', email: 'admin@example.com' } as User;

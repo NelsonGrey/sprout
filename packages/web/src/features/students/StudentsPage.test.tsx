@@ -23,7 +23,7 @@ vi.mock('../../lib/school', () => ({
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/students', navigateMock],
+  useLocation: () => ['/app/students', navigateMock],
 }));
 
 const user = { uid: 'admin-1', displayName: 'Office Manager', email: 'admin@example.com' } as User;
@@ -145,13 +145,13 @@ describe('StudentsPage', () => {
     render(<StudentsPage user={user} />);
 
     fireEvent.click(screen.getByText('Promote Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/students/promote');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/promote');
 
     fireEvent.click(screen.getByText('Archive Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/students/archive');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/archive');
 
     fireEvent.click(screen.getByText('Import CSV'));
-    expect(navigateMock).toHaveBeenCalledWith('/students/import');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/import');
   });
 
   it('hides an archived student by default and reveals it via "Show archived"', () => {

@@ -7,7 +7,7 @@ import * as ncesLib from '../../lib/ncesLookup';
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school', navigateMock],
+  useLocation: () => ['/app/school', navigateMock],
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -40,7 +40,7 @@ describe('CreateSchoolPage', () => {
         founderEmail: 'lord@example.com',
       }),
     );
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/school'));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/app/school'));
   });
 
   it('founds a school from an NCES search result, storing its NCES metadata', async () => {
@@ -75,6 +75,6 @@ describe('CreateSchoolPage', () => {
     render(<CreateSchoolPage user={user} />);
 
     fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/app');
   });
 });

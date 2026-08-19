@@ -5,7 +5,7 @@ import { useClassrooms } from '../../lib/firestore';
 import { ClassroomsPage } from './ClassroomsPage';
 import { MyBalancePage } from '../student/MyBalancePage';
 
-/** Routed at `/`. Decides between the student-facing balance view and the
+/** Routed at `/app`. Decides between the student-facing balance view and the
  * staff "My Classrooms" landing:
  *   - linked student, no staff access at all -> MyBalancePage (the common
  *     case for an actual student — see BR-1.3.3/1.4.1).

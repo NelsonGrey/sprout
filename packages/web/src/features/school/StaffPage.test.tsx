@@ -6,7 +6,7 @@ import * as schoolLib from '../../lib/school';
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/school/staff', navigateMock],
+  useLocation: () => ['/app/school/staff', navigateMock],
 }));
 
 vi.mock('../../lib/school', () => ({
@@ -149,14 +149,14 @@ describe('StaffPage', () => {
     expect(screen.getByText('Edit scope')).toBeTruthy();
   });
 
-  it('has an Add Staff button that navigates to /school/staff/new', () => {
+  it('has an Add Staff button that navigates to /app/school/staff/new', () => {
     mockDelegateAdmin();
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
 
     render(<StaffPage user={delegate} />);
 
     fireEvent.click(screen.getByText('Add Staff'));
-    expect(navigateMock).toHaveBeenCalledWith('/school/staff/new');
+    expect(navigateMock).toHaveBeenCalledWith('/app/school/staff/new');
   });
 
   it('shows a not-authorized message for a plain teacher', () => {

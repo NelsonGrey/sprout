@@ -119,7 +119,7 @@ export function StudentImportPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Import students" backTo="/students" />
+      <PageHeader title="Import students" backTo="/app/students" />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {done ? (
@@ -127,7 +127,7 @@ export function StudentImportPage({ user }: { user: User }) {
             <p className="text-brand">
               Imported {validRows.length} student{validRows.length === 1 ? '' : 's'}.
             </p>
-            <Button onClick={() => navigate('/students')}>Back to Students</Button>
+            <Button onClick={() => navigate('/app/students')}>Back to Students</Button>
           </div>
         ) : (
           <div className="flex max-w-2xl flex-col gap-6">

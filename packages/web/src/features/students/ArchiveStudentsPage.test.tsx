@@ -19,7 +19,7 @@ vi.mock('../../lib/school', () => ({
 
 const navigateMock = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/students/archive', navigateMock],
+  useLocation: () => ['/app/students/archive', navigateMock],
 }));
 
 const user = { uid: 'admin-1', displayName: 'Office Manager', email: 'admin@example.com' } as User;
@@ -161,6 +161,6 @@ describe('ArchiveStudentsPage', () => {
 
     await waitFor(() => screen.getByText('Back to Students'));
     fireEvent.click(screen.getByText('Back to Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/students');
+    expect(navigateMock).toHaveBeenCalledWith('/app/students');
   });
 });

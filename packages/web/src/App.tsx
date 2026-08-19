@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { Route, Switch, useLocation } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { firebaseClient } from './lib/firebase';
 import { claimPendingStudentLinkIfAny } from './lib/firestore';
 import { claimPendingInviteIfAny } from './lib/school';
@@ -65,20 +65,20 @@ function App() {
   return (
     <Layout user={user}>
       <Switch>
-        <Route path="/classrooms/new">
+        <Route path="/app/classrooms/new">
           <CreateClassroomPage user={user} />
         </Route>
-        <Route path="/classrooms/:contextId/students/new">
+        <Route path="/app/classrooms/:contextId/students/new">
           {params => (
             <CreateStudentPage user={user} contextId={params.contextId} />
           )}
         </Route>
-        <Route path="/classrooms/:contextId/request-access">
+        <Route path="/app/classrooms/:contextId/request-access">
           {params => (
             <RequestAccessPage user={user} contextId={params.contextId} />
           )}
         </Route>
-        <Route path="/classrooms/:contextId/students/:studentId">
+        <Route path="/app/classrooms/:contextId/students/:studentId">
           {params => (
             <ClassroomDetailPage
               user={user}
@@ -87,49 +87,52 @@ function App() {
             />
           )}
         </Route>
-        <Route path="/classrooms/:contextId">
+        <Route path="/app/classrooms/:contextId">
           {params => (
             <ClassroomDetailPage user={user} contextId={params.contextId} />
           )}
         </Route>
-        <Route path="/school/staff/new">
+        <Route path="/app/school/staff/new">
           <AddStaffPage user={user} />
         </Route>
-        <Route path="/school/staff/:uid">
+        <Route path="/app/school/staff/:uid">
           {params => <StaffPage user={user} selectedUid={params.uid} />}
         </Route>
-        <Route path="/school/staff">
+        <Route path="/app/school/staff">
           <StaffPage user={user} />
         </Route>
-        <Route path="/school/requests">
+        <Route path="/app/school/requests">
           <AccessRequestsPage user={user} />
         </Route>
-        <Route path="/school/grades">
+        <Route path="/app/school/grades">
           <GradesOfferedPage user={user} />
         </Route>
-        <Route path="/school">
+        <Route path="/app/school">
           <SchoolPage user={user} />
         </Route>
-        <Route path="/students/import">
+        <Route path="/app/students/import">
           <StudentImportPage user={user} />
         </Route>
-        <Route path="/students/promote">
+        <Route path="/app/students/promote">
           <PromoteStudentsPage user={user} />
         </Route>
-        <Route path="/students/archive">
+        <Route path="/app/students/archive">
           <ArchiveStudentsPage user={user} />
         </Route>
-        <Route path="/students">
+        <Route path="/app/students">
           <StudentsPage user={user} />
         </Route>
-        <Route path="/account/delete">
+        <Route path="/app/account/delete">
           <DeleteAccountPage user={user} />
         </Route>
-        <Route path="/">
+        <Route path="/app">
           <LandingRouter user={user} />
         </Route>
+        <Route path="/">
+          <Redirect to="/app" />
+        </Route>
         <Route>
-          <LandingRouter user={user} />
+          <Redirect to="/app" />
         </Route>
       </Switch>
     </Layout>

@@ -79,7 +79,7 @@ export function MarketingLayout({
 
           <div className="hidden items-center gap-3 sm:flex">
             <Link
-              href={user ? '/' : '/login'}
+              href={user ? '/app' : '/login'}
               className="px-2 py-2 text-sm font-bold text-ink-soft hover:text-brand"
             >
               {user ? 'Dashboard' : 'Sign in'}
@@ -127,7 +127,7 @@ export function MarketingLayout({
                 </Link>
               ))}
               <Link
-                href={user ? '/' : '/login'}
+                href={user ? '/app' : '/login'}
                 onClick={() => setMenuOpen(false)}
                 className="mt-2 rounded-xl bg-ink px-4 py-3 text-sm font-bold text-on-dark sm:col-span-2"
               >

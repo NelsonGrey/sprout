@@ -148,7 +148,7 @@ export function StudentsPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Students" backTo="/school" />
+        <PageHeader title="Students" backTo="/app/school" />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage the full student roster.</p>
       </div>
     );
@@ -158,16 +158,16 @@ export function StudentsPage({ user }: { user: User }) {
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Students"
-        backTo="/school"
+        backTo="/app/school"
         actions={
           <>
-            <Button variant="secondary" onClick={() => navigate('/students/promote')}>
+            <Button variant="secondary" onClick={() => navigate('/app/students/promote')}>
               Promote Students
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/students/archive')}>
+            <Button variant="secondary" onClick={() => navigate('/app/students/archive')}>
               Archive Students
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/students/import')}>
+            <Button variant="secondary" onClick={() => navigate('/app/students/import')}>
               Import CSV
             </Button>
           </>

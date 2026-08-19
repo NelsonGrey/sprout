@@ -22,7 +22,7 @@ vi.mock('../../lib/firestore', () => ({
 const navigateMock = vi.fn();
 vi.mock('wouter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wouter')>();
-  return { ...actual, useLocation: () => ['/classrooms/ctx-1/students/new', navigateMock] };
+  return { ...actual, useLocation: () => ['/app/classrooms/ctx-1/students/new', navigateMock] };
 });
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
@@ -48,7 +48,7 @@ describe('CreateStudentPage', () => {
         contextName: '4th Grade',
       }),
     );
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
   });
 
   it('scopes a newly added student to the classroom school/grade when set', async () => {
@@ -78,7 +78,7 @@ describe('CreateStudentPage', () => {
     render(<CreateStudentPage user={user} contextId="ctx-1" />);
 
     fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/classrooms/ctx-1');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
   });
 
   it('disables Create until a name is entered', () => {

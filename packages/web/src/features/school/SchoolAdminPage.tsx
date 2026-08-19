@@ -45,9 +45,9 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
   };
 
   const navLinks = [
-    { label: 'Staff', to: '/school/staff', show: isAtLeastAdmin },
-    { label: 'Access Requests', to: '/school/requests', show: isAtLeastAdmin },
-    { label: 'Grades Offered', to: '/school/grades', show: isAtLeastAdmin },
+    { label: 'Staff', to: '/app/school/staff', show: isAtLeastAdmin },
+    { label: 'Access Requests', to: '/app/school/requests', show: isAtLeastAdmin },
+    { label: 'Grades Offered', to: '/app/school/grades', show: isAtLeastAdmin },
   ].filter((link) => link.show);
 
   return (
@@ -70,21 +70,21 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
       ) : (
         <PageHeader
           title={schoolName ?? 'School'}
-          backTo="/"
+          backTo="/app"
           actions={
             <>
               {isAtLeastAdmin && (
-                <Button variant="secondary" size="sm" onClick={() => navigate('/students')}>
+                <Button variant="secondary" size="sm" onClick={() => navigate('/app/students')}>
                   Manage Students
                 </Button>
               )}
               {isAtLeastAdmin && (
-                <Button variant="secondary" size="sm" onClick={() => navigate('/students/promote')}>
+                <Button variant="secondary" size="sm" onClick={() => navigate('/app/students/promote')}>
                   Promote Students
                 </Button>
               )}
               {isAtLeastAdmin && (
-                <Button variant="secondary" size="sm" onClick={() => navigate('/students/archive')}>
+                <Button variant="secondary" size="sm" onClick={() => navigate('/app/students/archive')}>
                   Archive Students
                 </Button>
               )}

@@ -80,7 +80,7 @@ export function DeleteAccountPage({ user }: { user: User }) {
   if (!summary) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Delete Account" backTo="/" />
+        <PageHeader title="Delete Account" backTo="/app" />
       </div>
     );
   }
@@ -91,7 +91,7 @@ export function DeleteAccountPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Delete Account" backTo="/" />
+      <PageHeader title="Delete Account" backTo="/app" />
       <div className="flex max-w-md flex-col gap-6 px-6 py-4">
         {soleSuperAdminOf.length > 0 ? (
           <section className="rounded-lg border border-danger/40 bg-danger/5 p-4">
@@ -106,7 +106,7 @@ export function DeleteAccountPage({ user }: { user: User }) {
                 variant="secondary"
                 size="sm"
                 className="mt-3"
-                onClick={() => navigate('/school/staff')}
+                onClick={() => navigate('/app/school/staff')}
               >
                 Go to Staff — {m.schoolName}
               </Button>

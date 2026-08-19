@@ -82,7 +82,7 @@ export function PromoteStudentsPage({ user }: { user: User }) {
   if (!isAtLeastAdmin) {
     return (
       <div className="flex min-h-full flex-col text-ink">
-        <PageHeader title="Promote Students" backTo="/students" />
+        <PageHeader title="Promote Students" backTo="/app/students" />
         <p className="px-6 py-4 text-ink-muted">Only school admins can promote students.</p>
       </div>
     );
@@ -90,13 +90,13 @@ export function PromoteStudentsPage({ user }: { user: User }) {
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Promote Students" backTo="/students" />
+      <PageHeader title="Promote Students" backTo="/app/students" />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {done ? (
           <div className="flex flex-col items-start gap-3">
             <p className="text-brand">Promotion complete.</p>
-            <Button onClick={() => navigate('/students')}>Back to Students</Button>
+            <Button onClick={() => navigate('/app/students')}>Back to Students</Button>
           </div>
         ) : (
           <div className="flex max-w-2xl flex-col gap-4">

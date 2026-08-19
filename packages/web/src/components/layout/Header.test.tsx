@@ -39,11 +39,18 @@ describe('Header', () => {
 
     fireEvent.click(screen.getByLabelText('Account menu'));
     fireEvent.click(screen.getByText('Delete account'));
-    expect(navigateMock).toHaveBeenCalledWith('/account/delete');
+    expect(navigateMock).toHaveBeenCalledWith('/app/account/delete');
   });
 
-  it('navigates home when the logo is clicked', () => {
+  it('navigates to /app when the logo is clicked while signed in', () => {
     render(<Header user={user} />);
+
+    fireEvent.click(screen.getByText('Streak'));
+    expect(navigateMock).toHaveBeenCalledWith('/app');
+  });
+
+  it('navigates to / when the logo is clicked while signed out', () => {
+    render(<Header user={null} />);
 
     fireEvent.click(screen.getByText('Streak'));
     expect(navigateMock).toHaveBeenCalledWith('/');

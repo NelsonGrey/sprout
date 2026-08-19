@@ -76,7 +76,7 @@ export function ClassroomDetailPage({
 
   const selectStudent = (id: string) => {
     setSelectedStudentId(id);
-    navigate(`/classrooms/${contextId}/students/${id}`);
+    navigate(`/app/classrooms/${contextId}/students/${id}`);
   };
 
   const toggleChecked = (id: string) => {
@@ -99,7 +99,7 @@ export function ClassroomDetailPage({
     await bulkDeleteStudents([...checkedIds]);
     if (selectedStudentId && checkedIds.has(selectedStudentId)) {
       setSelectedStudentId(null);
-      navigate(`/classrooms/${contextId}`);
+      navigate(`/app/classrooms/${contextId}`);
     }
     setCheckedIds(new Set());
     setDeletingChecked(false);
@@ -125,7 +125,7 @@ export function ClassroomDetailPage({
       ) : (
         <PageHeader
           title={classroom?.name ?? 'Classroom'}
-          backTo="/"
+          backTo="/app"
           actions={
             canManage && (
               <>
@@ -197,7 +197,7 @@ export function ClassroomDetailPage({
                   canManage={canManage}
                   onDeleted={() => {
                     setSelectedStudentId(null);
-                    navigate(`/classrooms/${contextId}`);
+                    navigate(`/app/classrooms/${contextId}`);
                   }}
                 />
               ) : (
@@ -210,13 +210,13 @@ export function ClassroomDetailPage({
 
       {canManage && (
         <div className="border-t border-border px-6 py-4">
-          <Button onClick={() => navigate(`/classrooms/${contextId}/students/new`)}>Add Student</Button>
+          <Button onClick={() => navigate(`/app/classrooms/${contextId}/students/new`)}>Add Student</Button>
         </div>
       )}
 
       {isOwner && schoolTeachers.length > 0 && (
         <div className="px-6 pb-6">
-          <Button variant="secondary" onClick={() => navigate(`/classrooms/${contextId}/request-access`)}>
+          <Button variant="secondary" onClick={() => navigate(`/app/classrooms/${contextId}/request-access`)}>
             Request access for a colleague
           </Button>
         </div>
@@ -231,7 +231,7 @@ export function ClassroomDetailPage({
         destructive
         onConfirm={async () => {
           await deleteClassroom(contextId);
-          navigate('/');
+          navigate('/app');
         }}
       />
       <ConfirmDialog

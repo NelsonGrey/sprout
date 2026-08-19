@@ -18,7 +18,7 @@ vi.mock('../../lib/school', () => ({
 const navigateMock = vi.fn();
 vi.mock('wouter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wouter')>();
-  return { ...actual, useLocation: () => ['/classrooms/new', navigateMock] };
+  return { ...actual, useLocation: () => ['/app/classrooms/new', navigateMock] };
 });
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
@@ -49,7 +49,7 @@ describe('CreateClassroomPage', () => {
         gradeLevel: undefined,
       }),
     );
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/app');
   });
 
   it('lets an admin create a school-affiliated classroom with a grade', async () => {
@@ -139,6 +139,6 @@ describe('CreateClassroomPage', () => {
     render(<CreateClassroomPage user={user} />);
 
     fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/app');
   });
 });

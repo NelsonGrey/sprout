@@ -45,12 +45,12 @@ export function CreateSchoolPage({ user }: { user: User }) {
         : {}),
     });
     setCreating(false);
-    navigate('/school');
+    navigate('/app/school');
   };
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title="Set up your school" backTo="/" />
+      <PageHeader title="Set up your school" backTo="/app" />
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 text-center">
         <p className="max-w-sm text-ink-muted">
           You'll be the super admin — the only one who can grant or revoke admin access for this

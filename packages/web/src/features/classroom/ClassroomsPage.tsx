@@ -42,8 +42,8 @@ export function ClassroomsPage({ user }: { user: User }) {
         title="My Classrooms"
         actions={
           <>
-            <Button onClick={() => navigate('/classrooms/new')}>Add Classroom</Button>
-            <Button variant="secondary" onClick={() => navigate('/school')}>
+            <Button onClick={() => navigate('/app/classrooms/new')}>Add Classroom</Button>
+            <Button variant="secondary" onClick={() => navigate('/app/school')}>
               School
             </Button>
           </>
@@ -59,7 +59,7 @@ export function ClassroomsPage({ user }: { user: User }) {
               <li key={classroom.id}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/classrooms/${classroom.id}`)}
+                  onClick={() => navigate(`/app/classrooms/${classroom.id}`)}
                   className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-left text-ink hover:bg-bg"
                 >
                   {classroom.name}
