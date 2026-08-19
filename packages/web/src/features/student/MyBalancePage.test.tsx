@@ -74,6 +74,27 @@ describe('MyBalancePage', () => {
     expect(screen.getByText('Just in case')).toBeTruthy();
   });
 
+  it('shows a spend-category badge on a categorized transaction', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([
+      {
+        id: 'tx-1',
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 300,
+        reason: 'New cleats',
+        spendCategory: 'need',
+        createdByUid: 'teacher-1',
+        createdAt: new Date(),
+        ownerUids: ['teacher-1'],
+      },
+    ]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+
+    render(<MyBalancePage student={student} />);
+
+    expect(screen.getByText('Need')).toBeTruthy();
+  });
+
   it('shows read-only progress for each of the student\'s goals, with no delete control', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([

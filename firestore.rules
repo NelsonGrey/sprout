@@ -372,6 +372,12 @@ service cloud.firestore {
             request.resource.data.type == 'earn'
               && request.resource.data.savingsLabel == 'goal'
               && exists(/databases/$(database)/documents/students/$(request.resource.data.studentId)/goals/$(request.resource.data.goalId))
+          ))
+          // spendCategory (need/want/both) is the mirror image of
+          // savingsLabel — only ever makes sense on a spend.
+          && (!('spendCategory' in request.resource.data) || (
+            request.resource.data.type == 'spend'
+              && request.resource.data.spendCategory in ['need', 'want', 'both']
           ));
       }
     }

@@ -157,6 +157,112 @@ describe('StudentDetailPane', () => {
     );
   });
 
+  it('records a spend with a spend category when one is chosen', async () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Amount'), { target: { value: '3' } });
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'New cleats' } });
+    fireEvent.change(screen.getByLabelText('This purchase is a'), { target: { value: 'need' } });
+    fireEvent.click(screen.getByText('Spend'));
+
+    await waitFor(() =>
+      expect(firestoreLib.recordTransaction).toHaveBeenCalledWith({
+        contextId: 'ctx-1',
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 300,
+        reason: 'New cleats',
+        spendCategory: 'need',
+        createdByUid: 'teacher-1',
+        ownerUids: ['teacher-1'],
+      }),
+    );
+  });
+
+  it('drops the spend category when recording an earn, even if one was selected', async () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Amount'), { target: { value: '3' } });
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Homework' } });
+    fireEvent.change(screen.getByLabelText('This purchase is a'), { target: { value: 'want' } });
+    fireEvent.click(screen.getByText('Earn'));
+
+    await waitFor(() =>
+      expect(firestoreLib.recordTransaction).toHaveBeenCalledWith({
+        contextId: 'ctx-1',
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 300,
+        reason: 'Homework',
+        createdByUid: 'teacher-1',
+        ownerUids: ['teacher-1'],
+      }),
+    );
+  });
+
+  it('shows a spend-category badge on a categorized transaction in the history', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([
+      {
+        id: 'tx-1',
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 300,
+        reason: 'New cleats',
+        spendCategory: 'need',
+        createdByUid: 'teacher-1',
+        createdAt: new Date(),
+        ownerUids: ['teacher-1'],
+      },
+    ]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Need')).toBeTruthy();
+  });
+
+  it('reminds about unfinished goals only once an amount is entered', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([goal]);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    expect(screen.queryByText(/Spending this now means less goes toward/)).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText('Amount'), { target: { value: '2' } });
+
+    expect(screen.getByText(/Spending this now means less goes toward: New soccer ball/)).toBeTruthy();
+  });
+
+  it('does not show the opportunity-cost reminder once the only goal is already achieved', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([{ ...goal, savedCents: goal.targetCents }]);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Amount'), { target: { value: '2' } });
+
+    expect(screen.queryByText(/Spending this now means less goes toward/)).toBeNull();
+  });
+
   it('shows a savings-label badge on a labeled transaction in the history', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([
       {

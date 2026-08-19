@@ -248,6 +248,54 @@ describe('firestore.rules', () => {
 
     await assertSucceeds(deleteDoc(doc(owner, 'students/student-1/goals/goal-1')));
   });
+
+  it('lets the owner tag a spend with a spend category', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+
+    await assertSucceeds(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-spend-category'), {
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 300,
+        reason: 'New cleats',
+        spendCategory: 'need',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+  });
+
+  it('rejects a spend category on an earn, and rejects an unrecognized category value', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+
+    await assertFails(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-earn-category'), {
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 300,
+        reason: 'Allowance',
+        spendCategory: 'need',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+    await assertFails(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-bad-category'), {
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 300,
+        reason: 'New cleats',
+        spendCategory: 'not_a_real_category',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+  });
 });
 
 describe('firestore.rules — school security matrix', () => {

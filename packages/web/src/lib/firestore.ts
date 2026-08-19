@@ -21,7 +21,7 @@ import {
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { ClassroomContext, Goal, LedgerTransaction, PendingStudentLink, SavingsLabel, Student, TransactionType } from '@sprout/shared';
+import type { ClassroomContext, Goal, LedgerTransaction, PendingStudentLink, SavingsLabel, SpendCategory, Student, TransactionType } from '@sprout/shared';
 import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
@@ -92,6 +92,7 @@ function transactionFromDoc(d: QueryDocumentSnapshot<DocumentData>): LedgerTrans
     reason: data.reason,
     ...(data.savingsLabel ? { savingsLabel: data.savingsLabel } : {}),
     ...(data.goalId ? { goalId: data.goalId } : {}),
+    ...(data.spendCategory ? { spendCategory: data.spendCategory } : {}),
     createdByUid: data.createdByUid,
     // A pending server timestamp reads back as null right after a local
     // write, before the round-trip lands — fall back to "now".
@@ -456,6 +457,7 @@ export async function recordTransaction({
   reason,
   savingsLabel,
   goalId,
+  spendCategory,
   createdByUid,
   ownerUids,
   schoolId,
@@ -474,6 +476,9 @@ export async function recordTransaction({
   // 'goal' (set automatically below if the caller passed goalId without
   // it). Also dropped for a 'spend'.
   goalId?: string;
+  // The need/want/both mirror of savingsLabel, for a 'spend'. Dropped for
+  // an 'earn'.
+  spendCategory?: SpendCategory;
   createdByUid: string;
   ownerUids: string[];
   // Denormalized from the student, so a scoped/delegated (not just
@@ -500,6 +505,7 @@ export async function recordTransaction({
     ...(gradeLevel ? { gradeLevel } : {}),
     ...(type === 'earn' && (savingsLabel || goalId) ? { savingsLabel: goalId ? 'goal' : savingsLabel } : {}),
     ...(type === 'earn' && goalId ? { goalId } : {}),
+    ...(type === 'spend' && spendCategory ? { spendCategory } : {}),
   });
 
   const delta = type === 'earn' ? amountCents : -amountCents;

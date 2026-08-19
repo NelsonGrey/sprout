@@ -72,6 +72,12 @@ export type TransactionType = 'earn' | 'spend';
  * 'spend' transaction (see firestore.rules). */
 export type SavingsLabel = 'goal' | 'just_in_case';
 
+/** Optional intent tag on a 'spend' transaction — the need/want/it-depends
+ * sort called for by the Need, Want, or Both? starter lesson, so a
+ * purchase decision is recorded as reasoning, not just an amount. Never
+ * valid on an 'earn' (see firestore.rules). */
+export type SpendCategory = 'need' | 'want' | 'both';
+
 export interface LedgerTransaction {
   id: string;
   studentId: string;
@@ -83,6 +89,7 @@ export interface LedgerTransaction {
    * toward a specific Goal (see below) rather than the generic "goal"
    * label. Never valid on a 'spend' (see firestore.rules). */
   goalId?: string;
+  spendCategory?: SpendCategory;
   createdByUid: string;
   createdAt: Date;
   ownerUids: string[];

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import type { Student, TransactionType } from '@sprout/shared';
+import type { SpendCategory, Student, TransactionType } from '@sprout/shared';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   cancelStudentLink,
@@ -22,6 +22,7 @@ import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { SavingsLabelBadge } from '../../components/ui/savings-label-badge';
+import { SpendCategoryBadge } from '../../components/ui/spend-category-badge';
 
 /**
  * One student's balance, transaction history, and earn/spend form — the
@@ -47,12 +48,17 @@ export function StudentDetailPane({
 
   const transactions = useTransactions(contextId, student.id);
   const goals = useGoals(student.id);
+  // The Opportunity Cost Challenge starter lesson's prompt: before a
+  // spend, name what's being chosen not to fund yet. Purely a computed
+  // reminder from existing goals — no new field written anywhere.
+  const unachievedGoals = goals.filter((g) => g.savedCents < g.targetCents);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   // Encodes the "Save as…" select's value: '' (none), 'just_in_case', or
   // a specific goal's id — see handleRecord for how this splits back out
   // into savingsLabel/goalId.
   const [saveAs, setSaveAs] = useState('');
+  const [spendCategory, setSpendCategory] = useState<SpendCategory | ''>('');
   const [recording, setRecording] = useState(false);
 
   const [renaming, setRenaming] = useState(false);
@@ -81,6 +87,7 @@ export function StudentDetailPane({
       reason: reason.trim(),
       ...(type === 'earn' && targetGoal ? { goalId: targetGoal.id } : {}),
       ...(type === 'earn' && !targetGoal && saveAs === 'just_in_case' ? { savingsLabel: 'just_in_case' as const } : {}),
+      ...(type === 'spend' && spendCategory ? { spendCategory } : {}),
       createdByUid: user.uid,
       ownerUids,
       schoolId: student.schoolId,
@@ -89,6 +96,7 @@ export function StudentDetailPane({
     setAmount('');
     setReason('');
     setSaveAs('');
+    setSpendCategory('');
     setRecording(false);
   };
 
@@ -244,6 +252,7 @@ export function StudentDetailPane({
                 <span className="flex items-center gap-2">
                   {transaction.reason}
                   {transaction.savingsLabel && <SavingsLabelBadge label={transaction.savingsLabel} />}
+                  {transaction.spendCategory && <SpendCategoryBadge category={transaction.spendCategory} />}
                 </span>
                 <span>
                   {transaction.type === 'earn' ? '+' : '-'}$
@@ -289,6 +298,25 @@ export function StudentDetailPane({
             </option>
           ))}
         </select>
+        {/* Mirror image of the select above — only meaningful for Spend,
+         * dropped for an Earn regardless. */}
+        <select
+          value={spendCategory}
+          onChange={(e) => setSpendCategory(e.target.value as SpendCategory | '')}
+          aria-label="This purchase is a"
+          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink-muted"
+        >
+          <option value="">This is a… (optional, for Spend)</option>
+          <option value="need">✅ Need</option>
+          <option value="want">💖 Want</option>
+          <option value="both">🔀 It depends</option>
+        </select>
+        {unachievedGoals.length > 0 && Number.parseFloat(amount) > 0 && (
+          <p className="text-xs text-ink-muted">
+            💭 Spending this now means less goes toward:{' '}
+            {unachievedGoals.map((g) => g.name).join(', ')}.
+          </p>
+        )}
         <div className="flex gap-2">
           <Button className="flex-1" onClick={() => handleRecord('earn')} disabled={recording}>
             Earn

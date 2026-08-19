@@ -3,6 +3,7 @@ import { useGoals, useTransactions } from '../../lib/firestore';
 import { PageHeader } from '../../components/ui/page-header';
 import { GoalProgressCard } from '../../components/ui/goal-progress-card';
 import { SavingsLabelBadge } from '../../components/ui/savings-label-badge';
+import { SpendCategoryBadge } from '../../components/ui/spend-category-badge';
 
 /**
  * A student's own read-only balance, goal progress, and transaction
@@ -43,6 +44,7 @@ export function MyBalancePage({ student }: { student: Student }) {
                 <span className="flex items-center gap-2">
                   {transaction.reason}
                   {transaction.savingsLabel && <SavingsLabelBadge label={transaction.savingsLabel} />}
+                  {transaction.spendCategory && <SpendCategoryBadge category={transaction.spendCategory} />}
                 </span>
                 <span className={transaction.type === 'earn' ? 'text-brand' : 'text-danger'}>
                   {transaction.type === 'earn' ? '+' : '-'}$
