@@ -364,6 +364,14 @@ service cloud.firestore {
           && (!('savingsLabel' in request.resource.data) || (
             request.resource.data.type == 'earn'
               && request.resource.data.savingsLabel in ['goal', 'just_in_case']
+          ))
+          // goalId must name a real goal already owned by this same
+          // student — prevents crediting progress onto someone else's
+          // goal (or a fabricated one) by just guessing/naming an id.
+          && (!('goalId' in request.resource.data) || (
+            request.resource.data.type == 'earn'
+              && request.resource.data.savingsLabel == 'goal'
+              && exists(/databases/$(database)/documents/students/$(request.resource.data.studentId)/goals/$(request.resource.data.goalId))
           ));
       }
     }
@@ -452,6 +460,58 @@ service cloud.firestore {
       allow create: if isContextOwner(request.resource.data)
         || (request.resource.data.schoolId != null
           && hasManageAccess(request.resource.data.schoolId, request.resource.data.contextId));
+
+      // A student's simulated savings goal (name/target/progress) — the
+      // "goal trail" the Build a Goal Trail and Opportunity Cost Challenge
+      // starter lessons are built around. Gated at the same award-access
+      // bar as recording a transaction (not the narrower manage-access
+      // used for rename/delete above): setting up and completing a goal
+      // is part of the same everyday earn workflow, not a roster change.
+      match /goals/{goalId} {
+        function parentStudent() {
+          return get(/databases/$(database)/documents/students/$(studentId)).data;
+        }
+        function hasGoalAccess() {
+          return isContextOwner(parentStudent()) || (
+            parentStudent().get('schoolId', null) != null
+              && hasAwardAccess(
+                parentStudent().schoolId,
+                parentStudent().get('gradeLevel', null),
+                parentStudent().contextId
+              )
+          );
+        }
+        // Same visibility as the student record itself: staff with
+        // read access to the classroom, or the linked student viewing
+        // their own goals (MyBalancePage).
+        allow read: if isLinkedStudentSelf(parentStudent()) || (
+          parentStudent().get('contextId', null) != null &&
+          isReadableClassroom(parentStudent().get('contextId', null))
+        ) || (
+          parentStudent().get('schoolId', null) != null &&
+          isAtLeastAdmin(parentStudent().get('schoolId', null))
+        );
+        allow create: if hasGoalAccess()
+          && request.resource.data.studentId == studentId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.targetCents is int
+          && request.resource.data.targetCents > 0
+          && request.resource.data.savedCents == 0
+          && request.resource.data.createdByUid == request.auth.uid;
+        // savedCents only ever changes via recordTransaction's batched
+        // increment (see lib/firestore.ts) — this update rule also covers
+        // that same-batch write, plus a manual rename/retarget.
+        allow update: if hasGoalAccess()
+          && request.resource.data.studentId == resource.data.studentId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.targetCents is int
+          && request.resource.data.targetCents > 0
+          && request.resource.data.savedCents is int
+          && request.resource.data.savedCents >= 0;
+        allow delete: if hasGoalAccess();
+      }
     }
 
     // A classroom owner's request that a colleague (an existing active

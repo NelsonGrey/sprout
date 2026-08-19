@@ -21,7 +21,7 @@ import {
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { ClassroomContext, LedgerTransaction, PendingStudentLink, SavingsLabel, Student, TransactionType } from '@sprout/shared';
+import type { ClassroomContext, Goal, LedgerTransaction, PendingStudentLink, SavingsLabel, Student, TransactionType } from '@sprout/shared';
 import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
@@ -91,6 +91,7 @@ function transactionFromDoc(d: QueryDocumentSnapshot<DocumentData>): LedgerTrans
     amountCents: data.amountCents,
     reason: data.reason,
     ...(data.savingsLabel ? { savingsLabel: data.savingsLabel } : {}),
+    ...(data.goalId ? { goalId: data.goalId } : {}),
     createdByUid: data.createdByUid,
     // A pending server timestamp reads back as null right after a local
     // write, before the round-trip lands — fall back to "now".
@@ -454,6 +455,7 @@ export async function recordTransaction({
   amountCents,
   reason,
   savingsLabel,
+  goalId,
   createdByUid,
   ownerUids,
   schoolId,
@@ -468,6 +470,10 @@ export async function recordTransaction({
   // silently dropped for a 'spend' rather than making every call site
   // remember to omit it.
   savingsLabel?: SavingsLabel;
+  // A specific goal this earn counts toward — implies savingsLabel:
+  // 'goal' (set automatically below if the caller passed goalId without
+  // it). Also dropped for a 'spend'.
+  goalId?: string;
   createdByUid: string;
   ownerUids: string[];
   // Denormalized from the student, so a scoped/delegated (not just
@@ -492,13 +498,67 @@ export async function recordTransaction({
     ownerUids,
     ...(schoolId ? { schoolId } : {}),
     ...(gradeLevel ? { gradeLevel } : {}),
-    ...(type === 'earn' && savingsLabel ? { savingsLabel } : {}),
+    ...(type === 'earn' && (savingsLabel || goalId) ? { savingsLabel: goalId ? 'goal' : savingsLabel } : {}),
+    ...(type === 'earn' && goalId ? { goalId } : {}),
   });
 
   const delta = type === 'earn' ? amountCents : -amountCents;
   batch.update(doc(db, 'students', studentId), { balanceCents: increment(delta) });
 
+  if (type === 'earn' && goalId) {
+    batch.update(doc(db, 'students', studentId, 'goals', goalId), { savedCents: increment(amountCents) });
+  }
+
   await batch.commit();
+}
+
+function goalFromDoc(d: QueryDocumentSnapshot<DocumentData>): Goal {
+  const data = d.data();
+  return {
+    id: d.id,
+    studentId: data.studentId,
+    name: data.name,
+    targetCents: data.targetCents,
+    savedCents: data.savedCents,
+    createdByUid: data.createdByUid,
+    createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
+  };
+}
+
+export function useGoals(studentId: string): Goal[] {
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'students', studentId, 'goals'), orderBy('createdAt', 'asc'));
+    return onSnapshot(q, (snapshot) => setGoals(snapshot.docs.map(goalFromDoc)));
+  }, [studentId]);
+
+  return goals;
+}
+
+export async function createGoal({
+  studentId,
+  name,
+  targetCents,
+  createdByUid,
+}: {
+  studentId: string;
+  name: string;
+  targetCents: number;
+  createdByUid: string;
+}): Promise<void> {
+  await addDoc(collection(db, 'students', studentId, 'goals'), {
+    studentId,
+    name,
+    targetCents,
+    savedCents: 0,
+    createdByUid,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function deleteGoal(studentId: string, goalId: string): Promise<void> {
+  await deleteDoc(doc(db, 'students', studentId, 'goals', goalId));
 }
 
 function normalizeEmail(email: string): string {

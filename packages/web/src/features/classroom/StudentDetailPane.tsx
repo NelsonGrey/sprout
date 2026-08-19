@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import type { SavingsLabel, Student, TransactionType } from '@sprout/shared';
-import { Pencil, Trash2 } from 'lucide-react';
+import type { Student, TransactionType } from '@sprout/shared';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   cancelStudentLink,
+  createGoal,
+  deleteGoal,
   deleteStudent,
   linkStudentAccount,
   recordTransaction,
   splitDisplayName,
   unlinkStudentAccount,
   updateStudent,
+  useGoals,
   usePendingStudentLinkForStudent,
   useTransactions,
 } from '../../lib/firestore';
 import { Button } from '../../components/ui/button';
+import { GoalProgressCard } from '../../components/ui/goal-progress-card';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
@@ -42,14 +46,23 @@ export function StudentDetailPane({
   const ownerUids = student.ownerUids ?? [user.uid];
 
   const transactions = useTransactions(contextId, student.id);
+  const goals = useGoals(student.id);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [savingsLabel, setSavingsLabel] = useState<SavingsLabel | ''>('');
+  // Encodes the "Save as…" select's value: '' (none), 'just_in_case', or
+  // a specific goal's id — see handleRecord for how this splits back out
+  // into savingsLabel/goalId.
+  const [saveAs, setSaveAs] = useState('');
   const [recording, setRecording] = useState(false);
 
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [deleting, setDeleting] = useState(false);
+
+  const [addingGoal, setAddingGoal] = useState(false);
+  const [goalName, setGoalName] = useState('');
+  const [goalTarget, setGoalTarget] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
 
   const pendingLink = usePendingStudentLinkForStudent(student.id);
   const [linkEmail, setLinkEmail] = useState('');
@@ -59,13 +72,15 @@ export function StudentDetailPane({
     const parsed = Number.parseFloat(amount);
     if (!Number.isFinite(parsed) || parsed <= 0 || !reason.trim() || recording) return;
     setRecording(true);
+    const targetGoal = goals.find((g) => g.id === saveAs);
     await recordTransaction({
       contextId,
       studentId: student.id,
       type,
       amountCents: Math.round(parsed * 100),
       reason: reason.trim(),
-      ...(type === 'earn' && savingsLabel ? { savingsLabel } : {}),
+      ...(type === 'earn' && targetGoal ? { goalId: targetGoal.id } : {}),
+      ...(type === 'earn' && !targetGoal && saveAs === 'just_in_case' ? { savingsLabel: 'just_in_case' as const } : {}),
       createdByUid: user.uid,
       ownerUids,
       schoolId: student.schoolId,
@@ -73,8 +88,25 @@ export function StudentDetailPane({
     });
     setAmount('');
     setReason('');
-    setSavingsLabel('');
+    setSaveAs('');
     setRecording(false);
+  };
+
+  const handleAddGoal = async () => {
+    const trimmedName = goalName.trim();
+    const parsedTarget = Number.parseFloat(goalTarget);
+    if (!trimmedName || !Number.isFinite(parsedTarget) || parsedTarget <= 0 || savingGoal) return;
+    setSavingGoal(true);
+    await createGoal({
+      studentId: student.id,
+      name: trimmedName,
+      targetCents: Math.round(parsedTarget * 100),
+      createdByUid: user.uid,
+    });
+    setGoalName('');
+    setGoalTarget('');
+    setSavingGoal(false);
+    setAddingGoal(false);
   };
 
   const startRenaming = () => {
@@ -128,6 +160,43 @@ export function StudentDetailPane({
         </header>
       )}
       <p className="pt-4 text-3xl font-bold">${(student.balanceCents / 100).toFixed(2)}</p>
+
+      <section className="mt-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink-muted">Goals</h2>
+          {!addingGoal && (
+            <Button size="sm" variant="secondary" onClick={() => setAddingGoal(true)}>
+              <Plus size={14} /> New goal
+            </Button>
+          )}
+        </div>
+        {addingGoal && (
+          <div className="mb-3 flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+            <Input value={goalName} onChange={(e) => setGoalName(e.target.value)} placeholder="Goal name" autoFocus />
+            <Input
+              value={goalTarget}
+              onChange={(e) => setGoalTarget(e.target.value)}
+              placeholder="Target amount"
+              inputMode="decimal"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleAddGoal} disabled={savingGoal}>
+                Add goal
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setAddingGoal(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+        {goals.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {goals.map((goal) => (
+              <GoalProgressCard key={goal.id} goal={goal} onDelete={() => deleteGoal(student.id, goal.id)} />
+            ))}
+          </div>
+        )}
+      </section>
 
       {canManage && (
         <section className="mt-4 rounded-lg border border-border bg-surface p-4">
@@ -204,16 +273,21 @@ export function StudentDetailPane({
         </div>
         {/* Only meaningful for Earn — recordTransaction drops it for a
          * Spend regardless, but leaving it selectable either way avoids a
-         * mode toggle just to show/hide one field. */}
+         * mode toggle just to show/hide one field. Value is either
+         * 'just_in_case' or a specific goal's id (see handleRecord). */}
         <select
-          value={savingsLabel}
-          onChange={(e) => setSavingsLabel(e.target.value as SavingsLabel | '')}
+          value={saveAs}
+          onChange={(e) => setSaveAs(e.target.value)}
           aria-label="Save this earning toward"
           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink-muted"
         >
           <option value="">Save as… (optional, for Earn)</option>
-          <option value="goal">🎯 Goal</option>
           <option value="just_in_case">☂️ Just in case</option>
+          {goals.map((goal) => (
+            <option key={goal.id} value={goal.id}>
+              🎯 {goal.name} — ${(goal.savedCents / 100).toFixed(2)} of ${(goal.targetCents / 100).toFixed(2)}
+            </option>
+          ))}
         </select>
         <div className="flex gap-2">
           <Button className="flex-1" onClick={() => handleRecord('earn')} disabled={recording}>

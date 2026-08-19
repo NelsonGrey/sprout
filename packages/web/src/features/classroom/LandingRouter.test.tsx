@@ -10,6 +10,7 @@ vi.mock('../../lib/firestore', () => ({
   useClassrooms: vi.fn(),
   useClassroomsInSchool: vi.fn(),
   useTransactions: vi.fn(),
+  useGoals: vi.fn(),
   createClassroom: vi.fn(),
 }));
 
@@ -51,6 +52,7 @@ describe('LandingRouter', () => {
     vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue(linkedStudent);
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
     vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
 
     render(<LandingRouter user={user} />);

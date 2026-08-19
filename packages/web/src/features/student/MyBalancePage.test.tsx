@@ -5,6 +5,7 @@ import * as firestoreLib from '../../lib/firestore';
 
 vi.mock('../../lib/firestore', () => ({
   useTransactions: vi.fn(),
+  useGoals: vi.fn(),
 }));
 
 const student = {
@@ -37,6 +38,7 @@ describe('MyBalancePage', () => {
         ownerUids: ['teacher-1'],
       },
     ]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
 
     render(<MyBalancePage student={student} />);
 
@@ -65,14 +67,37 @@ describe('MyBalancePage', () => {
         ownerUids: ['teacher-1'],
       },
     ]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
 
     render(<MyBalancePage student={student} />);
 
     expect(screen.getByText('Just in case')).toBeTruthy();
   });
 
+  it('shows read-only progress for each of the student\'s goals, with no delete control', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([
+      {
+        id: 'goal-1',
+        studentId: 'student-1',
+        name: 'New soccer ball',
+        targetCents: 2000,
+        savedCents: 800,
+        createdByUid: 'teacher-1',
+        createdAt: new Date(),
+      },
+    ]);
+
+    render(<MyBalancePage student={student} />);
+
+    expect(screen.getByText('New soccer ball')).toBeTruthy();
+    expect(screen.getByText('$8.00 of $20.00 saved')).toBeTruthy();
+    expect(screen.queryByLabelText('Delete goal New soccer ball')).toBeNull();
+  });
+
   it('shows an empty state with no transactions', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
 
     render(<MyBalancePage student={student} />);
 

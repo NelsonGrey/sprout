@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
 const OWNER_UID = 'owner-1';
 const OTHER_UID = 'other-1';
@@ -159,6 +159,94 @@ describe('firestore.rules', () => {
         ownerUids: [OWNER_UID],
       }),
     );
+  });
+
+  it('lets the owner create a goal, then record a transaction that credits its progress', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+
+    await assertSucceeds(
+      setDoc(doc(owner, 'students/student-1/goals/goal-1'), {
+        studentId: 'student-1',
+        name: 'New soccer ball',
+        targetCents: 2000,
+        savedCents: 0,
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-goal-linked'), {
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Allowance',
+        savingsLabel: 'goal',
+        goalId: 'goal-1',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(owner, 'students/student-1/goals/goal-1'), { savedCents: 500 }),
+    );
+    await assertSucceeds(getDoc(doc(owner, 'students/student-1/goals/goal-1')));
+  });
+
+  it("rejects a transaction naming a goal that doesn't exist, and rejects a non-owner reading or creating a goal", async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    const other = testEnv.authenticatedContext(OTHER_UID).firestore();
+
+    await assertFails(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-fake-goal'), {
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Allowance',
+        savingsLabel: 'goal',
+        goalId: 'no-such-goal',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+
+    await setDoc(doc(owner, 'students/student-1/goals/goal-1'), {
+      studentId: 'student-1',
+      name: 'New soccer ball',
+      targetCents: 2000,
+      savedCents: 0,
+      createdByUid: OWNER_UID,
+      createdAt: new Date(),
+    });
+    await assertFails(getDoc(doc(other, 'students/student-1/goals/goal-1')));
+    await assertFails(
+      setDoc(doc(other, 'students/student-1/goals/goal-2'), {
+        studentId: 'student-1',
+        name: 'Snooping',
+        targetCents: 100,
+        savedCents: 0,
+        createdByUid: OTHER_UID,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('lets the owner delete a goal', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await setDoc(doc(owner, 'students/student-1/goals/goal-1'), {
+      studentId: 'student-1',
+      name: 'New soccer ball',
+      targetCents: 2000,
+      savedCents: 0,
+      createdByUid: OWNER_UID,
+      createdAt: new Date(),
+    });
+
+    await assertSucceeds(deleteDoc(doc(owner, 'students/student-1/goals/goal-1')));
   });
 });
 

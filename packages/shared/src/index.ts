@@ -79,9 +79,33 @@ export interface LedgerTransaction {
   amountCents: number;
   reason: string;
   savingsLabel?: SavingsLabel;
+  /** Set alongside savingsLabel: 'goal' when this earn was recorded
+   * toward a specific Goal (see below) rather than the generic "goal"
+   * label. Never valid on a 'spend' (see firestore.rules). */
+  goalId?: string;
   createdByUid: string;
   createdAt: Date;
   ownerUids: string[];
+}
+
+/** A student's simulated savings goal — name, target amount, and running
+ * progress — the "goal trail" the Build a Goal Trail and Opportunity Cost
+ * Challenge starter lessons are built around. Nested under
+ * students/{studentId}/goals in Firestore. savedCents is incremented
+ * alongside a student's balanceCents whenever an 'earn' transaction names
+ * this goal via LedgerTransaction.goalId (see recordTransaction) — it is
+ * a parallel tracking total, not a separate pool of money; the earned
+ * amount still counts toward the student's one real balance too. A goal
+ * is "achieved" when savedCents >= targetCents — deliberately not a
+ * separate stored status, so there's only one source of truth. */
+export interface Goal {
+  id: string;
+  studentId: string;
+  name: string;
+  targetCents: number;
+  savedCents: number;
+  createdByUid: string;
+  createdAt: Date;
 }
 
 // ---- School security matrix (BR-1.3.11/1.3.12) ----
