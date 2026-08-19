@@ -1,0 +1,230 @@
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock3,
+  ExternalLink,
+  Home,
+  Lightbulb,
+  PackageOpen,
+  Printer,
+  ShieldCheck,
+  Sparkles,
+  Sprout,
+} from 'lucide-react';
+import { Link } from 'wouter';
+import type { Lesson } from './content';
+import { usePageMeta } from './usePageMeta';
+
+export function LessonPage({ lesson }: { lesson: Lesson }) {
+  usePageMeta(`${lesson.title} lesson`, lesson.summary);
+
+  return (
+    <article>
+      <header className="border-b border-[#dfe9dd] bg-white px-5 py-12 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-[1040px]">
+          <Link
+            href="/curriculum"
+            className="inline-flex items-center gap-2 text-sm font-black text-[#166b4f]"
+          >
+            <ArrowLeft size={16} /> All lessons
+          </Link>
+          <div className="mt-10 flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-[0.12em] text-[#617970]">
+            <span className="rounded-full bg-[#e3f3e7] px-3 py-1.5 text-[#166b4f]">
+              {lesson.band}
+            </span>
+            <span>{lesson.strand}</span>
+            <span aria-hidden="true">·</span>
+            <span className="flex items-center gap-1">
+              <Clock3 size={13} /> {lesson.minutes} minutes
+            </span>
+          </div>
+          <h1 className="mt-5 text-5xl font-black tracking-[-0.052em] sm:text-6xl">
+            {lesson.title}
+          </h1>
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#567168]">
+            {lesson.summary}
+          </p>
+          <div data-no-print className="mt-8 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-full bg-[#102a26] px-5 py-3 text-sm font-black text-white"
+            >
+              <Printer size={16} /> Print lesson
+            </button>
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#cfddcf] px-5 py-3 text-sm font-bold text-[#4e6a61]">
+              <Sprout size={16} /> {lesson.buildingBlock}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-[1040px] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[.67fr_1.33fr] lg:px-12 lg:py-16">
+        <aside className="space-y-5">
+          <section className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+            <div className="flex items-center gap-2 font-black">
+              <Lightbulb size={18} className="text-[#d88a16]" /> Learning
+              objective
+            </div>
+            <p className="mt-3 text-sm leading-6 text-[#5c746c]">
+              {lesson.objective}
+            </p>
+          </section>
+          <section className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+            <div className="flex items-center gap-2 font-black">
+              <PackageOpen size={18} className="text-[#16805b]" /> Materials
+            </div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#5c746c]">
+              {lesson.materials.map(item => (
+                <li key={item} className="flex gap-2">
+                  <span aria-hidden="true">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+            <div className="font-black">Words to grow</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {lesson.vocabulary.map(word => (
+                <span
+                  key={word}
+                  className="rounded-full bg-[#edf5ed] px-3 py-1.5 text-xs font-bold text-[#49685e]"
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
+          </section>
+        </aside>
+
+        <div className="space-y-10">
+          <section>
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-[#16805b]">
+              Open the conversation
+            </p>
+            <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+              Warm-up
+            </h2>
+            <p className="mt-4 leading-8 text-[#526e65]">{lesson.warmup}</p>
+          </section>
+
+          <section>
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-[#e56845]">
+              Student mission
+            </p>
+            <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+              Try it together
+            </h2>
+            <div className="mt-6 space-y-4">
+              {lesson.mission.map((step, index) => (
+                <div
+                  key={step.title}
+                  className="grid gap-4 rounded-2xl border border-[#dbe6dc] bg-white p-5 sm:grid-cols-[42px_1fr]"
+                >
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#fff0e8] text-sm font-black text-[#b95336]">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h3 className="font-black">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                      {step.instructions}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[26px] bg-[#102a26] p-6 text-white sm:p-8">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.15em] text-[#8ed2a6]">
+              <Sparkles size={15} /> Reflect
+            </div>
+            <ul className="mt-5 space-y-4">
+              {lesson.reflect.map(question => (
+                <li key={question} className="flex gap-3 leading-7">
+                  <span className="text-[#8ed2a6]">→</span>
+                  <span>{question}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-black tracking-[-0.035em]">
+              Quick learning check
+            </h2>
+            <p className="mt-3 leading-7 text-[#587168]">{lesson.check}</p>
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+              <Home size={20} className="text-[#e56845]" />
+              <h2 className="mt-4 font-black">Family bridge</h2>
+              <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                {lesson.familyBridge}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#dce7dc] bg-white p-5">
+              <Sprout size={20} className="text-[#16805b]" />
+              <h2 className="mt-4 font-black">Inside Sprout Streak</h2>
+              <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                {lesson.productConnection}
+              </p>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#f0d5c9] bg-[#fff8f4] p-5">
+            <div className="flex items-center gap-2 font-black">
+              <ShieldCheck size={18} className="text-[#c45b3b]" /> Teach without
+              shame
+            </div>
+            <p className="mt-3 text-sm leading-6 text-[#6d5f59]">
+              {lesson.inclusionNote}
+            </p>
+          </section>
+
+          <section className="border-t border-[#dce7dc] pt-8">
+            <div className="flex items-start gap-3">
+              <CheckCircle2
+                size={19}
+                className="mt-1 shrink-0 text-[#16805b]"
+              />
+              <div>
+                <h2 className="font-black">Framework connection</h2>
+                <p className="mt-2 text-sm leading-6 text-[#5d756d]">
+                  {lesson.standardsNote}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs leading-5 text-[#72877f]">
+              This is a design alignment note, not a state-standards
+              certification. Curriculum teams should complete local review.
+            </p>
+            <div
+              data-no-print
+              className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[#166b4f]"
+            >
+              <a
+                href="https://www.consumerfinance.gov/consumer-tools/educator-tools/youth-financial-education/learn/"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1"
+              >
+                CFPB framework <ExternalLink size={12} />
+              </a>
+              <a
+                href="https://www.councilforeconed.org/policy-advocacy/k-12-standards/"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1"
+              >
+                National standards <ExternalLink size={12} />
+              </a>
+            </div>
+          </section>
+        </div>
+      </div>
+    </article>
+  );
+}

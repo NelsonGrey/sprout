@@ -1,9 +1,9 @@
 # Sprout Streak - Technical Requirements & Implementation Status
 
-> **Refreshed 2026-08-18** against actual repo state (code, tests, live deployment) — the previous version (1.3, written 2026-08-16) described a fresh scaffold and was badly stale within two days as Phase 1 and much of Phase 2 landed. The status column in every table below is the source of truth on what's actually built — do not assume a described requirement is implemented, or unimplemented, unless its row says so.
+> **Refreshed 2026-08-19** against actual repo state (code, tests, and deployed product status) — the previous version (1.3, written 2026-08-16) described a fresh scaffold and was badly stale within two days as Phase 1 and much of Phase 2 landed. The status column in every table below is the source of truth on what's actually built — do not assume a described requirement is implemented, or unimplemented, unless its row says so.
 
-**Version**: 2.0
-**Last Updated**: August 18, 2026
+**Version**: 2.1
+**Last Updated**: August 19, 2026
 **Status**: Phase 1 MVP complete and live; Phase 2 partially complete
 **Project Owner**: Mark Nelson
 
@@ -155,6 +155,15 @@ This table maps directly to the Business Requirements (`BR-*` IDs) in [BUSINESS_
 | Firebase project trio (`nelsongrey-sprout-dev/staging/prod`) | ✅ `dev` fully functional and in active use (real Auth users, real Firestore data, deployed hosting); staging/prod created but Auth providers/IAM/billing setup still pending (owner action) |
 | GitHub Actions (`master-pipeline.yml`, hosting deploys per branch, CodeQL, secret scanning) | ✅ Complete. `codeql.yml` runs on push/PR to develop/staging/main plus a weekly schedule; `secret-scan.yml` runs on push/PR to the same three branches |
 | Functions companion-repo checkout (`FUNCTIONS_REPO_PAT`) | ✅ Workflow wired; secret not yet set |
+
+### 2.9 Public Marketing & Learning Library (BR-8.3 / BR-8.4) 🟡 FOUNDATION COMPLETE
+
+- **Public routes**: Marketing home, district, school, educator, family, student, curriculum, lesson, and readiness views are implemented in `packages/web/src/features/marketing/`.
+- **Auth boundary**: Signed-out `/` renders the marketing home; authenticated `/` retains the application dashboard. Public learning and stakeholder routes remain reviewable in either state.
+- **Curriculum foundation**: Eight original Pre-K–6 lesson starters cover all four active bands (Pre-K–K, grades 1–2, grades 3–4, grades 5–6). Each implements the BR-8.4.2 content contract and printable lesson layout.
+- **Framework posture**: Content references the CFPB youth financial-capability building blocks and CEE/Jump$tart national progression as design inputs. No state alignment or curriculum certification is claimed.
+- **Readiness posture**: The public readiness view separates working, planned, and launch-gated capabilities. Grades 7–12, family continuity, district administration, verified accessibility, and procurement materials remain explicitly incomplete.
+- **Validation**: Marketing content/route tests cover stakeholder presence, grade-band coverage, lesson completeness, and the anonymous/authenticated route boundary. Responsive browser QA covers navigation, filtering, lesson routing, and scroll restoration.
 
 ---
 
@@ -383,7 +392,7 @@ The same five accounts exist in the real `nelsongrey-sprout-dev` project too (`s
 | Product features — Phase 2 | ~50% | Bulk ops/CSV import done (web); multi-context identity, interest mechanics, mobile parity still open |
 | Compliance (COPPA/FERPA) | Design rationale resolved; program 0% | See §7.3 |
 | Accessibility | Minimal incidental coverage only | See §2.4 |
-| Testing | Strong across the board | Web: 94 tests/14 files. Mobile: 47 tests/8 files. Firestore rules: 43 tests |
+| Testing | Strong across the board | Web: 131 tests/24 files. Mobile: 47 tests/8 files. Firestore rules: 43 tests |
 
 **Status**: 🟢 **Phase 1 MVP live at `nelsongrey-sprout-dev.web.app`. Phase 2 partially complete. Next priorities for a v1.0-readiness pass: reliability/offline hardening, accessibility, and the compliance program — none of which are started.**
 
@@ -398,6 +407,7 @@ The same five accounts exist in the real `nelsongrey-sprout-dev` project too (`s
 | 1.2 | Aug 16, 2026 | Mark Nelson | Shipped the school security matrix (§3.2a) |
 | 1.3 | Aug 16, 2026 | Mark Nelson | Corrected hierarchy to three-tier super_admin/admin/teacher; expanded scoped access to full CRUD; added NCES lookup and emulator test accounts |
 | 2.0 | Aug 18, 2026 | Mark Nelson (with Claude) | Full refresh against actual repo state, which had drifted far ahead of the doc in two days: marked Phase 1 MVP complete (student self-service, invite/delegation flow, security rules all live); marked CSV import and bulk roster operations complete (web); corrected test-coverage numbers across web/mobile/rules; documented the Firestore list-query authorization constraint found and fixed this session (root cause of a production incident where classroom rosters showed empty for every caller — see `firestore.rules`' `isReadableClassroom`); corrected the internal contradiction in §7.2 (rules were marked both "not written" and, two lines later, described as implemented); flagged mobile's lack of bulk-ops/CSV parity and family-context's schema-only status as open gaps |
+| 2.1 | Aug 19, 2026 | Mark Nelson | Added the public marketing and Pre-K–6 learning-library foundation, stakeholder/readiness routes, content contract, route boundary, updated web test count, and responsive browser-validation status |
 
 ---
 

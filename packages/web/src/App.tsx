@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { Route, Switch } from 'wouter';
+import { Route, Switch, useLocation } from 'wouter';
 import { firebaseClient } from './lib/firebase';
 import { claimPendingStudentLinkIfAny } from './lib/firestore';
 import { claimPendingInviteIfAny } from './lib/school';
@@ -21,13 +21,16 @@ import { StudentImportPage } from './features/students/StudentImportPage';
 import { PromoteStudentsPage } from './features/students/PromoteStudentsPage';
 import { ArchiveStudentsPage } from './features/students/ArchiveStudentsPage';
 import { Layout } from './components/layout/Layout';
+import { MarketingRoutes } from './features/marketing/MarketingRoutes';
+import { isMarketingPath } from './features/marketing/marketingPaths';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [path] = useLocation();
 
   useEffect(() => {
-    return onAuthStateChanged(firebaseClient.auth, (nextUser) => {
+    return onAuthStateChanged(firebaseClient.auth, nextUser => {
       setUser(nextUser);
       setLoading(false);
       // No-op unless an admin invited this exact email — activates the
@@ -38,12 +41,19 @@ function App() {
           email: nextUser.email,
           displayName: nextUser.displayName,
         });
-        claimPendingStudentLinkIfAny({ uid: nextUser.uid, email: nextUser.email });
+        claimPendingStudentLinkIfAny({
+          uid: nextUser.uid,
+          email: nextUser.email,
+        });
       }
     });
   }, []);
 
   if (loading) return null;
+  if (isMarketingPath(path, Boolean(user))) {
+    return <MarketingRoutes user={user} />;
+  }
+
   if (!user) {
     return (
       <Layout user={null}>
@@ -59,24 +69,34 @@ function App() {
           <CreateClassroomPage user={user} />
         </Route>
         <Route path="/classrooms/:contextId/students/new">
-          {(params) => <CreateStudentPage user={user} contextId={params.contextId} />}
+          {params => (
+            <CreateStudentPage user={user} contextId={params.contextId} />
+          )}
         </Route>
         <Route path="/classrooms/:contextId/request-access">
-          {(params) => <RequestAccessPage user={user} contextId={params.contextId} />}
+          {params => (
+            <RequestAccessPage user={user} contextId={params.contextId} />
+          )}
         </Route>
         <Route path="/classrooms/:contextId/students/:studentId">
-          {(params) => (
-            <ClassroomDetailPage user={user} contextId={params.contextId} studentId={params.studentId} />
+          {params => (
+            <ClassroomDetailPage
+              user={user}
+              contextId={params.contextId}
+              studentId={params.studentId}
+            />
           )}
         </Route>
         <Route path="/classrooms/:contextId">
-          {(params) => <ClassroomDetailPage user={user} contextId={params.contextId} />}
+          {params => (
+            <ClassroomDetailPage user={user} contextId={params.contextId} />
+          )}
         </Route>
         <Route path="/school/staff/new">
           <AddStaffPage user={user} />
         </Route>
         <Route path="/school/staff/:uid">
-          {(params) => <StaffPage user={user} selectedUid={params.uid} />}
+          {params => <StaffPage user={user} selectedUid={params.uid} />}
         </Route>
         <Route path="/school/staff">
           <StaffPage user={user} />
@@ -106,6 +126,9 @@ function App() {
           <DeleteAccountPage user={user} />
         </Route>
         <Route path="/">
+          <LandingRouter user={user} />
+        </Route>
+        <Route>
           <LandingRouter user={user} />
         </Route>
       </Switch>

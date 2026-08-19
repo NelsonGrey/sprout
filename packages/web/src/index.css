@@ -43,3 +43,53 @@
   --color-brand-hover: var(--brand-hover);
   --color-accent: var(--accent);
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand) 24%, transparent);
+}
+
+.marketing-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--brand) 7%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--brand) 7%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 36px 36px;
+}
+
+.marketing-dot-field {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--brand) 24%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 18px 18px;
+}
+
+@media print {
+  [data-no-print] {
+    display: none !important;
+  }
+
+  body {
+    color: #102a26;
+    background: white;
+  }
+
+  article {
+    max-width: none !important;
+  }
+}

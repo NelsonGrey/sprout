@@ -112,7 +112,12 @@ export class FirebaseClient {
   connectToEmulators(): void {
     if (process.env.NODE_ENV === 'development') {
       try {
-        connectAuthEmulator(this._auth, "http://localhost:9099");
+        // The SDK's default emulator warning injects a full-width DOM banner.
+        // Keep the console warning and connection log, but do not let app
+        // infrastructure alter the rendered marketing or classroom UI.
+        connectAuthEmulator(this._auth, "http://localhost:9099", {
+          disableWarnings: true,
+        });
         connectFirestoreEmulator(this._firestore, 'localhost', 8080);
         connectFunctionsEmulator(this._functions, "localhost", 5001);
         connectStorageEmulator(this._storage, "localhost", 9199);
@@ -196,4 +201,3 @@ export class StorageHelpers {
     await deleteObject(storageRef);
   }
 }
-

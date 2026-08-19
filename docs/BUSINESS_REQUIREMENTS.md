@@ -1,9 +1,9 @@
 # Sprout Streak - Business Requirements Document
 
-> **Planning baseline (written 2026-08-16):** This document describes the target product for a freshly scaffolded repository. Only the auth layer, monorepo skeleton, Firebase project trio, and CI/CD are actually built — see [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md) §2 for an honest implementation-status table. Everything else below is planning intent, not a shipped feature.
+> **Product-intent baseline:** This document defines the business target, not implementation status. The product has advanced beyond its original 2026-08-16 scaffold; see [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md) §2 for the current, evidence-backed implementation table.
 
-**Version**: 1.0
-**Last Updated**: August 16, 2026
+**Version**: 1.2
+**Last Updated**: August 19, 2026
 **Status**: Draft
 **Owner**: Mark Nelson
 
@@ -257,6 +257,37 @@ Firebase (Auth, Firestore, Functions, Hosting) scales with usage; no physical ha
 **Marketing**: SEO/ASO targeting "ETM Machine alternative" and "ClassBank alternative" search intent; teacher-community outreach.
 **Legal**: COPPA/FERPA-appropriate privacy policy and data processing terms published before any school-facing launch — this is a harder requirement than the org's game portfolio carries, given the K-12 institutional context.
 
+### 8.3 Public Website & Stakeholder Communication Requirements
+
+**Primary curriculum scope**: Pre-K through grade 6. Grades 7–8 and grades 9–12 are explicit expansion paths, not current-offering claims. The product architecture and district story may anticipate a complete Pre-K–12 district, but public copy must distinguish the implemented Pre-K–6 foundation from future secondary curriculum.
+
+**Required audiences**: The public website must give each of these stakeholders a direct, role-appropriate path:
+- District superintendents and district curriculum/technology/student-services staff
+- School principals and school administrative/support staff
+- Classroom teachers, specialists, co-teachers, and instructional staff
+- Parents, guardians, and caregivers
+- Students
+
+**BR-8.3.1 — Role-specific value**: Each audience path must answer that stakeholder's operational or learning questions rather than reuse a generic feature list.
+
+**BR-8.3.2 — Honest readiness**: District- and school-facing pages must clearly label working, planned, and launch-gated capabilities. Sprout Streak must not claim FERPA/COPPA certification, accessibility conformance, district procurement readiness, or complete Pre-K–12 curriculum without supporting evidence.
+
+**BR-8.3.3 — Review before sales**: The public site may support curriculum and product-foundation review during pre-launch, but district pilot or purchase calls to action must route through the privacy, accessibility, operational, and contracting gates in §9.
+
+**BR-8.3.4 — Student-safe messaging**: Student-facing material must use direct, age-appropriate language; avoid public balance comparison, shame, or labeling a child by a financial choice; and clearly identify the classroom ledger as a simulation.
+
+### 8.4 Financial Learning Content Requirements
+
+**BR-8.4.1 — Developmental progression**: Pre-K–6 content must progress from planning, focus, and self-control to financial habits and norms, then toward financial knowledge and decision-making. National frameworks are design inputs; local/state alignment remains a curriculum-team responsibility.
+
+**BR-8.4.2 — Complete lesson contract**: A publishable lesson must include a grade band, duration, learning objective, vocabulary, materials, educator warm-up, student mission, reflection prompts, a learning check, family bridge, product connection, inclusion guidance, and a standards/framework note.
+
+**BR-8.4.3 — Context-respectful instruction**: Lessons must not require students to disclose family income, debt, savings, banking access, food/housing insecurity, or what their family can afford. Financial hardship is not a classroom discussion prompt.
+
+**BR-8.4.4 — Practice-to-product connection**: The digital ledger is a practice surface, not the curriculum by itself. Transactions should connect to a decision, vocabulary, goal, calculation, or reflection appropriate to the learner's grade band.
+
+**BR-8.4.5 — Adult and student utility**: Material must be usable by educators and directly engaging for students, with a short family extension that does not require an allowance, bank account, or purchase.
+
 ---
 
 ## 9. Regulatory & Compliance
@@ -294,6 +325,7 @@ Full teardown conducted 2026-08-16 as the origin of this project. Summary of fin
 |---------|------|--------|---------|
 | 1.0 | Aug 16, 2026 | Mark Nelson | Initial BRD, including ETM Machine source analysis and ClassBank competitive deep dive |
 | 1.1 | Aug 16, 2026 | Mark Nelson | Added BR-1.3.9–1.3.12 (bulk actions, mass deposit, secondary/multi-section teachers, scoped specialist role) from direct ETM Machine teacher field feedback |
+| 1.2 | Aug 19, 2026 | Mark Nelson | Added Pre-K–6 primary curriculum scope, optional secondary expansion, public stakeholder paths, readiness-claim gates, and financial-learning content requirements |
 
 ---
 
