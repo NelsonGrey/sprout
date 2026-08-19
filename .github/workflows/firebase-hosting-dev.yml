@@ -4,9 +4,16 @@ name: "Deploy Web App to Dev (Hosting)"
 # nelsongrey-sprout-dev Firebase Hosting project for review and testing. Business
 # logic lives in Firebase Functions (private, server-side). This workflow
 # publishes only the compiled dist/ bundle; no source is exposed.
+#
+# Auth: Workload Identity Federation (see google-github-actions/auth below) —
+# GitHub's OIDC token is exchanged for short-lived Google credentials scoped
+# to this exact branch via the github-actions-hosting service account's IAM
+# binding. No static key or firebase-tools token is stored anywhere; nothing
+# here can expire the way the old FIREBASE_TOKEN secret did.
 
 permissions:
   contents: read
+  id-token: write
 
 on:
   push:
@@ -58,17 +65,16 @@ jobs:
       - name: Use Dev Firebase Config
         run: cp firebase.dev.json firebase.json
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/968230602171/locations/global/workloadIdentityPools/github-actions/providers/github"
+          service_account: "github-actions-hosting@nelsongrey-sprout-dev.iam.gserviceaccount.com"
+
       - name: Deploy Firebase Hosting
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          if [ -z "$FIREBASE_TOKEN" ]; then
-            echo "FIREBASE_TOKEN secret is not set"
-            exit 1
-          fi
           firebase deploy \
             --project="nelsongrey-sprout-dev" \
-            --token="$FIREBASE_TOKEN" \
             --only=hosting \
             --message="Dev hosting deploy from develop — ${{ github.sha }}" \
             --non-interactive
