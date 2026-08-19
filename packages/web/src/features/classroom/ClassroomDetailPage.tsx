@@ -17,6 +17,7 @@ import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { TwoPaneLayout } from '../../components/layout/TwoPaneLayout';
+import { StoreManager } from './StoreManager';
 import { StudentDetailPane } from './StudentDetailPane';
 
 export function ClassroomDetailPage({
@@ -207,6 +208,10 @@ export function ClassroomDetailPage({
           )
         }
       />
+
+      <div className="border-t border-border px-6 py-4">
+        <StoreManager contextId={contextId} createdByUid={user.uid} />
+      </div>
 
       {canManage && (
         <div className="border-t border-border px-6 py-4">

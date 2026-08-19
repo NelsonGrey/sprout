@@ -14,6 +14,7 @@ import {
   updateStudent,
   useGoals,
   usePendingStudentLinkForStudent,
+  useStoreItems,
   useTransactions,
 } from '../../lib/firestore';
 import { Button } from '../../components/ui/button';
@@ -52,6 +53,7 @@ export function StudentDetailPane({
   // spend, name what's being chosen not to fund yet. Purely a computed
   // reminder from existing goals — no new field written anywhere.
   const unachievedGoals = goals.filter((g) => g.savedCents < g.targetCents);
+  const storeItems = useStoreItems(contextId);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   // Encodes the "Save as…" select's value: '' (none), 'just_in_case', or
@@ -115,6 +117,29 @@ export function StudentDetailPane({
     setGoalTarget('');
     setSavingGoal(false);
     setAddingGoal(false);
+  };
+
+  // "Interest Joins the Team" starter lesson — a teacher-run round, not a
+  // background process: the class picks a rate together and applies it,
+  // so the cause and effect stays visible. Interest is just another earn
+  // toward the same goal, reusing recordTransaction's existing goalId
+  // path — no new write shape.
+  const handleApplyInterest = async (goal: (typeof goals)[number], ratePercent: number) => {
+    if (!Number.isFinite(ratePercent) || ratePercent <= 0 || goal.savedCents <= 0) return;
+    const interestCents = Math.round(goal.savedCents * (ratePercent / 100));
+    if (interestCents <= 0) return;
+    await recordTransaction({
+      contextId,
+      studentId: student.id,
+      type: 'earn',
+      amountCents: interestCents,
+      reason: 'Interest',
+      goalId: goal.id,
+      createdByUid: user.uid,
+      ownerUids,
+      schoolId: student.schoolId,
+      gradeLevel: student.gradeLevel,
+    });
   };
 
   const startRenaming = () => {
@@ -200,7 +225,12 @@ export function StudentDetailPane({
         {goals.length > 0 && (
           <div className="flex flex-col gap-2">
             {goals.map((goal) => (
-              <GoalProgressCard key={goal.id} goal={goal} onDelete={() => deleteGoal(student.id, goal.id)} />
+              <GoalProgressCard
+                key={goal.id}
+                goal={goal}
+                onDelete={() => deleteGoal(student.id, goal.id)}
+                onApplyInterest={(ratePercent) => handleApplyInterest(goal, ratePercent)}
+              />
             ))}
           </div>
         )}
@@ -265,6 +295,23 @@ export function StudentDetailPane({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border pt-4">
+        {storeItems.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {storeItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setAmount((item.priceCents / 100).toFixed(2));
+                  setReason(item.name);
+                }}
+                className="rounded-full border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink-soft hover:border-brand hover:text-brand"
+              >
+                {item.name} — ${(item.priceCents / 100).toFixed(2)}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2">
           <Input
             value={amount}

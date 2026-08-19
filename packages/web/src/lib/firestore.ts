@@ -21,7 +21,7 @@ import {
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { ClassroomContext, Goal, LedgerTransaction, PendingStudentLink, SavingsLabel, SpendCategory, Student, TransactionType } from '@sprout/shared';
+import type { ClassroomContext, Goal, LedgerTransaction, PendingStudentLink, SavingsLabel, SpendCategory, StoreItem, Student, TransactionType } from '@sprout/shared';
 import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
@@ -565,6 +565,64 @@ export async function createGoal({
 
 export async function deleteGoal(studentId: string, goalId: string): Promise<void> {
   await deleteDoc(doc(db, 'students', studentId, 'goals', goalId));
+}
+
+function storeItemFromDoc(d: QueryDocumentSnapshot<DocumentData>): StoreItem {
+  const data = d.data();
+  return {
+    id: d.id,
+    contextId: data.contextId,
+    name: data.name,
+    priceCents: data.priceCents,
+    createdByUid: data.createdByUid,
+    createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? new Date(),
+  };
+}
+
+export function useStoreItems(contextId: string): StoreItem[] {
+  const [items, setItems] = useState<StoreItem[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'contexts', contextId, 'storeItems'), orderBy('createdAt', 'asc'));
+    return onSnapshot(q, (snapshot) => setItems(snapshot.docs.map(storeItemFromDoc)));
+  }, [contextId]);
+
+  return items;
+}
+
+export async function createStoreItem({
+  contextId,
+  name,
+  priceCents,
+  createdByUid,
+}: {
+  contextId: string;
+  name: string;
+  priceCents: number;
+  createdByUid: string;
+}): Promise<void> {
+  await addDoc(collection(db, 'contexts', contextId, 'storeItems'), {
+    contextId,
+    name,
+    priceCents,
+    createdByUid,
+    createdAt: serverTimestamp(),
+  });
+}
+
+// The "meet a surprise" step of the Classroom Store Budget lesson — a
+// price changes mid-activity. Name is updatable too rather than a
+// price-only setter, so a single form can handle both.
+export async function updateStoreItem(
+  contextId: string,
+  itemId: string,
+  updates: { name: string; priceCents: number },
+): Promise<void> {
+  await updateDoc(doc(db, 'contexts', contextId, 'storeItems', itemId), updates);
+}
+
+export async function deleteStoreItem(contextId: string, itemId: string): Promise<void> {
+  await deleteDoc(doc(db, 'contexts', contextId, 'storeItems', itemId));
 }
 
 function normalizeEmail(email: string): string {

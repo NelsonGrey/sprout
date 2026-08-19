@@ -115,6 +115,21 @@ export interface Goal {
   createdAt: Date;
 }
 
+/** One priced item in a classroom's store — the Classroom Store Budget
+ * starter lesson's decision lab. Nested under contexts/{contextId}/
+ * storeItems. Buying one isn't its own write path: the UI pre-fills a
+ * normal spend transaction's amount/reason from the item, so the item
+ * catalog and the ledger stay independent — editing or removing an item
+ * never touches past purchases. */
+export interface StoreItem {
+  id: string;
+  contextId: string;
+  name: string;
+  priceCents: number;
+  createdByUid: string;
+  createdAt: Date;
+}
+
 // ---- School security matrix (BR-1.3.11/1.3.12) ----
 // See firestore.rules for the enforcement side of this model.
 

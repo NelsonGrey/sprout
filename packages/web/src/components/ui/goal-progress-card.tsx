@@ -1,15 +1,28 @@
+import { useState } from 'react';
 import type { Goal } from '@sprout/shared';
-import { PartyPopper, Target, Trash2 } from 'lucide-react';
+import { PartyPopper, Target, TrendingUp, Trash2 } from 'lucide-react';
+import { Button } from './button';
 import { IconButton } from './icon-button';
 
 const CHECKPOINTS = [25, 50, 75];
+const DEFAULT_RATE_PERCENT = '5';
 
 /** One goal's progress — the "goal trail" from the Build a Goal Trail
  * starter lesson: a bar toward a target with checkpoint marks along the
  * way, not just a bare percentage. Shared between StudentDetailPane
- * (teacher, with a delete control) and MyBalancePage (student, read-only —
- * pass no onDelete). */
-export function GoalProgressCard({ goal, onDelete }: { goal: Goal; onDelete?: () => void }) {
+ * (teacher, with delete + "Interest Joins the Team"'s apply-interest
+ * control) and MyBalancePage (student, read-only — pass neither
+ * onDelete nor onApplyInterest). */
+export function GoalProgressCard({
+  goal,
+  onDelete,
+  onApplyInterest,
+}: {
+  goal: Goal;
+  onDelete?: () => void;
+  onApplyInterest?: (ratePercent: number) => void;
+}) {
+  const [rate, setRate] = useState(DEFAULT_RATE_PERCENT);
   const pct = goal.targetCents > 0 ? Math.min(100, (goal.savedCents / goal.targetCents) * 100) : 0;
   const achieved = goal.savedCents >= goal.targetCents;
 
@@ -45,6 +58,27 @@ export function GoalProgressCard({ goal, onDelete }: { goal: Goal; onDelete?: ()
           />
         ))}
       </div>
+      {onApplyInterest && (
+        <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+          <TrendingUp size={14} className="shrink-0 text-info" />
+          <input
+            type="number"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            aria-label={`Interest rate for ${goal.name}`}
+            className="w-14 rounded-md border border-border bg-canvas px-2 py-1 text-xs text-ink"
+          />
+          <span className="text-xs text-ink-muted">%</span>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={goal.savedCents <= 0}
+            onClick={() => onApplyInterest(Number.parseFloat(rate))}
+          >
+            Apply interest
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

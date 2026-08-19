@@ -380,6 +380,42 @@ service cloud.firestore {
               && request.resource.data.spendCategory in ['need', 'want', 'both']
           ));
       }
+
+      // A classroom's priced item catalog — the Classroom Store Budget
+      // starter lesson's decision lab. Buying an item isn't a distinct
+      // write path here: it's just an ordinary spend transaction (above)
+      // whose amount/reason the UI pre-fills from an item. Gated at the
+      // same award-access bar as recording a transaction, matching the
+      // students/goals subcollection above — day-to-day practice, not a
+      // roster/structural change.
+      match /storeItems/{itemId} {
+        function parentContext() {
+          return get(/databases/$(database)/documents/contexts/$(contextId)).data;
+        }
+        function hasStoreAccess() {
+          return isContextOwner(parentContext()) || (
+            parentContext().get('schoolId', null) != null
+              && hasAwardAccess(parentContext().schoolId, parentContext().get('gradeLevel', null), contextId)
+          );
+        }
+        allow read: if isReadableClassroom(contextId);
+        allow create: if hasStoreAccess()
+          && request.resource.data.contextId == contextId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.priceCents is int
+          && request.resource.data.priceCents > 0
+          && request.resource.data.createdByUid == request.auth.uid;
+        // Lets a price change mid-lesson (the "meet a surprise" step) —
+        // name/price only, contextId stays fixed.
+        allow update: if hasStoreAccess()
+          && request.resource.data.contextId == resource.data.contextId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.priceCents is int
+          && request.resource.data.priceCents > 0;
+        allow delete: if hasStoreAccess();
+      }
     }
 
     // A student's roster entry + denormalized balance. Top-level (not

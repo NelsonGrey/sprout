@@ -296,6 +296,64 @@ describe('firestore.rules', () => {
       }),
     );
   });
+
+  it('lets the owner stock, reprice, and remove a classroom store item', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+
+    await assertSucceeds(
+      setDoc(doc(owner, 'contexts/ctx-1/storeItems/item-1'), {
+        contextId: 'ctx-1',
+        name: 'Pencil pouch',
+        priceCents: 250,
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+      }),
+    );
+    // The lesson's "meet a surprise" step — a price changes mid-activity.
+    await assertSucceeds(
+      updateDoc(doc(owner, 'contexts/ctx-1/storeItems/item-1'), {
+        contextId: 'ctx-1',
+        name: 'Pencil pouch',
+        priceCents: 300,
+      }),
+    );
+    await assertSucceeds(deleteDoc(doc(owner, 'contexts/ctx-1/storeItems/item-1')));
+  });
+
+  it('rejects a non-owner reading or stocking another classroom\'s store, and a non-positive price', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+    const other = testEnv.authenticatedContext(OTHER_UID).firestore();
+
+    await assertFails(
+      setDoc(doc(owner, 'contexts/ctx-1/storeItems/item-bad'), {
+        contextId: 'ctx-1',
+        name: 'Free item',
+        priceCents: 0,
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+      }),
+    );
+
+    await setDoc(doc(owner, 'contexts/ctx-1/storeItems/item-1'), {
+      contextId: 'ctx-1',
+      name: 'Pencil pouch',
+      priceCents: 250,
+      createdByUid: OWNER_UID,
+      createdAt: new Date(),
+    });
+    await assertFails(getDoc(doc(other, 'contexts/ctx-1/storeItems/item-1')));
+    await assertFails(
+      setDoc(doc(other, 'contexts/ctx-1/storeItems/item-2'), {
+        contextId: 'ctx-1',
+        name: 'Snooping',
+        priceCents: 100,
+        createdByUid: OTHER_UID,
+        createdAt: new Date(),
+      }),
+    );
+  });
 });
 
 describe('firestore.rules — school security matrix', () => {

@@ -18,6 +18,7 @@ vi.mock('../../lib/firestore', () => ({
   deleteStudent: vi.fn(),
   useTransactions: vi.fn(),
   useGoals: vi.fn(),
+  useStoreItems: vi.fn(),
   recordTransaction: vi.fn(),
   createGoal: vi.fn(),
   deleteGoal: vi.fn(),
@@ -65,6 +66,10 @@ const student = {
 function mockOwnerDefaults() {
   vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
   vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+  // StoreManager renders unconditionally on the page, independent of
+  // student selection — every test needs this mocked, not just the ones
+  // that render StudentDetailPane.
+  vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 }
 
 describe('ClassroomDetailPage', () => {
@@ -143,6 +148,7 @@ describe('ClassroomDetailPage', () => {
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     expect(screen.queryByLabelText('Rename classroom')).toBeNull();
@@ -165,6 +171,7 @@ describe('ClassroomDetailPage', () => {
       createdAt: new Date(),
     });
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     expect(screen.getByLabelText('Rename classroom')).toBeTruthy();
@@ -186,6 +193,7 @@ describe('ClassroomDetailPage', () => {
         createdAt: new Date(),
       },
     ]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     fireEvent.click(screen.getByText('Request access for a colleague'));
@@ -207,6 +215,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
@@ -226,6 +235,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" studentId="student-1" />);
 
@@ -237,6 +247,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     mockOwnerDefaults();
     const { rerender } = render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
     expect(screen.getByLabelText('Select Alex')).toBeTruthy();
@@ -261,6 +272,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" studentId="student-1" />);
 
@@ -278,6 +290,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.bulkArchiveStudents).mockResolvedValue(undefined);
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
@@ -293,6 +306,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.bulkDeleteStudents).mockResolvedValue(undefined);
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);

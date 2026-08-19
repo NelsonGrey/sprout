@@ -7,6 +7,7 @@ import * as firestoreLib from '../../lib/firestore';
 vi.mock('../../lib/firestore', () => ({
   useTransactions: vi.fn(),
   useGoals: vi.fn(),
+  useStoreItems: vi.fn(),
   recordTransaction: vi.fn(),
   createGoal: vi.fn(),
   deleteGoal: vi.fn(),
@@ -66,6 +67,7 @@ describe('StudentDetailPane', () => {
       },
     ]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -79,6 +81,7 @@ describe('StudentDetailPane', () => {
   it('records an earn transaction from the form', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
 
     render(
@@ -105,6 +108,7 @@ describe('StudentDetailPane', () => {
   it('records an earn transaction toward a specific goal when one is chosen', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([goal]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
 
     render(
@@ -133,6 +137,7 @@ describe('StudentDetailPane', () => {
   it('drops the save-as choice when recording a spend, even if one was selected', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
 
     render(
@@ -160,6 +165,7 @@ describe('StudentDetailPane', () => {
   it('records a spend with a spend category when one is chosen', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
 
     render(
@@ -188,6 +194,7 @@ describe('StudentDetailPane', () => {
   it('drops the spend category when recording an earn, even if one was selected', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
 
     render(
@@ -227,6 +234,7 @@ describe('StudentDetailPane', () => {
       },
     ]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -238,6 +246,7 @@ describe('StudentDetailPane', () => {
   it('reminds about unfinished goals only once an amount is entered', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([goal]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -253,6 +262,7 @@ describe('StudentDetailPane', () => {
   it('does not show the opportunity-cost reminder once the only goal is already achieved', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([{ ...goal, savedCents: goal.targetCents }]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -279,6 +289,7 @@ describe('StudentDetailPane', () => {
       },
     ]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -290,6 +301,7 @@ describe('StudentDetailPane', () => {
   it('shows a progress card for each of the student\'s goals', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([goal]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
 
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -299,9 +311,49 @@ describe('StudentDetailPane', () => {
     expect(screen.getByText('$8.00 of $20.00 saved')).toBeTruthy();
   });
 
+  it('applies interest to a goal at the entered rate, as an earn crediting that goal', async () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([goal]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
+    vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    // goal.savedCents is 800 ($8.00); default rate is 5% -> 40 cents.
+    fireEvent.click(screen.getByText('Apply interest'));
+
+    await waitFor(() =>
+      expect(firestoreLib.recordTransaction).toHaveBeenCalledWith({
+        contextId: 'ctx-1',
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 40,
+        reason: 'Interest',
+        goalId: 'goal-1',
+        createdByUid: 'teacher-1',
+        ownerUids: ['teacher-1'],
+      }),
+    );
+  });
+
+  it('disables Apply interest for a goal with nothing saved yet', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([{ ...goal, savedCents: 0 }]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    expect((screen.getByText('Apply interest').closest('button') as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('lets a teacher add a new goal', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.createGoal).mockResolvedValue(undefined);
 
     render(
@@ -326,6 +378,7 @@ describe('StudentDetailPane', () => {
   it('deletes a goal', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([goal]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.deleteGoal).mockResolvedValue(undefined);
 
     render(
@@ -336,9 +389,40 @@ describe('StudentDetailPane', () => {
     expect(firestoreLib.deleteGoal).toHaveBeenCalledWith('student-1', 'goal-1');
   });
 
+  it('pre-fills amount and reason from a store item, without submitting a spend', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([
+      {
+        id: 'item-1',
+        contextId: 'ctx-1',
+        name: 'Pencil pouch',
+        priceCents: 250,
+        createdByUid: 'teacher-1',
+        createdAt: new Date(),
+      },
+    ]);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    // Not .not.toHaveBeenCalled() — recordTransaction is a shared mock
+    // across this file's tests and other cases legitimately call it
+    // earlier, so only a fresh call from THIS click would prove it wasn't
+    // pre-filled straight into a submission.
+    const callsBefore = vi.mocked(firestoreLib.recordTransaction).mock.calls.length;
+    fireEvent.click(screen.getByText('Pencil pouch — $2.50'));
+
+    expect((screen.getByPlaceholderText('Amount') as HTMLInputElement).value).toBe('2.50');
+    expect((screen.getByPlaceholderText('Reason') as HTMLInputElement).value).toBe('Pencil pouch');
+    expect(vi.mocked(firestoreLib.recordTransaction).mock.calls.length).toBe(callsBefore);
+  });
+
   it('renames the student', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.updateStudent).mockResolvedValue(undefined);
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
@@ -356,6 +440,7 @@ describe('StudentDetailPane', () => {
   it('requires confirming before deleting the student, then calls onDeleted', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     vi.mocked(firestoreLib.deleteStudent).mockResolvedValue(undefined);
     const onDeleted = vi.fn();
     render(
@@ -374,6 +459,7 @@ describe('StudentDetailPane', () => {
   it('hides rename/delete for a viewer with only award-level access', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={false} onDeleted={vi.fn()} />,
     );
@@ -387,6 +473,7 @@ describe('StudentDetailPane', () => {
   it('shows rename/delete for a teacher with an explicit manage-level classroom grant', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(
       <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
     );
