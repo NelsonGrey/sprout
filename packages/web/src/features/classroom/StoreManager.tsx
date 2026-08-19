@@ -7,7 +7,7 @@ import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 
 /** A classroom's priced item catalog — the Classroom Store Budget starter
- * lesson's decision lab. Lives on ClassroomDetailPage (classroom-level,
+ * lesson's decision lab. Lives on ClassroomSettingsPage (classroom-level,
  * like the roster itself); StudentDetailPane reads the same items to
  * offer "buy" shortcuts that pre-fill its ordinary spend form. Gated by
  * the caller the same way the rest of the classroom-level actions are —

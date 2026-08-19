@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 
 /** A dedicated page for adding a student to one classroom — reached from
- * ClassroomDetailPage's "Add Student" button rather than an inline form,
+ * ClassroomRosterPage's "Add Student" button rather than an inline form,
  * matching the standalone-page convention already used for CSV import/
  * promote/archive (see packages/web/src/features/students/). */
 export function CreateStudentPage({ user, contextId }: { user: User; contextId: string }) {
@@ -32,12 +32,20 @@ export function CreateStudentPage({ user, contextId }: { user: User; contextId: 
       gradeLevel: classroom?.gradeLevel,
       contextName: classroom?.name,
     });
-    navigate(`/app/classrooms/${contextId}`);
+    navigate(`/app/classrooms/${contextId}/roster`);
   };
 
   return (
     <div className="flex min-h-full flex-col text-ink">
-      <PageHeader title={`Add Student — ${classroom?.name ?? 'Classroom'}`} backTo={`/app/classrooms/${contextId}`} />
+      <PageHeader
+        title={`Add Student — ${classroom?.name ?? 'Classroom'}`}
+        breadcrumbs={[
+          { label: 'Home', href: '/app' },
+          { label: classroom?.name ?? 'Classroom', href: `/app/classrooms/${contextId}` },
+          { label: 'Roster', href: `/app/classrooms/${contextId}/roster` },
+          { label: 'Add Student', href: `/app/classrooms/${contextId}/students/new` },
+        ]}
+      />
       <div className="flex max-w-md flex-col gap-3 px-6 py-4">
         <Input
           value={name}

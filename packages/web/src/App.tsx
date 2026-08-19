@@ -8,6 +8,8 @@ import { DeleteAccountPage } from './features/auth/DeleteAccountPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { LandingRouter } from './features/classroom/LandingRouter';
 import { ClassroomDetailPage } from './features/classroom/ClassroomDetailPage';
+import { ClassroomRosterPage } from './features/classroom/ClassroomRosterPage';
+import { ClassroomSettingsPage } from './features/classroom/ClassroomSettingsPage';
 import { CreateClassroomPage } from './features/classroom/CreateClassroomPage';
 import { CreateStudentPage } from './features/classroom/CreateStudentPage';
 import { RequestAccessPage } from './features/classroom/RequestAccessPage';
@@ -76,6 +78,16 @@ function App() {
         <Route path="/app/classrooms/:contextId/request-access">
           {params => (
             <RequestAccessPage user={user} contextId={params.contextId} />
+          )}
+        </Route>
+        <Route path="/app/classrooms/:contextId/roster">
+          {params => (
+            <ClassroomRosterPage user={user} contextId={params.contextId} />
+          )}
+        </Route>
+        <Route path="/app/classrooms/:contextId/settings">
+          {params => (
+            <ClassroomSettingsPage user={user} contextId={params.contextId} />
           )}
         </Route>
         <Route path="/app/classrooms/:contextId/students/:studentId">

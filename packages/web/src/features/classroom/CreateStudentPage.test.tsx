@@ -48,7 +48,7 @@ describe('CreateStudentPage', () => {
         contextName: '4th Grade',
       }),
     );
-    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/roster');
   });
 
   it('scopes a newly added student to the classroom school/grade when set', async () => {
@@ -73,12 +73,12 @@ describe('CreateStudentPage', () => {
     );
   });
 
-  it('has a back button to the classroom', () => {
+  it('has no back-arrow button — the breadcrumb trail (Home > classroom > Roster) is the way back', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     render(<CreateStudentPage user={user} contextId="ctx-1" />);
 
-    fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
+    expect(screen.queryByLabelText('Back')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Roster' }).getAttribute('href')).toBe('/app/classrooms/ctx-1/roster');
   });
 
   it('disables Create until a name is entered', () => {

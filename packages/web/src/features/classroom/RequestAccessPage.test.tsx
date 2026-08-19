@@ -49,7 +49,7 @@ describe('RequestAccessPage', () => {
 
     fireEvent.change(screen.getByDisplayValue('Choose a teacher…'), { target: { value: 'colleague-1' } });
     fireEvent.click(screen.getByText('Full manage (rename/delete/roster)'));
-    fireEvent.click(screen.getByText('Request Access'));
+    fireEvent.click(screen.getByRole('button', { name: 'Request Access' }));
 
     await waitFor(() =>
       expect(schoolLib.createAccessRequest).toHaveBeenCalledWith({
@@ -88,13 +88,13 @@ describe('RequestAccessPage', () => {
     expect(screen.getByText('Mr. Colleague — award — pending')).toBeTruthy();
   });
 
-  it('has a back button to the classroom', () => {
+  it('has no back-arrow button — the breadcrumb trail (Home > classroom > Settings) is the way back', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([colleague]);
     vi.mocked(schoolLib.useAccessRequestsForContext).mockReturnValue([]);
     render(<RequestAccessPage user={user} contextId="ctx-1" />);
 
-    fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
+    expect(screen.queryByLabelText('Back')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('href')).toBe('/app/classrooms/ctx-1/settings');
   });
 });

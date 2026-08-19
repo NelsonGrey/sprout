@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { ClassroomDetailPage } from './ClassroomDetailPage';
@@ -8,10 +8,6 @@ import * as schoolLib from '../../lib/school';
 vi.mock('../../lib/firestore', () => ({
   useClassroom: vi.fn(),
   useStudents: vi.fn(),
-  updateClassroom: vi.fn(),
-  deleteClassroom: vi.fn(),
-  bulkArchiveStudents: vi.fn(),
-  bulkDeleteStudents: vi.fn(),
   // Transitively used by StudentDetailPane, rendered whenever a student is
   // selected in the right pane.
   updateStudent: vi.fn(),
@@ -26,21 +22,10 @@ vi.mock('../../lib/firestore', () => ({
   linkStudentAccount: vi.fn(),
   cancelStudentLink: vi.fn(),
   unlinkStudentAccount: vi.fn(),
-  // Real implementation is a trivial last-whitespace split with no
-  // dependency on Firebase — safe to inline here rather than
-  // importOriginal (which would pull in the real ./firebase module and
-  // its side-effecting FirebaseClient.initialize()).
-  splitDisplayName: (name: string) => {
-    const trimmed = name.trim();
-    const lastSpace = trimmed.lastIndexOf(' ');
-    if (lastSpace === -1) return { firstName: trimmed, lastName: '' };
-    return { firstName: trimmed.slice(0, lastSpace).trim(), lastName: trimmed.slice(lastSpace + 1).trim() };
-  },
 }));
 
 vi.mock('../../lib/school', () => ({
   useMyMembership: vi.fn(),
-  useMembersOfSchool: vi.fn(),
 }));
 
 const navigateMock = vi.fn();
@@ -63,78 +48,28 @@ const student = {
   createdAt: new Date(),
 };
 
-function mockOwnerDefaults() {
-  vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
-  vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
-  // StoreManager renders unconditionally on the page, independent of
-  // student selection — every test needs this mocked, not just the ones
-  // that render StudentDetailPane.
-  vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-}
-
 describe('ClassroomDetailPage', () => {
   it('shows empty state with no students', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    mockOwnerDefaults();
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     expect(screen.getByRole('heading', { name: '4th Grade' })).toBeTruthy();
-    expect(screen.getByText('No students yet — create one below.')).toBeTruthy();
+    expect(screen.getByText('No students yet.')).toBeTruthy();
   });
 
   it('has no back-arrow button — the breadcrumb trail is the way back, and Home is one link in it', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    mockOwnerDefaults();
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     expect(screen.queryByLabelText('Back')).toBeNull();
     expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/app');
   });
 
-  it('renames the classroom', async () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    vi.mocked(firestoreLib.updateClassroom).mockResolvedValue(undefined);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    fireEvent.click(screen.getByLabelText('Rename classroom'));
-    const input = screen.getByDisplayValue('4th Grade');
-    fireEvent.change(input, { target: { value: '5th Grade' } });
-    fireEvent.click(screen.getByText('Save'));
-
-    await waitFor(() => expect(firestoreLib.updateClassroom).toHaveBeenCalledWith('ctx-1', { name: '5th Grade' }));
-  });
-
-  it('requires confirming before deleting the classroom', async () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    vi.mocked(firestoreLib.deleteClassroom).mockResolvedValue(undefined);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    fireEvent.click(screen.getByLabelText('Delete classroom'));
-    expect(firestoreLib.deleteClassroom).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Delete'));
-
-    await waitFor(() => expect(firestoreLib.deleteClassroom).toHaveBeenCalledWith('ctx-1'));
-    expect(navigateMock).toHaveBeenCalledWith('/app');
-  });
-
-  it("the Add Student button navigates to that classroom's create-student page", () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    fireEvent.click(screen.getByText('Add Student'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/students/new');
-  });
-
-  it('hides rename/delete/Add Student for a viewer with only award-level access', () => {
+  it('always shows the Settings icon, since some settings sections (e.g. the store) have no manage gate', () => {
     const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '4' };
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
@@ -147,16 +82,31 @@ describe('ClassroomDetailPage', () => {
       addedByUid: 'super-1',
       createdAt: new Date(),
     });
-    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
-    expect(screen.queryByLabelText('Rename classroom')).toBeNull();
-    expect(screen.queryByLabelText('Delete classroom')).toBeNull();
-    expect(screen.queryByText('Add Student')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Classroom settings'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/settings');
   });
 
-  it('shows rename/delete/Add Student for a teacher with an explicit manage-level classroom grant', () => {
+  it('hides the Roster icon for a viewer with only award-level access', () => {
+    const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '4' };
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'school' },
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
+
+    expect(screen.queryByLabelText('Roster')).toBeNull();
+  });
+
+  it('shows the Roster icon for a teacher with an explicit manage-level classroom grant, and it navigates to /roster', () => {
     const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '4' };
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
@@ -170,44 +120,10 @@ describe('ClassroomDetailPage', () => {
       addedByUid: 'super-1',
       createdAt: new Date(),
     });
-    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
-    expect(screen.getByLabelText('Rename classroom')).toBeTruthy();
-    expect(screen.getByText('Add Student')).toBeTruthy();
-  });
-
-  it("the owner sees a 'Request access for a colleague' button that navigates to the request-access page", () => {
-    const schoolClassroom = { ...classroom, schoolId: 'school-1' };
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(schoolClassroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
-    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([
-      {
-        uid: 'colleague-1',
-        role: 'teacher',
-        displayName: 'Mr. Colleague',
-        email: 'colleague@example.com',
-        addedByUid: 'super-1',
-        createdAt: new Date(),
-      },
-    ]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    fireEvent.click(screen.getByText('Request access for a colleague'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/request-access');
-  });
-
-  it('hides the request-access button when the school has no other teachers', () => {
-    const schoolClassroom = { ...classroom, schoolId: 'school-1' };
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(schoolClassroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    expect(screen.queryByText('Request access for a colleague')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Roster'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1/roster');
   });
 
   it('clicking a student shows their detail pane and updates the URL', () => {
@@ -216,7 +132,7 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
     vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    mockOwnerDefaults();
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
     expect(screen.getByText('Select a student to view details.')).toBeTruthy();
@@ -236,87 +152,9 @@ describe('ClassroomDetailPage', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
     vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    mockOwnerDefaults();
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<ClassroomDetailPage user={user} contextId="ctx-1" studentId="student-1" />);
 
     expect(screen.getByText('Earn')).toBeTruthy();
-  });
-
-  it('shows a checkbox per student only for a canManage viewer', () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
-    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
-    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    mockOwnerDefaults();
-    const { rerender } = render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-    expect(screen.getByLabelText('Select Alex')).toBeTruthy();
-
-    const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1' };
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
-      uid: 'teacher-1',
-      role: 'teacher',
-      displayName: 'Ms. Lord',
-      email: 'lord@example.com',
-      scope: { type: 'school' },
-      addedByUid: 'super-1',
-      createdAt: new Date(),
-    });
-    rerender(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-    expect(screen.queryByLabelText('Select Alex')).toBeNull();
-  });
-
-  it('checking a box swaps the right pane to the bulk-action bar', () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
-    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
-    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" studentId="student-1" />);
-
-    expect(screen.getByText('Earn')).toBeTruthy();
-
-    fireEvent.click(screen.getByLabelText('Select Alex'));
-
-    expect(screen.getByText('1 selected')).toBeTruthy();
-    expect(screen.getByText('Archive selected')).toBeTruthy();
-    expect(screen.queryByText('Earn')).toBeNull();
-  });
-
-  it('bulk-archives checked students', async () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
-    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
-    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    vi.mocked(firestoreLib.bulkArchiveStudents).mockResolvedValue(undefined);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    fireEvent.click(screen.getByLabelText('Select Alex'));
-    fireEvent.click(screen.getByText('Archive selected'));
-
-    await waitFor(() => expect(firestoreLib.bulkArchiveStudents).toHaveBeenCalledWith(['student-1']));
-  });
-
-  it('bulk-deletes checked students after confirming', async () => {
-    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
-    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
-    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
-    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
-    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
-    vi.mocked(firestoreLib.bulkDeleteStudents).mockResolvedValue(undefined);
-    mockOwnerDefaults();
-    render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
-
-    fireEvent.click(screen.getByLabelText('Select Alex'));
-    fireEvent.click(screen.getByText('Delete selected'));
-    expect(firestoreLib.bulkDeleteStudents).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Delete'));
-
-    await waitFor(() => expect(firestoreLib.bulkDeleteStudents).toHaveBeenCalledWith(['student-1']));
   });
 });
