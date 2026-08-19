@@ -112,6 +112,54 @@ describe('firestore.rules', () => {
       }),
     );
   });
+
+  it('lets the owner tag an earn transaction with a savings label', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+
+    await assertSucceeds(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-goal'), {
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Allowance',
+        savingsLabel: 'goal',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+  });
+
+  it('rejects a savings label on a spend, and rejects an unrecognized label value', async () => {
+    await seedClassroomWithStudent();
+    const owner = testEnv.authenticatedContext(OWNER_UID).firestore();
+
+    await assertFails(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-spend-label'), {
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 200,
+        reason: 'Store',
+        savingsLabel: 'goal',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+    await assertFails(
+      setDoc(doc(owner, 'contexts/ctx-1/transactions/tx-bad-label'), {
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 200,
+        reason: 'Allowance',
+        savingsLabel: 'not_a_real_label',
+        createdByUid: OWNER_UID,
+        createdAt: new Date(),
+        ownerUids: [OWNER_UID],
+      }),
+    );
+  });
 });
 
 describe('firestore.rules — school security matrix', () => {

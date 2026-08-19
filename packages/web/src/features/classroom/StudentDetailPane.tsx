@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import type { Student, TransactionType } from '@sprout/shared';
+import type { SavingsLabel, Student, TransactionType } from '@sprout/shared';
 import { Pencil, Trash2 } from 'lucide-react';
 import {
   cancelStudentLink,
@@ -17,6 +17,7 @@ import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { SavingsLabelBadge } from '../../components/ui/savings-label-badge';
 
 /**
  * One student's balance, transaction history, and earn/spend form — the
@@ -43,6 +44,7 @@ export function StudentDetailPane({
   const transactions = useTransactions(contextId, student.id);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [savingsLabel, setSavingsLabel] = useState<SavingsLabel | ''>('');
   const [recording, setRecording] = useState(false);
 
   const [renaming, setRenaming] = useState(false);
@@ -63,6 +65,7 @@ export function StudentDetailPane({
       type,
       amountCents: Math.round(parsed * 100),
       reason: reason.trim(),
+      ...(type === 'earn' && savingsLabel ? { savingsLabel } : {}),
       createdByUid: user.uid,
       ownerUids,
       schoolId: student.schoolId,
@@ -70,6 +73,7 @@ export function StudentDetailPane({
     });
     setAmount('');
     setReason('');
+    setSavingsLabel('');
     setRecording(false);
   };
 
@@ -168,7 +172,10 @@ export function StudentDetailPane({
                 key={transaction.id}
                 className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3"
               >
-                <span>{transaction.reason}</span>
+                <span className="flex items-center gap-2">
+                  {transaction.reason}
+                  {transaction.savingsLabel && <SavingsLabelBadge label={transaction.savingsLabel} />}
+                </span>
                 <span>
                   {transaction.type === 'earn' ? '+' : '-'}$
                   {(transaction.amountCents / 100).toFixed(2)}
@@ -195,6 +202,19 @@ export function StudentDetailPane({
             className="flex-1"
           />
         </div>
+        {/* Only meaningful for Earn — recordTransaction drops it for a
+         * Spend regardless, but leaving it selectable either way avoids a
+         * mode toggle just to show/hide one field. */}
+        <select
+          value={savingsLabel}
+          onChange={(e) => setSavingsLabel(e.target.value as SavingsLabel | '')}
+          aria-label="Save this earning toward"
+          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink-muted"
+        >
+          <option value="">Save as… (optional, for Earn)</option>
+          <option value="goal">🎯 Goal</option>
+          <option value="just_in_case">☂️ Just in case</option>
+        </select>
         <div className="flex gap-2">
           <Button className="flex-1" onClick={() => handleRecord('earn')} disabled={recording}>
             Earn

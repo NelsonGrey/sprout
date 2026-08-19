@@ -358,7 +358,13 @@ service cloud.firestore {
         )
           && request.resource.data.amountCents is int
           && request.resource.data.amountCents > 0
-          && request.resource.data.type in ['earn', 'spend'];
+          && request.resource.data.type in ['earn', 'spend']
+          // savingsLabel ("goal"/"just_in_case") only ever makes sense on
+          // an earn — a spend can't simultaneously be money set aside.
+          && (!('savingsLabel' in request.resource.data) || (
+            request.resource.data.type == 'earn'
+              && request.resource.data.savingsLabel in ['goal', 'just_in_case']
+          ));
       }
     }
 

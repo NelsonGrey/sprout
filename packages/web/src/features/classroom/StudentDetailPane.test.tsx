@@ -87,6 +87,81 @@ describe('StudentDetailPane', () => {
     );
   });
 
+  it('records an earn transaction with a savings label when one is chosen', async () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Amount'), { target: { value: '5' } });
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Allowance' } });
+    fireEvent.change(screen.getByLabelText('Save this earning toward'), { target: { value: 'goal' } });
+    fireEvent.click(screen.getByText('Earn'));
+
+    await waitFor(() =>
+      expect(firestoreLib.recordTransaction).toHaveBeenCalledWith({
+        contextId: 'ctx-1',
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Allowance',
+        savingsLabel: 'goal',
+        createdByUid: 'teacher-1',
+        ownerUids: ['teacher-1'],
+      }),
+    );
+  });
+
+  it('drops the savings label when recording a spend, even if one was selected', async () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.recordTransaction).mockResolvedValue(undefined);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Amount'), { target: { value: '2' } });
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Store' } });
+    fireEvent.change(screen.getByLabelText('Save this earning toward'), { target: { value: 'just_in_case' } });
+    fireEvent.click(screen.getByText('Spend'));
+
+    await waitFor(() =>
+      expect(firestoreLib.recordTransaction).toHaveBeenCalledWith({
+        contextId: 'ctx-1',
+        studentId: 'student-1',
+        type: 'spend',
+        amountCents: 200,
+        reason: 'Store',
+        createdByUid: 'teacher-1',
+        ownerUids: ['teacher-1'],
+      }),
+    );
+  });
+
+  it('shows a savings-label badge on a labeled transaction in the history', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([
+      {
+        id: 'tx-1',
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Allowance',
+        savingsLabel: 'goal',
+        createdByUid: 'teacher-1',
+        createdAt: new Date(),
+        ownerUids: ['teacher-1'],
+      },
+    ]);
+
+    render(
+      <StudentDetailPane user={user} contextId="ctx-1" student={student} canManage={true} onDeleted={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Goal')).toBeTruthy();
+  });
+
   it('renames the student', async () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
     vi.mocked(firestoreLib.updateStudent).mockResolvedValue(undefined);

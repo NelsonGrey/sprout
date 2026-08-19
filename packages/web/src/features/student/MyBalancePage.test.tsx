@@ -51,6 +51,26 @@ describe('MyBalancePage', () => {
     expect(screen.queryByPlaceholderText('Amount')).toBeNull();
   });
 
+  it('shows a savings-label badge on a labeled transaction', () => {
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([
+      {
+        id: 'tx-1',
+        studentId: 'student-1',
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Allowance',
+        savingsLabel: 'just_in_case',
+        createdByUid: 'teacher-1',
+        createdAt: new Date(),
+        ownerUids: ['teacher-1'],
+      },
+    ]);
+
+    render(<MyBalancePage student={student} />);
+
+    expect(screen.getByText('Just in case')).toBeTruthy();
+  });
+
   it('shows an empty state with no transactions', () => {
     vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
 

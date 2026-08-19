@@ -21,7 +21,7 @@ import {
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { ClassroomContext, LedgerTransaction, PendingStudentLink, Student, TransactionType } from '@sprout/shared';
+import type { ClassroomContext, LedgerTransaction, PendingStudentLink, SavingsLabel, Student, TransactionType } from '@sprout/shared';
 import { firebaseClient } from './firebase';
 
 const db = firebaseClient.firestore;
@@ -90,6 +90,7 @@ function transactionFromDoc(d: QueryDocumentSnapshot<DocumentData>): LedgerTrans
     type: data.type,
     amountCents: data.amountCents,
     reason: data.reason,
+    ...(data.savingsLabel ? { savingsLabel: data.savingsLabel } : {}),
     createdByUid: data.createdByUid,
     // A pending server timestamp reads back as null right after a local
     // write, before the round-trip lands — fall back to "now".
@@ -452,6 +453,7 @@ export async function recordTransaction({
   type,
   amountCents,
   reason,
+  savingsLabel,
   createdByUid,
   ownerUids,
   schoolId,
@@ -462,6 +464,10 @@ export async function recordTransaction({
   type: TransactionType;
   amountCents: number;
   reason: string;
+  // Only meaningful (and only allowed by firestore.rules) on an 'earn' —
+  // silently dropped for a 'spend' rather than making every call site
+  // remember to omit it.
+  savingsLabel?: SavingsLabel;
   createdByUid: string;
   ownerUids: string[];
   // Denormalized from the student, so a scoped/delegated (not just
@@ -486,6 +492,7 @@ export async function recordTransaction({
     ownerUids,
     ...(schoolId ? { schoolId } : {}),
     ...(gradeLevel ? { gradeLevel } : {}),
+    ...(type === 'earn' && savingsLabel ? { savingsLabel } : {}),
   });
 
   const delta = type === 'earn' ? amountCents : -amountCents;

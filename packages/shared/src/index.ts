@@ -65,12 +65,20 @@ export interface Student {
 
 export type TransactionType = 'earn' | 'spend';
 
+/** Optional intent tag on an 'earn' transaction — lets a student/teacher
+ * mark part of a balance as saved toward something specific vs. held in
+ * reserve, the "goal or just-in-case" labeling called for by the Goal
+ * Trail and Plan for the Unexpected starter lessons. Never valid on a
+ * 'spend' transaction (see firestore.rules). */
+export type SavingsLabel = 'goal' | 'just_in_case';
+
 export interface LedgerTransaction {
   id: string;
   studentId: string;
   type: TransactionType;
   amountCents: number;
   reason: string;
+  savingsLabel?: SavingsLabel;
   createdByUid: string;
   createdAt: Date;
   ownerUids: string[];
