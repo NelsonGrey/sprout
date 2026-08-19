@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import Papa from 'papaparse';
-import { useLocation } from 'wouter';
 import {
   commitStudentImport,
   useClassroomsInSchool,
@@ -60,7 +59,6 @@ function buildPreview(rawRows: Record<string, string>[], existingByStudentId: Ma
  * than a per-row classroom-name column — fuzzy name-matching is a real
  * footgun on an irreversible bulk write. */
 export function StudentImportPage({ user }: { user: User }) {
-  const [, navigate] = useLocation();
   const schoolIds = useSchoolIdsForUser(user.uid);
   const schoolId = schoolIds[0];
   const classrooms = useClassroomsInSchool(schoolId);
@@ -121,7 +119,6 @@ export function StudentImportPage({ user }: { user: User }) {
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Import students"
-        backTo="/app/students"
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }, { label: 'Import', href: '/app/students/import' }]}
       />
 
@@ -131,7 +128,6 @@ export function StudentImportPage({ user }: { user: User }) {
             <p className="text-brand">
               Imported {validRows.length} student{validRows.length === 1 ? '' : 's'}.
             </p>
-            <Button onClick={() => navigate('/app/students')}>Back to Students</Button>
           </div>
         ) : (
           <div className="flex max-w-2xl flex-col gap-6">

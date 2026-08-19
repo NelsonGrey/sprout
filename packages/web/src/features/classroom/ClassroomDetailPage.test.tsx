@@ -83,14 +83,14 @@ describe('ClassroomDetailPage', () => {
     expect(screen.getByText('No students yet — create one below.')).toBeTruthy();
   });
 
-  it('has a back button to the classroom list', () => {
+  it('has no back-arrow button — the breadcrumb trail is the way back, and Home is one link in it', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
     mockOwnerDefaults();
     render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
 
-    fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/app');
+    expect(screen.queryByLabelText('Back')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/app');
   });
 
   it('renames the classroom', async () => {

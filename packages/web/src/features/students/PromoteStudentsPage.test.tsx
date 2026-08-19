@@ -174,17 +174,4 @@ describe('PromoteStudentsPage', () => {
     expect((screen.getByText('Promote All').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('navigates back to Students after a successful promotion', async () => {
-    setup({ students: [student({ id: 'student-1', contextId: 'ctx-3' })] });
-    vi.mocked(firestoreLib.bulkMoveStudents).mockResolvedValue(undefined);
-    render(<PromoteStudentsPage user={user} />);
-
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ctx-4' } });
-    fireEvent.click(screen.getByText('Promote All'));
-    fireEvent.click(screen.getByRole('button', { name: 'Promote' }));
-
-    await waitFor(() => screen.getByText('Back to Students'));
-    fireEvent.click(screen.getByText('Back to Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/students');
-  });
 });

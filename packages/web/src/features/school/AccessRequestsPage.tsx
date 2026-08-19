@@ -23,7 +23,6 @@ export function AccessRequestsPage({ user }: { user: User }) {
       <div className="flex min-h-full flex-col text-ink">
         <PageHeader
           title="Access Requests"
-          backTo="/app/school"
           breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Access Requests', href: '/app/school/requests' }]}
         />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage access requests.</p>
@@ -35,7 +34,6 @@ export function AccessRequestsPage({ user }: { user: User }) {
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Access Requests"
-        backTo="/app/school"
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Access Requests', href: '/app/school/requests' }]}
       />
       <div className="flex-1 overflow-y-auto px-6 py-4">

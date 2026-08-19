@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { useLocation } from 'wouter';
 import { bulkMoveStudents, useClassroomsInSchool, useStudentsInSchool } from '../../lib/firestore';
 import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
@@ -18,7 +17,6 @@ const LEAVE_IN_PLACE = '';
  * to get wrong. A classroom can promote into only one destination — see
  * the note rendered below for the split-classroom fallback. */
 export function PromoteStudentsPage({ user }: { user: User }) {
-  const [, navigate] = useLocation();
   const schoolIds = useSchoolIdsForUser(user.uid);
   const schoolId = schoolIds[0];
   const membership = useMyMembership(schoolId, user.uid);
@@ -84,7 +82,6 @@ export function PromoteStudentsPage({ user }: { user: User }) {
       <div className="flex min-h-full flex-col text-ink">
         <PageHeader
           title="Promote Students"
-          backTo="/app/students"
           breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }, { label: 'Promote', href: '/app/students/promote' }]}
         />
         <p className="px-6 py-4 text-ink-muted">Only school admins can promote students.</p>
@@ -96,7 +93,6 @@ export function PromoteStudentsPage({ user }: { user: User }) {
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Promote Students"
-        backTo="/app/students"
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }, { label: 'Promote', href: '/app/students/promote' }]}
       />
 
@@ -104,7 +100,6 @@ export function PromoteStudentsPage({ user }: { user: User }) {
         {done ? (
           <div className="flex flex-col items-start gap-3">
             <p className="text-brand">Promotion complete.</p>
-            <Button onClick={() => navigate('/app/students')}>Back to Students</Button>
           </div>
         ) : (
           <div className="flex max-w-2xl flex-col gap-4">

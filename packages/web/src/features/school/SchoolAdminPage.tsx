@@ -75,15 +75,12 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
       ) : (
         <PageHeader
           title={schoolName ?? 'School'}
-          backTo="/app"
           breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }]}
           actions={
             <>
-              {isAtLeastAdmin && (
-                <Button variant="secondary" size="sm" onClick={() => navigate('/app/students')}>
-                  Manage Students
-                </Button>
-              )}
+              {/* No "Manage Students" shortcut here — Students is already
+               * a top-level sidebar item for every admin who can see this
+               * page. */}
               {isAtLeastAdmin && (
                 <Button variant="secondary" size="sm" onClick={() => navigate('/app/students/promote')}>
                   Promote Students

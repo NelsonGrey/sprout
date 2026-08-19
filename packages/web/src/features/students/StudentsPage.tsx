@@ -150,7 +150,6 @@ export function StudentsPage({ user }: { user: User }) {
       <div className="flex min-h-full flex-col text-ink">
         <PageHeader
           title="Students"
-          backTo="/app/school"
           breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }]}
         />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage the full student roster.</p>
@@ -162,7 +161,6 @@ export function StudentsPage({ user }: { user: User }) {
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Students"
-        backTo="/app/school"
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Students', href: '/app/students' }]}
         actions={
           <>

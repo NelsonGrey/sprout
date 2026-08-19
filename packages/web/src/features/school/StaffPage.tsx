@@ -37,7 +37,6 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
       <div className="flex min-h-full flex-col text-ink">
         <PageHeader
           title="Staff"
-          backTo="/app/school"
           breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Staff', href: '/app/school/staff' }]}
         />
         <p className="px-6 py-4 text-ink-muted">Only school admins can manage staff.</p>
@@ -58,7 +57,6 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
         title="Staff"
-        backTo="/app/school"
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'School', href: '/app/school' }, { label: 'Staff', href: '/app/school/staff' }]}
         actions={<Button onClick={() => navigate('/app/school/staff/new')}>Add Staff</Button>}
       />

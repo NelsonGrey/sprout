@@ -99,7 +99,7 @@ describe('SchoolAdminPage', () => {
     expect(schoolLib.usePendingAccessRequestsForSchool).toHaveBeenCalledWith('school-1');
   });
 
-  it('has a back button to the classroom list', async () => {
+  it('has no back-arrow button — the breadcrumb trail is the way back, and Home is one link in it', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
       uid: 'teacher-1',
@@ -114,8 +114,8 @@ describe('SchoolAdminPage', () => {
     render(<SchoolAdminPage user={teacher} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
-    fireEvent.click(screen.getByLabelText('Back'));
-    expect(navigateMock).toHaveBeenCalledWith('/app');
+    expect(screen.queryByLabelText('Back')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/app');
   });
 
   it('lets a super admin rename the school', async () => {
@@ -197,7 +197,7 @@ describe('SchoolAdminPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/app/students/archive');
   });
 
-  it('shows Manage Students for an admin and navigates to /app/students', async () => {
+  it('has no Manage Students shortcut — Students is already a top-level sidebar item', async () => {
     vi.mocked(schoolLib.getSchool).mockResolvedValue({ id: 'school-1', name: 'Riverside Elementary', createdAt: new Date() });
     vi.mocked(schoolLib.useMyMembership).mockReturnValue({
       uid: 'delegate-1',
@@ -212,7 +212,6 @@ describe('SchoolAdminPage', () => {
     render(<SchoolAdminPage user={delegate} schoolId="school-1" />);
     await waitFor(() => expect(screen.getByText('Riverside Elementary')).toBeTruthy());
 
-    fireEvent.click(screen.getByText('Manage Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/students');
+    expect(screen.queryByText('Manage Students')).toBeNull();
   });
 });

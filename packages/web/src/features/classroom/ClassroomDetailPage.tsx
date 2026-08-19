@@ -126,7 +126,6 @@ export function ClassroomDetailPage({
       ) : (
         <PageHeader
           title={classroom?.name ?? 'Classroom'}
-          backTo="/app"
           breadcrumbs={[{ label: 'Home', href: '/app' }, { label: classroom?.name ?? 'Classroom', href: `/app/classrooms/${contextId}` }]}
           actions={
             canManage && (

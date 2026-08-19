@@ -151,17 +151,4 @@ describe('ArchiveStudentsPage', () => {
     expect((screen.getByText('Archive All').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('navigates back to Students after a successful archive', async () => {
-    setup({ students: [student({ id: 'student-1', contextId: 'ctx-6' })] });
-    vi.mocked(firestoreLib.bulkArchiveStudents).mockResolvedValue(undefined);
-    render(<ArchiveStudentsPage user={user} />);
-
-    fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(screen.getByText('Archive All'));
-    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
-
-    await waitFor(() => screen.getByText('Back to Students'));
-    fireEvent.click(screen.getByText('Back to Students'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/students');
-  });
 });
