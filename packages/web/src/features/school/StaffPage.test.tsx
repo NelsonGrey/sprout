@@ -119,7 +119,7 @@ describe('StaffPage', () => {
         displayName: 'Ms. Lord',
         email: 'lord@example.com',
         scope: { type: 'own' },
-        classroomGrants: { 'ctx-1': 'manage' },
+        classroomGrants: { 'ctx-1': 'award' },
         addedByUid: 'delegate-1',
         createdAt: new Date(),
       },

@@ -52,8 +52,52 @@ describe('ClassroomRosterPage', () => {
     });
     render(<ClassroomRosterPage user={user} contextId="ctx-1" />);
 
-    expect(screen.getByText('Only classroom managers can edit the roster.')).toBeTruthy();
+    expect(screen.getByText('Only school staff can edit the roster.')).toBeTruthy();
     expect(screen.queryByText('Add Student')).toBeNull();
+  });
+
+  it('denies the owner of a school-affiliated classroom who is not an admin — ownership alone no longer suffices', () => {
+    const scopedClassroom = { ...classroom, ownerUids: ['teacher-1'], schoolId: 'school-1' };
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'own' },
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    render(<ClassroomRosterPage user={user} contextId="ctx-1" />);
+
+    expect(screen.getByText('Only school staff can edit the roster.')).toBeTruthy();
+  });
+
+  it('allows an admin to edit the roster of a school-affiliated classroom they do not own', () => {
+    const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1' };
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'admin',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    render(<ClassroomRosterPage user={user} contextId="ctx-1" />);
+
+    expect(screen.getByText('Add Student')).toBeTruthy();
+  });
+
+  it('allows the owner of a schoolless classroom, since they are its only possible manager', () => {
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
+    render(<ClassroomRosterPage user={user} contextId="ctx-1" />);
+
+    expect(screen.getByText('Add Student')).toBeTruthy();
   });
 
   it('has no back-arrow button — the breadcrumb trail is the way back', () => {

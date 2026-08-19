@@ -124,14 +124,14 @@ describe('StaffDetailPane', () => {
     render(
       <StaffDetailPane
         {...baseProps}
-        member={{ ...teacher, classroomGrants: { 'ctx-3': 'manage' } }}
+        member={{ ...teacher, classroomGrants: { 'ctx-3': 'award' } }}
         canEditScope
         schoolClassrooms={[otherOwnedClassroom]}
         allMembers={[teacher, otherTeacher]}
       />,
     );
 
-    expect(screen.getByText('Room 5 — manage')).toBeTruthy();
+    expect(screen.getByText('Room 5 — award')).toBeTruthy();
     expect(screen.queryByText(/Classroom ctx-3/)).toBeNull();
   });
 

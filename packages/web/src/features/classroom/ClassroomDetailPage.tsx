@@ -3,18 +3,18 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { Settings, Users } from 'lucide-react';
 import { useClassroom, useStudents } from '../../lib/firestore';
-import { useMyMembership } from '../../lib/school';
+import { useMembersOfSchool, useMyMembership } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
+import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
 import { TwoPaneLayout } from '../../components/layout/TwoPaneLayout';
 import { StudentDetailPane } from './StudentDetailPane';
 
 /** Daily-use view: pick a student, review/award their balance. Classroom
- * setup (rename/delete/store catalog/colleague access) lives at
- * /settings, and roster changes (add/archive/delete/move) live at
- * /roster — both reached via the header icons below — so this page never
- * mixes rare, high-blast-radius actions in with the thing people do here
- * every day. */
+ * setup (rename/delete/store catalog) lives at /settings, and roster
+ * changes (add/archive/delete) live at /roster — both school-staff only,
+ * reached via the header icons below — so this page never mixes rare,
+ * high-blast-radius actions in with the thing people do here every day. */
 export function ClassroomDetailPage({
   user,
   contextId,
@@ -29,17 +29,17 @@ export function ClassroomDetailPage({
   const isOwner = ownerUids.includes(user.uid);
 
   const membership = useMyMembership(classroom?.schoolId, user.uid);
-  // Full manage rights: the classroom's owner, an admin/super_admin, or a
-  // teacher with an explicit 'manage'-level grant on this classroom. Grade/
-  // whole-school scope alone never qualifies (award-only, see
-  // firestore.rules' hasAwardAccess/hasManageAccess split). Only gates the
-  // Roster icon below — Settings stays reachable to everyone who can view
-  // this page, since its Store section already has no such gate (any
-  // award-access teacher can stock the store today).
-  const canManage =
-    isOwner ||
-    (membership !== null && membership !== undefined && membership.role !== 'teacher') ||
-    membership?.classroomGrants?.[contextId] === 'manage';
+  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
+  // School-staff only, once a classroom belongs to a school — ownership no
+  // longer confers rename/delete/roster/store rights there (see
+  // firestore.rules' canManageClassroom, the real gate this mirrors). A
+  // schoolless classroom has no admin at all, so its owner remains its
+  // only possible manager.
+  const canManage = classroom?.schoolId == null ? isOwner : isAtLeastAdmin;
+
+  const schoolTeachers = useMembersOfSchool(classroom?.schoolId).filter(
+    (m) => m.role === 'teacher' && m.uid !== user.uid,
+  );
 
   const students = useStudents(contextId);
   const [, navigate] = useLocation();
@@ -61,8 +61,8 @@ export function ClassroomDetailPage({
         title={classroom?.name ?? 'Classroom'}
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: classroom?.name ?? 'Classroom', href: `/app/classrooms/${contextId}` }]}
         actions={
-          <>
-            {canManage && (
+          canManage && (
+            <>
               <IconButton
                 label="Roster"
                 variant="secondary"
@@ -70,15 +70,15 @@ export function ClassroomDetailPage({
               >
                 <Users size={16} />
               </IconButton>
-            )}
-            <IconButton
-              label="Classroom settings"
-              variant="secondary"
-              onClick={() => navigate(`/app/classrooms/${contextId}/settings`)}
-            >
-              <Settings size={16} />
-            </IconButton>
-          </>
+              <IconButton
+                label="Classroom settings"
+                variant="secondary"
+                onClick={() => navigate(`/app/classrooms/${contextId}/settings`)}
+              >
+                <Settings size={16} />
+              </IconButton>
+            </>
+          )
         }
       />
 
@@ -128,6 +128,14 @@ export function ClassroomDetailPage({
           })()
         }
       />
+
+      {isOwner && schoolTeachers.length > 0 && (
+        <div className="border-t border-border px-6 py-4">
+          <Button variant="secondary" onClick={() => navigate(`/app/classrooms/${contextId}/request-access`)}>
+            Request access for a colleague
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

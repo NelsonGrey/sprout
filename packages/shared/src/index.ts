@@ -163,11 +163,12 @@ export type MemberRole = 'super_admin' | 'admin' | 'teacher';
  * classroom in the school (the PE/art/music case). */
 export type MemberScope = { type: 'own' } | { type: 'grades'; grades: string[] } | { type: 'school' };
 
-/** 'award' = record earn/spend transactions only; 'manage' = full
- * rename/delete/roster rights, same as the classroom's owner. Only ever
- * set via an admin approving an AccessRequest (or an admin editing it
- * directly) — an owner can only propose, never grant directly. */
-export type ClassroomGrantLevel = 'award' | 'manage';
+/** 'award' = record earn/spend transactions only — the only grant level
+ * that exists; rename/delete/roster/store rights are school-staff
+ * (admin/super_admin) only and can't be delegated. Only ever set via an
+ * admin approving an AccessRequest (or an admin editing it directly) — an
+ * owner can only propose, never grant directly. */
+export type ClassroomGrantLevel = 'award';
 
 export interface SchoolMember {
   uid: string;

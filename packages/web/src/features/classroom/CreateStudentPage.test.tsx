@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { CreateStudentPage } from './CreateStudentPage';
 import * as firestoreLib from '../../lib/firestore';
+import * as schoolLib from '../../lib/school';
 
 vi.mock('../../lib/firestore', () => ({
   useClassroom: vi.fn(),
@@ -19,6 +20,10 @@ vi.mock('../../lib/firestore', () => ({
   },
 }));
 
+vi.mock('../../lib/school', () => ({
+  useMyMembership: vi.fn(),
+}));
+
 const navigateMock = vi.fn();
 vi.mock('wouter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wouter')>();
@@ -32,6 +37,7 @@ describe('CreateStudentPage', () => {
   it('calls addStudent with the classroom owners, then navigates back to the classroom', async () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.addStudent).mockResolvedValue(undefined);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<CreateStudentPage user={user} contextId="ctx-1" />);
 
     fireEvent.change(screen.getByPlaceholderText('Student name'), { target: { value: 'Alex' } });
@@ -55,6 +61,14 @@ describe('CreateStudentPage', () => {
     const scopedClassroom = { ...classroom, ownerUids: ['other-teacher'], schoolId: 'school-1', gradeLevel: '4' };
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
     vi.mocked(firestoreLib.addStudent).mockResolvedValue(undefined);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'admin',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
     render(<CreateStudentPage user={user} contextId="ctx-1" />);
 
     fireEvent.change(screen.getByPlaceholderText('Student name'), { target: { value: 'Alex' } });
@@ -75,6 +89,7 @@ describe('CreateStudentPage', () => {
 
   it('has no back-arrow button — the breadcrumb trail (Home > classroom > Roster) is the way back', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<CreateStudentPage user={user} contextId="ctx-1" />);
 
     expect(screen.queryByLabelText('Back')).toBeNull();
@@ -83,11 +98,30 @@ describe('CreateStudentPage', () => {
 
   it('disables Create until a name is entered', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
     render(<CreateStudentPage user={user} contextId="ctx-1" />);
 
     expect((screen.getByText('Create').closest('button') as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(screen.getByPlaceholderText('Student name'), { target: { value: 'Alex' } });
     expect((screen.getByText('Create').closest('button') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('denies a school-affiliated classroom owner who is not an admin', () => {
+    const scopedClassroom = { ...classroom, ownerUids: ['teacher-1'], schoolId: 'school-1' };
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(scopedClassroom);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'own' },
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    render(<CreateStudentPage user={user} contextId="ctx-1" />);
+
+    expect(screen.getByText('Only school staff can add a student.')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Student name')).toBeNull();
   });
 });

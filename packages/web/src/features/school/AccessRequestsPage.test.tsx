@@ -39,7 +39,7 @@ describe('AccessRequestsPage', () => {
       requestedByDisplayName: 'Ms. Owner',
       targetUid: 'target-1',
       targetDisplayName: 'Mr. Target',
-      level: 'manage' as const,
+      level: 'award' as const,
       status: 'pending' as const,
       createdAt: new Date(),
     };
@@ -49,7 +49,7 @@ describe('AccessRequestsPage', () => {
 
     render(<AccessRequestsPage user={delegate} />);
 
-    expect(screen.getByText(/Ms\. Owner wants Mr\. Target to have manage access to 4th Grade/)).toBeTruthy();
+    expect(screen.getByText(/Ms\. Owner wants Mr\. Target to have award access to 4th Grade/)).toBeTruthy();
 
     fireEvent.click(screen.getByText('Approve'));
     await waitFor(() => expect(schoolLib.approveAccessRequest).toHaveBeenCalledWith(request, 'delegate-1'));

@@ -7,20 +7,20 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 
-/** Roster changes (add/archive/delete/move students) — separated from the
- * daily balance-review page so adding or removing a student isn't mixed
- * in with awarding money, and from classroom settings so roster work
- * isn't mixed in with renaming/deleting the classroom itself. */
+/** Roster changes (add/archive/delete students) — school-staff only for a
+ * school-affiliated classroom (a schoolless classroom's owner remains its
+ * only possible manager) — separated from the daily balance-review page
+ * so adding or removing a student isn't mixed in with awarding money, and
+ * from classroom settings so roster work isn't mixed in with renaming/
+ * deleting the classroom itself. */
 export function ClassroomRosterPage({ user, contextId }: { user: User; contextId: string }) {
   const classroom = useClassroom(contextId);
   const ownerUids = classroom?.ownerUids ?? [user.uid];
   const isOwner = ownerUids.includes(user.uid);
 
   const membership = useMyMembership(classroom?.schoolId, user.uid);
-  const canManage =
-    isOwner ||
-    (membership !== null && membership !== undefined && membership.role !== 'teacher') ||
-    membership?.classroomGrants?.[contextId] === 'manage';
+  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
+  const canManage = classroom?.schoolId == null ? isOwner : isAtLeastAdmin;
 
   const students = useStudents(contextId);
   const [, navigate] = useLocation();
@@ -60,7 +60,7 @@ export function ClassroomRosterPage({ user, contextId }: { user: User; contextId
     return (
       <div className="flex min-h-full flex-col text-ink">
         <PageHeader title="Roster" breadcrumbs={breadcrumbs} />
-        <p className="px-6 py-4 text-ink-muted">Only classroom managers can edit the roster.</p>
+        <p className="px-6 py-4 text-ink-muted">Only school staff can edit the roster.</p>
       </div>
     );
   }

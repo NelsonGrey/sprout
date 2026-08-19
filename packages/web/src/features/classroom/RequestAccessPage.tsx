@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import type { ClassroomGrantLevel } from '@sprout/shared';
 import { useClassroom } from '../../lib/firestore';
 import { createAccessRequest, useAccessRequestsForContext, useMembersOfSchool } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 
 /** A dedicated page for a classroom owner to request a colleague get
- * delegated access — reached from ClassroomSettingsPage's "Request Access"
+ * award-level access — reached from ClassroomDetailPage's "Request Access"
  * button (only shown to the owner, when the school has other teachers)
  * rather than an inline form, matching the standalone-page convention used
- * elsewhere (CSV import/promote/archive). */
+ * elsewhere (CSV import/promote/archive). 'award' is the only grant level
+ * that exists — rename/delete/roster/store rights are school-staff only
+ * and can't be delegated, so there's no level to choose here anymore. */
 export function RequestAccessPage({ user, contextId }: { user: User; contextId: string }) {
   const classroom = useClassroom(contextId);
   const schoolTeachers = useMembersOfSchool(classroom?.schoolId).filter(
@@ -19,7 +20,6 @@ export function RequestAccessPage({ user, contextId }: { user: User; contextId: 
   const contextRequests = useAccessRequestsForContext(contextId);
 
   const [requestTargetUid, setRequestTargetUid] = useState('');
-  const [requestLevel, setRequestLevel] = useState<ClassroomGrantLevel>('award');
   const [requesting, setRequesting] = useState(false);
 
   const handleRequestAccess = async () => {
@@ -34,7 +34,7 @@ export function RequestAccessPage({ user, contextId }: { user: User; contextId: 
       requestedByDisplayName: user.displayName ?? '',
       targetUid: target.uid,
       targetDisplayName: target.displayName || target.email,
-      level: requestLevel,
+      level: 'award',
     });
     setRequestTargetUid('');
     setRequesting(false);
@@ -47,12 +47,13 @@ export function RequestAccessPage({ user, contextId }: { user: User; contextId: 
         breadcrumbs={[
           { label: 'Home', href: '/app' },
           { label: classroom?.name ?? 'Classroom', href: `/app/classrooms/${contextId}` },
-          { label: 'Settings', href: `/app/classrooms/${contextId}/settings` },
           { label: 'Request Access', href: `/app/classrooms/${contextId}/request-access` },
         ]}
       />
       <div className="flex max-w-md flex-col gap-4 px-6 py-4">
-        <p className="text-xs text-ink-muted">An admin will need to approve this before your colleague gets access.</p>
+        <p className="text-xs text-ink-muted">
+          An admin will need to approve this before your colleague can record earn/spend for this classroom.
+        </p>
         <select
           value={requestTargetUid}
           onChange={(e) => setRequestTargetUid(e.target.value)}
@@ -65,16 +66,6 @@ export function RequestAccessPage({ user, contextId }: { user: User; contextId: 
             </option>
           ))}
         </select>
-        <div className="flex gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input type="radio" checked={requestLevel === 'award'} onChange={() => setRequestLevel('award')} />
-            Award only (record earn/spend)
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="radio" checked={requestLevel === 'manage'} onChange={() => setRequestLevel('manage')} />
-            Full manage (rename/delete/roster)
-          </label>
-        </div>
         <Button className="self-start" onClick={handleRequestAccess} disabled={!requestTargetUid || requesting}>
           Request Access
         </Button>
