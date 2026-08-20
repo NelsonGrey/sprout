@@ -4,6 +4,7 @@ import type { User } from 'firebase/auth';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { Sidebar } from './Sidebar';
+import { LessonReturnBanner } from '../../features/learn/LessonReturnBanner';
 
 /** App shell: a persistent left Sidebar (staff users only — see its own
  * hasAnyStaffAccess check) alongside a header/content/footer column.
@@ -21,6 +22,7 @@ export function Layout({ user, children }: { user: User | null; children: ReactN
         )}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header user={user} onOpenMobileNav={() => setMobileNavOpen(true)} />
+          {user && <LessonReturnBanner />}
           <main className="site-scroll-region min-h-0 flex-1 overflow-y-auto">
             <div className="site-container flex min-h-full flex-col">{children}</div>
           </main>

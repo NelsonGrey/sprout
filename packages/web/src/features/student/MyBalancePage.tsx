@@ -1,19 +1,23 @@
 import type { Student } from '@sprout/shared';
-import { Sprout } from 'lucide-react';
+import { BookOpen, Sprout } from 'lucide-react';
+import { Link } from 'wouter';
 import { useGoals, useTransactions } from '../../lib/firestore';
 import { PageHeader } from '../../components/ui/page-header';
 import { GoalProgressCard } from '../../components/ui/goal-progress-card';
 import { SavingsLabelBadge } from '../../components/ui/savings-label-badge';
 import { SpendCategoryBadge } from '../../components/ui/spend-category-badge';
+import { isFeatureEnabled } from '../../app/featureFlags';
 
 /**
  * A student's own read-only balance, goal progress, and transaction
- * history — no earn/spend controls, no goal create/delete, no navigation
- * elsewhere. This is the entire student-facing experience (BR-1.3.3/1.4.1):
- * sign in with the same real account a teacher would use, land here
- * automatically instead of the staff dashboard (see the landing decision in
- * App.tsx). Goals are set up by staff via StudentDetailPane — a student can
- * see their own trail here but not create or remove one.
+ * history — no earn/spend controls, no goal create/delete. This is the
+ * entire student-facing experience (BR-1.3.3/1.4.1): sign in with the same
+ * real account a teacher would use, land here automatically instead of the
+ * staff dashboard (see the landing decision in App.tsx). Goals are set up
+ * by staff via StudentDetailPane — a student can see their own trail here
+ * but not create or remove one. The one navigation entry point is the
+ * learning library (Slice 3) — full Today/History/Goals/Learn student nav
+ * is Slice 4 scope, not built here.
  */
 export function MyBalancePage({ student }: { student: Student }) {
   const transactions = useTransactions(student.contextId, student.id);
@@ -21,7 +25,16 @@ export function MyBalancePage({ student }: { student: Student }) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <PageHeader title={student.contextName ?? 'My Balance'} />
+      <PageHeader
+        title={student.contextName ?? 'My Balance'}
+        actions={
+          isFeatureEnabled('authenticatedLearning') ? (
+            <Link href="/app/learn" className="inline-flex items-center gap-1.5 text-sm font-black text-brand">
+              <BookOpen size={16} /> Learning library
+            </Link>
+          ) : undefined
+        }
+      />
 
       <div className="px-6 pt-5">
         <div className="flex items-center gap-4 rounded-[26px] bg-ink p-6 text-on-dark shadow-panel">

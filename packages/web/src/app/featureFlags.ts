@@ -11,7 +11,7 @@ export type AppFeature =
   | 'familyContexts'
   | 'districtWorkspace';
 
-const ENABLED_FEATURES: ReadonlySet<AppFeature> = new Set([]);
+const ENABLED_FEATURES: ReadonlySet<AppFeature> = new Set(['authenticatedLearning']);
 
 export function isFeatureEnabled(feature: AppFeature): boolean {
   return ENABLED_FEATURES.has(feature);

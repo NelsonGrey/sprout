@@ -25,9 +25,10 @@ vi.mock('../../lib/firebase', () => ({
   firebaseClient: { auth: { signOut: vi.fn() } },
 }));
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/', vi.fn()],
-}));
+vi.mock('wouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('wouter')>();
+  return { ...actual, useLocation: () => ['/', vi.fn()] };
+});
 
 const user = { uid: 'user-1', displayName: 'Alex Rivera', email: 'alex@example.com' } as User;
 const linkedStudent = {

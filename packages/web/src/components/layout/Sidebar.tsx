@@ -1,7 +1,8 @@
 import type { User } from 'firebase/auth';
 import { Link, useLocation } from 'wouter';
-import { House, School as SchoolIcon, Sprout, Users, X } from 'lucide-react';
+import { BookOpen, House, School as SchoolIcon, Sprout, Users, X } from 'lucide-react';
 import { useCapabilities } from '../../app/roleContext';
+import { isFeatureEnabled } from '../../app/featureFlags';
 
 /** Persistent left navigation — role-aware via the shared capability
  * resolver (see app/roleContext.tsx), not a locally re-derived role check.
@@ -29,6 +30,16 @@ export function Sidebar({
       icon: House,
       active: path === '/app' || path.startsWith('/app/classrooms'),
     },
+    ...(isFeatureEnabled('authenticatedLearning')
+      ? [
+          {
+            href: '/app/learn',
+            label: 'Learn',
+            icon: BookOpen,
+            active: path.startsWith('/app/learn'),
+          },
+        ]
+      : []),
     ...(canViewAllSchoolStudents
       ? [
           {
