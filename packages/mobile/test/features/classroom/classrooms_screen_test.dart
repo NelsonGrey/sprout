@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
@@ -208,5 +209,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2nd Grade Room'), findsOneWidget);
+  });
+
+  testWidgets('tapping a classroom pushes (not replaces), so the user can navigate back to the list', (tester) async {
+    final classroomRepository = FakeClassroomRepository();
+    final classroom = await classroomRepository.createClassroom(name: '3rd Grade', ownerUid: _user.uid);
+
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => ClassroomsScreen(
+            authService: FakeAuthService(),
+            classroomRepository: classroomRepository,
+            schoolRepository: FakeSchoolRepository(),
+            user: _user,
+          ),
+        ),
+        GoRoute(
+          path: '/classrooms/:contextId',
+          builder: (context, state) {
+            expect(state.pathParameters['contextId'], classroom.id);
+            return const Scaffold(body: Text('Classroom Detail Stub'));
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('3rd Grade'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Classroom Detail Stub'), findsOneWidget);
+    expect(router.canPop(), isTrue, reason: 'tapping a classroom must push so the user is never stuck without a way back');
+
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('3rd Grade'), findsOneWidget);
   });
 }

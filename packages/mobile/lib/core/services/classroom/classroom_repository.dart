@@ -1,6 +1,9 @@
+import 'package:sprout/core/models/bulk_transaction_result.dart';
 import 'package:sprout/core/models/classroom_context.dart';
+import 'package:sprout/core/models/goal.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/school.dart';
+import 'package:sprout/core/models/store_item.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/models/student_import_row.dart';
 
@@ -15,7 +18,10 @@ abstract class ClassroomRepository {
   /// merges this with [myClassrooms] client-side, de-duplicating by id.
   /// [gradeLevels] null means whole-school scope (every classroom in the
   /// school); non-null filters to those specific grades.
-  Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels});
+  Stream<List<ClassroomContext>> classroomsInSchool(
+    String schoolId, {
+    List<String>? gradeLevels,
+  });
 
   /// A single classroom by id, regardless of ownership — for a classroom's
   /// detail screen, where the viewer may be an admin/super_admin or a
@@ -29,7 +35,11 @@ abstract class ClassroomRepository {
   /// Rename or re-grade a classroom. Not cascading — students' contextId
   /// pointing at a since-deleted classroom aren't cleaned up by
   /// [deleteClassroom]; there's no batch/cascade infrastructure for that yet.
-  Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel});
+  Future<void> updateClassroom(
+    String contextId, {
+    String? name,
+    String? gradeLevel,
+  });
 
   Future<void> deleteClassroom(String contextId);
 
@@ -152,7 +162,13 @@ abstract class ClassroomRepository {
   /// [Student.balanceCents] — never two separate writes. [schoolId]/
   /// [gradeLevel] should mirror the student's, if any — denormalized so a
   /// scoped/delegated (not just owning) teacher's award actually satisfies
-  /// the transactions rule's hasAwardAccess check.
+  /// the transactions rule's hasAwardAccess check. [savingsLabel]/[goalId]
+  /// are only meaningful (and only allowed by firestore.rules) on an
+  /// 'earn' — silently dropped for a 'spend'; passing [goalId] implies
+  /// savingsLabel: goal and also increments that Goal's savedCents in the
+  /// same write. [spendCategory] is the need/want/both mirror for a
+  /// 'spend', dropped for an 'earn'. Mirrors
+  /// packages/web/src/lib/firestore.ts's recordTransaction exactly.
   Future<void> recordTransaction({
     required String contextId,
     required String studentId,
@@ -163,7 +179,52 @@ abstract class ClassroomRepository {
     required List<String> ownerUids,
     String? schoolId,
     String? gradeLevel,
+    SavingsLabel? savingsLabel,
+    String? goalId,
+    SpendCategory? spendCategory,
   });
+
+  /// Group/mass transaction — calls the sprout-functions bulk endpoint
+  /// rather than looping [recordTransaction] client-side, which has
+  /// neither the idempotency (a retried request with the same
+  /// [idempotencyKey] can never double-credit a recipient) nor the
+  /// server-rechecked award authorization a retry-safe group write
+  /// requires. No per-recipient goalId — each student's goals differ, so a
+  /// single shared goal selection across a group has no coherent meaning.
+  /// Mirrors packages/web/src/lib/api.ts's recordBulkTransaction and
+  /// sprout-functions/src/api/bulkTransactions.ts exactly.
+  Future<BulkTransactionResult> recordBulkTransaction({
+    required String contextId,
+    required String idempotencyKey,
+    required TransactionType type,
+    required int amountCentsEach,
+    required String reason,
+    required List<String> recipientStudentIds,
+    SavingsLabel? savingsLabel,
+    SpendCategory? spendCategory,
+  });
+
+  // ---- Goals (Build a Goal Trail / Opportunity Cost Challenge) ----
+
+  Stream<List<Goal>> goalsForStudent(String studentId);
+
+  Future<Goal> createGoal({
+    required String studentId,
+    required String name,
+    required int targetCents,
+    required String createdByUid,
+  });
+
+  Future<void> deleteGoal(String studentId, String goalId);
+
+  // ---- Classroom store (Classroom Store Budget) ----
+  //
+  // Read-only here — catalog management (add/edit/delete) is a classroom-
+  // settings concern (target M-CLASS-05, not yet built natively). Reads
+  // the same contexts/{contextId}/storeItems collection the web catalog
+  // editor writes to, so items created on web already show up here.
+
+  Stream<List<StoreItem>> storeItemsForContext(String contextId);
 
   // ---- Student self-service linking (BR-1.3.3/1.4.1) ----
 
@@ -192,7 +253,10 @@ abstract class ClassroomRepository {
   /// that student's roster record and deletes the pending link. No-op if
   /// there's no matching pending link — the normal case for every
   /// non-student user.
-  Future<void> claimPendingStudentLinkIfAny({required String uid, required String email});
+  Future<void> claimPendingStudentLinkIfAny({
+    required String uid,
+    required String email,
+  });
 
   /// The student roster record linked to [uid], if any — null once loaded
   /// if this account isn't linked to a student. Queries `linkedUid == uid`

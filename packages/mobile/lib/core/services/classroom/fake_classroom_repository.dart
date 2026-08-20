@@ -1,6 +1,9 @@
+import 'package:sprout/core/models/bulk_transaction_result.dart';
 import 'package:sprout/core/models/classroom_context.dart';
+import 'package:sprout/core/models/goal.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/school.dart';
+import 'package:sprout/core/models/store_item.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/models/student_import_row.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
@@ -13,6 +16,13 @@ class FakeClassroomRepository implements ClassroomRepository {
   final Map<String, List<LedgerTransaction>> _transactionsByStudent = {};
   final Map<String, Set<String>> _studentIdsByContext = {};
   final Map<String, PendingStudentLink> _pendingStudentLinksByEmail = {};
+  final Map<String, List<Goal>> _goalsByStudent = {};
+  final Map<String, List<StoreItem>> _storeItemsByContext = {};
+  // '$idempotencyKey:$studentId' pairs already applied by
+  // recordBulkTransaction — mirrors the real endpoint's per-recipient
+  // deterministic-doc-id idempotency so widget tests can exercise retry
+  // behavior without a live emulator.
+  final Set<String> _processedBulkKeys = {};
 
   String _normalizeEmail(String email) => email.trim().toLowerCase();
 
@@ -27,11 +37,17 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels}) {
+  Stream<List<ClassroomContext>> classroomsInSchool(
+    String schoolId, {
+    List<String>? gradeLevels,
+  }) {
     return Stream.value(
       _contexts.values
-          .where((c) =>
-              c.schoolId == schoolId && (gradeLevels == null || gradeLevels.contains(c.gradeLevel)))
+          .where(
+            (c) =>
+                c.schoolId == schoolId &&
+                (gradeLevels == null || gradeLevels.contains(c.gradeLevel)),
+          )
           .toList(),
     );
   }
@@ -42,7 +58,11 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel}) async {
+  Future<void> updateClassroom(
+    String contextId, {
+    String? name,
+    String? gradeLevel,
+  }) async {
     final current = _contexts[contextId];
     if (current == null) return;
     _contexts[contextId] = ClassroomContext(
@@ -85,13 +105,18 @@ class FakeClassroomRepository implements ClassroomRepository {
   Stream<List<Student>> studentsInClassroom(String contextId) {
     final ids = _studentIdsByContext[contextId] ?? {};
     return Stream.value(
-      ids.map((id) => _students[id]!).where((s) => s.archivedAt == null).toList(),
+      ids
+          .map((id) => _students[id]!)
+          .where((s) => s.archivedAt == null)
+          .toList(),
     );
   }
 
   @override
   Stream<List<Student>> studentsInSchool(String schoolId) {
-    return Stream.value(_students.values.where((s) => s.schoolId == schoolId).toList());
+    return Stream.value(
+      _students.values.where((s) => s.schoolId == schoolId).toList(),
+    );
   }
 
   @override
@@ -140,8 +165,9 @@ class FakeClassroomRepository implements ClassroomRepository {
       id: current.id,
       firstName: newFirst,
       lastName: newLast,
-      displayName:
-          firstName != null && lastName != null ? combineDisplayName(newFirst, newLast) : current.displayName,
+      displayName: firstName != null && lastName != null
+          ? combineDisplayName(newFirst, newLast)
+          : current.displayName,
       studentId: studentId ?? current.studentId,
       balanceCents: current.balanceCents,
       ownerUids: current.ownerUids,
@@ -331,7 +357,13 @@ class FakeClassroomRepository implements ClassroomRepository {
     required List<String> ownerUids,
     String? schoolId,
     String? gradeLevel,
+    SavingsLabel? savingsLabel,
+    String? goalId,
+    SpendCategory? spendCategory,
   }) async {
+    final effectiveSavingsLabel = type == TransactionType.earn
+        ? (goalId != null ? SavingsLabel.goal : savingsLabel)
+        : null;
     final transaction = LedgerTransaction(
       id: _newId(),
       studentId: studentId,
@@ -340,8 +372,13 @@ class FakeClassroomRepository implements ClassroomRepository {
       reason: reason,
       createdByUid: createdByUid,
       createdAt: DateTime.now(),
+      savingsLabel: effectiveSavingsLabel,
+      goalId: type == TransactionType.earn ? goalId : null,
+      spendCategory: type == TransactionType.spend ? spendCategory : null,
     );
-    _transactionsByStudent.putIfAbsent(studentId, () => []).insert(0, transaction);
+    _transactionsByStudent
+        .putIfAbsent(studentId, () => [])
+        .insert(0, transaction);
 
     final current = _students[studentId]!;
     final delta = type == TransactionType.earn ? amountCents : -amountCents;
@@ -360,6 +397,159 @@ class FakeClassroomRepository implements ClassroomRepository {
       linkedUid: current.linkedUid,
       archivedAt: current.archivedAt,
     );
+
+    if (type == TransactionType.earn && goalId != null) {
+      final goals = _goalsByStudent[studentId];
+      if (goals != null) {
+        final index = goals.indexWhere((g) => g.id == goalId);
+        if (index != -1) {
+          final goal = goals[index];
+          goals[index] = Goal(
+            id: goal.id,
+            studentId: goal.studentId,
+            name: goal.name,
+            targetCents: goal.targetCents,
+            savedCents: goal.savedCents + amountCents,
+            createdByUid: goal.createdByUid,
+            createdAt: goal.createdAt,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Future<BulkTransactionResult> recordBulkTransaction({
+    required String contextId,
+    required String idempotencyKey,
+    required TransactionType type,
+    required int amountCentsEach,
+    required String reason,
+    required List<String> recipientStudentIds,
+    SavingsLabel? savingsLabel,
+    SpendCategory? spendCategory,
+  }) async {
+    final succeeded = <String>[];
+    final failed = <BulkTransactionFailure>[];
+
+    for (final studentId in recipientStudentIds) {
+      final key = '$idempotencyKey:$studentId';
+      if (_processedBulkKeys.contains(key)) {
+        // Idempotent replay — already applied by an earlier attempt.
+        succeeded.add(studentId);
+        continue;
+      }
+
+      final current = _students[studentId];
+      if (current == null) {
+        failed.add(BulkTransactionFailure(studentId: studentId, error: 'Student not found'));
+        continue;
+      }
+      if (current.contextId != contextId) {
+        failed.add(BulkTransactionFailure(studentId: studentId, error: 'Student is not in this classroom'));
+        continue;
+      }
+      if (current.archivedAt != null) {
+        failed.add(BulkTransactionFailure(studentId: studentId, error: 'Student is archived'));
+        continue;
+      }
+
+      final delta = type == TransactionType.earn ? amountCentsEach : -amountCentsEach;
+      _transactionsByStudent.putIfAbsent(studentId, () => []).insert(
+        0,
+        LedgerTransaction(
+          id: _newId(),
+          studentId: studentId,
+          type: type,
+          amountCents: amountCentsEach,
+          reason: reason,
+          createdByUid: 'bulk',
+          createdAt: DateTime.now(),
+          savingsLabel: type == TransactionType.earn ? savingsLabel : null,
+          spendCategory: type == TransactionType.spend ? spendCategory : null,
+        ),
+      );
+      _students[studentId] = Student(
+        id: current.id,
+        firstName: current.firstName,
+        lastName: current.lastName,
+        displayName: current.displayName,
+        studentId: current.studentId,
+        balanceCents: current.balanceCents + delta,
+        ownerUids: current.ownerUids,
+        schoolId: current.schoolId,
+        gradeLevel: current.gradeLevel,
+        contextId: current.contextId,
+        contextName: current.contextName,
+        linkedUid: current.linkedUid,
+        archivedAt: current.archivedAt,
+      );
+      _processedBulkKeys.add(key);
+      succeeded.add(studentId);
+    }
+
+    return BulkTransactionResult(succeeded: succeeded, failed: failed);
+  }
+
+  // ---- Goals ----
+
+  @override
+  Stream<List<Goal>> goalsForStudent(String studentId) {
+    return Stream.value(List.of(_goalsByStudent[studentId] ?? const []));
+  }
+
+  @override
+  Future<Goal> createGoal({
+    required String studentId,
+    required String name,
+    required int targetCents,
+    required String createdByUid,
+  }) async {
+    final goal = Goal(
+      id: _newId(),
+      studentId: studentId,
+      name: name,
+      targetCents: targetCents,
+      savedCents: 0,
+      createdByUid: createdByUid,
+      createdAt: DateTime.now(),
+    );
+    _goalsByStudent.putIfAbsent(studentId, () => []).add(goal);
+    return goal;
+  }
+
+  @override
+  Future<void> deleteGoal(String studentId, String goalId) async {
+    _goalsByStudent[studentId]?.removeWhere((g) => g.id == goalId);
+  }
+
+  // ---- Classroom store ----
+
+  @override
+  Stream<List<StoreItem>> storeItemsForContext(String contextId) {
+    return Stream.value(List.of(_storeItemsByContext[contextId] ?? const []));
+  }
+
+  /// Test-only seeding hook, not part of [ClassroomRepository] — mobile has
+  /// no catalog-management UI yet (target M-CLASS-05), so there is no real
+  /// write path to fake here. Widget tests that need an existing store item
+  /// (e.g. to verify a quick-choice chip prefills amount/reason) call this
+  /// directly against a [FakeClassroomRepository] instance.
+  StoreItem seedStoreItem({
+    required String contextId,
+    required String name,
+    required int priceCents,
+  }) {
+    final item = StoreItem(
+      id: _newId(),
+      contextId: contextId,
+      name: name,
+      priceCents: priceCents,
+      createdByUid: 'seed',
+      createdAt: DateTime.now(),
+    );
+    _storeItemsByContext.putIfAbsent(contextId, () => []).add(item);
+    return item;
   }
 
   @override
@@ -383,7 +573,9 @@ class FakeClassroomRepository implements ClassroomRepository {
 
   @override
   Stream<PendingStudentLink?> pendingStudentLinkForStudent(String studentId) {
-    final matches = _pendingStudentLinksByEmail.values.where((l) => l.studentId == studentId);
+    final matches = _pendingStudentLinksByEmail.values.where(
+      (l) => l.studentId == studentId,
+    );
     return Stream.value(matches.isEmpty ? null : matches.first);
   }
 
@@ -409,7 +601,10 @@ class FakeClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Future<void> claimPendingStudentLinkIfAny({required String uid, required String email}) async {
+  Future<void> claimPendingStudentLinkIfAny({
+    required String uid,
+    required String email,
+  }) async {
     final normalized = _normalizeEmail(email);
     final link = _pendingStudentLinksByEmail[normalized];
     if (link == null) return;

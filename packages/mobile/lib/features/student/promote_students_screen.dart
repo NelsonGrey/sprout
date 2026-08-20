@@ -156,7 +156,10 @@ class _PromoteStudentsScreenState extends State<PromoteStudentsScreen> {
                               const Text('Promotion complete.'),
                               const SizedBox(height: 12),
                               TextButton(
-                                onPressed: () => context.go('/students'),
+                                // pop, not go: this screen was pushed on top
+                                // of the (still-live) Students screen, which
+                                // will reflect the promotion automatically.
+                                onPressed: () => context.pop(),
                                 child: const Text('Back to Students'),
                               ),
                             ],

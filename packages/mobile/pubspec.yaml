@@ -43,6 +43,19 @@ dependencies:
   cloud_functions: ^6.3.6
   firebase_app_check: ^0.4.6
 
+  # Plain HTTP client for the sprout-functions `api` Cloud Function — an
+  # onRequest/Express endpoint behind a Hosting /api/** rewrite, not an
+  # onCall function, so cloud_functions' httpsCallable protocol doesn't
+  # apply here (see core/services/classroom/bulk_transaction_client.dart).
+  http: ^1.2.2
+
+  # Real device online/offline detection for the transaction composers'
+  # offline state (see core/services/connectivity/connectivity_service.dart)
+  # — 05_IMPLEMENTATION_HANDOFF.md's Slice 2 stop condition: until real
+  # idempotent offline queueing exists, a composer must not accept a
+  # submission it can't send.
+  connectivity_plus: ^7.0.0
+
   # Auth providers — same versions across game-shell and modulo-squares.
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0

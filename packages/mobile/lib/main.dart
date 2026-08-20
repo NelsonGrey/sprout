@@ -4,11 +4,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:sprout/app/adaptive_shell.dart';
 import 'package:sprout/core/config/firebase_options.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/auth/firebase_auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/classroom/firestore_classroom_repository.dart';
+import 'package:sprout/core/services/connectivity/connectivity_plus_service.dart';
+import 'package:sprout/core/services/connectivity/connectivity_service.dart';
 import 'package:sprout/core/services/school/firestore_school_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/design_system/sprout_theme.dart';
@@ -31,6 +34,7 @@ Future<void> main() async {
       authService: FirebaseAuthService(),
       classroomRepository: FirestoreClassroomRepository(),
       schoolRepository: FirestoreSchoolRepository(),
+      connectivityService: ConnectivityPlusService(),
     ),
   );
 }
@@ -41,21 +45,25 @@ class SproutApp extends StatelessWidget {
     required this.authService,
     required this.classroomRepository,
     required this.schoolRepository,
+    required this.connectivityService,
   }) : _router = _buildRouter(
          authService,
          classroomRepository,
          schoolRepository,
+         connectivityService,
        );
 
   final AuthService authService;
   final ClassroomRepository classroomRepository;
   final SchoolRepository schoolRepository;
+  final ConnectivityService connectivityService;
   final GoRouter _router;
 
   static GoRouter _buildRouter(
     AuthService authService,
     ClassroomRepository classroomRepository,
     SchoolRepository schoolRepository,
+    ConnectivityService connectivityService,
   ) {
     return GoRouter(
       refreshListenable: _AuthStateRefresh(
@@ -71,18 +79,56 @@ class SproutApp extends StatelessWidget {
         return null;
       },
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) {
+        ShellRoute(
+          builder: (context, state, child) {
             final user = authService.currentUser;
             if (user == null) return const SizedBox.shrink();
-            return LandingScreen(
-              authService: authService,
+            return AdaptiveShell(
               classroomRepository: classroomRepository,
               schoolRepository: schoolRepository,
               user: user,
+              currentPath: state.uri.path,
+              child: child,
             );
           },
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) {
+                final user = authService.currentUser;
+                if (user == null) return const SizedBox.shrink();
+                return LandingScreen(
+                  authService: authService,
+                  classroomRepository: classroomRepository,
+                  schoolRepository: schoolRepository,
+                  user: user,
+                );
+              },
+            ),
+            GoRoute(
+              path: '/school',
+              builder: (context, state) {
+                final user = authService.currentUser;
+                if (user == null) return const SizedBox.shrink();
+                return SchoolScreen(
+                  schoolRepository: schoolRepository,
+                  user: user,
+                );
+              },
+            ),
+            GoRoute(
+              path: '/students',
+              builder: (context, state) {
+                final user = authService.currentUser;
+                if (user == null) return const SizedBox.shrink();
+                return StudentsScreen(
+                  classroomRepository: classroomRepository,
+                  schoolRepository: schoolRepository,
+                  user: user,
+                );
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/classrooms/:contextId',
@@ -92,6 +138,7 @@ class SproutApp extends StatelessWidget {
             return ClassroomDetailScreen(
               classroomRepository: classroomRepository,
               schoolRepository: schoolRepository,
+              connectivityService: connectivityService,
               user: user,
               contextId: state.pathParameters['contextId']!,
             );
@@ -105,29 +152,10 @@ class SproutApp extends StatelessWidget {
             return StudentLedgerScreen(
               classroomRepository: classroomRepository,
               schoolRepository: schoolRepository,
+              connectivityService: connectivityService,
               user: user,
               contextId: state.pathParameters['contextId']!,
               studentId: state.pathParameters['studentId']!,
-            );
-          },
-        ),
-        GoRoute(
-          path: '/school',
-          builder: (context, state) {
-            final user = authService.currentUser;
-            if (user == null) return const SizedBox.shrink();
-            return SchoolScreen(schoolRepository: schoolRepository, user: user);
-          },
-        ),
-        GoRoute(
-          path: '/students',
-          builder: (context, state) {
-            final user = authService.currentUser;
-            if (user == null) return const SizedBox.shrink();
-            return StudentsScreen(
-              classroomRepository: classroomRepository,
-              schoolRepository: schoolRepository,
-              user: user,
             );
           },
         ),

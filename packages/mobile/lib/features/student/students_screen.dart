@@ -319,17 +319,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         actions: [
                           TextButton(
                             key: const Key('promoteStudentsButton'),
-                            onPressed: () => context.go('/students/promote'),
+                            onPressed: () => context.push('/students/promote'),
                             child: const Text('Promote'),
                           ),
                           TextButton(
                             key: const Key('archiveStudentsButton'),
-                            onPressed: () => context.go('/students/archive'),
+                            onPressed: () => context.push('/students/archive'),
                             child: const Text('Archive'),
                           ),
                           TextButton(
                             key: const Key('importCsvButton'),
-                            onPressed: () => context.go('/students/import'),
+                            onPressed: () => context.push('/students/import'),
                             child: const Text('Import'),
                           ),
                         ],

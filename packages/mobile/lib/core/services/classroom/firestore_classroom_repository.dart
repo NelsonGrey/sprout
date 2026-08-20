@@ -1,15 +1,23 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+
+import 'package:sprout/core/config/api_config.dart';
+import 'package:sprout/core/models/bulk_transaction_result.dart';
 import 'package:sprout/core/models/classroom_context.dart';
+import 'package:sprout/core/models/goal.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/school.dart';
+import 'package:sprout/core/models/store_item.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/models/student_import_row.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 
 class FirestoreClassroomRepository implements ClassroomRepository {
   FirestoreClassroomRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -40,12 +48,20 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Stream<List<ClassroomContext>> classroomsInSchool(String schoolId, {List<String>? gradeLevels}) {
-    Query<Map<String, dynamic>> query = _contexts.where('schoolId', isEqualTo: schoolId);
+  Stream<List<ClassroomContext>> classroomsInSchool(
+    String schoolId, {
+    List<String>? gradeLevels,
+  }) {
+    Query<Map<String, dynamic>> query = _contexts.where(
+      'schoolId',
+      isEqualTo: schoolId,
+    );
     if (gradeLevels != null) {
       query = query.where('gradeLevel', whereIn: gradeLevels);
     }
-    return query.snapshots().map((snapshot) => snapshot.docs.map(_contextFromDoc).toList());
+    return query.snapshots().map(
+      (snapshot) => snapshot.docs.map(_contextFromDoc).toList(),
+    );
   }
 
   @override
@@ -64,7 +80,11 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Future<void> updateClassroom(String contextId, {String? name, String? gradeLevel}) async {
+  Future<void> updateClassroom(
+    String contextId, {
+    String? name,
+    String? gradeLevel,
+  }) async {
     await _contexts.doc(contextId).update({
       if (name != null) 'name': name,
       if (gradeLevel != null) 'gradeLevel': gradeLevel,
@@ -121,7 +141,12 @@ class FirestoreClassroomRepository implements ClassroomRepository {
         .where('contextId', isEqualTo: contextId)
         .orderBy('displayName')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(_studentFromDoc).where((s) => s.archivedAt == null).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(_studentFromDoc)
+              .where((s) => s.archivedAt == null)
+              .toList(),
+        );
   }
 
   @override
@@ -190,7 +215,8 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     await _students.doc(id).update({
       if (firstName != null) 'firstName': firstName,
       if (lastName != null) 'lastName': lastName,
-      if (firstName != null && lastName != null) 'displayName': combineDisplayName(firstName, lastName),
+      if (firstName != null && lastName != null)
+        'displayName': combineDisplayName(firstName, lastName),
       if (studentId != null) 'studentId': studentId,
       if (gradeLevel != null) 'gradeLevel': gradeLevel,
     });
@@ -233,7 +259,9 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     for (var i = 0; i < studentIds.length; i += _bulkChunkSize) {
       final batch = _firestore.batch();
       for (final id in studentIds.skip(i).take(_bulkChunkSize)) {
-        batch.update(_students.doc(id), {'archivedAt': FieldValue.serverTimestamp()});
+        batch.update(_students.doc(id), {
+          'archivedAt': FieldValue.serverTimestamp(),
+        });
       }
       await batch.commit();
     }
@@ -348,14 +376,25 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     required List<String> ownerUids,
     String? schoolId,
     String? gradeLevel,
+    SavingsLabel? savingsLabel,
+    String? goalId,
+    SpendCategory? spendCategory,
   }) async {
     // A WriteBatch (not runTransaction) is enough here: FieldValue.increment
     // is itself atomic and this write doesn't depend on reading the current
     // balance first, so there's nothing a transaction's read-then-write
-    // retry semantics would add.
+    // retry semantics would add. Mirrors
+    // packages/web/src/lib/firestore.ts's recordTransaction exactly.
     final batch = _firestore.batch();
 
-    final transactionRef = _contexts.doc(contextId).collection('transactions').doc();
+    final effectiveSavingsLabel = type == TransactionType.earn
+        ? (goalId != null ? SavingsLabel.goal : savingsLabel)
+        : null;
+
+    final transactionRef = _contexts
+        .doc(contextId)
+        .collection('transactions')
+        .doc();
     batch.set(transactionRef, {
       'studentId': studentId,
       'type': type == TransactionType.earn ? 'earn' : 'spend',
@@ -366,12 +405,61 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       'ownerUids': ownerUids,
       if (schoolId != null) 'schoolId': schoolId,
       if (gradeLevel != null) 'gradeLevel': gradeLevel,
+      if (effectiveSavingsLabel != null)
+        'savingsLabel': savingsLabelToJson(effectiveSavingsLabel),
+      if (type == TransactionType.earn && goalId != null) 'goalId': goalId,
+      if (type == TransactionType.spend && spendCategory != null)
+        'spendCategory': spendCategoryToJson(spendCategory),
     });
 
     final delta = type == TransactionType.earn ? amountCents : -amountCents;
-    batch.update(_students.doc(studentId), {'balanceCents': FieldValue.increment(delta)});
+    batch.update(_students.doc(studentId), {
+      'balanceCents': FieldValue.increment(delta),
+    });
+
+    if (type == TransactionType.earn && goalId != null) {
+      batch.update(_students.doc(studentId).collection('goals').doc(goalId), {
+        'savedCents': FieldValue.increment(amountCents),
+      });
+    }
 
     await batch.commit();
+  }
+
+  @override
+  Future<BulkTransactionResult> recordBulkTransaction({
+    required String contextId,
+    required String idempotencyKey,
+    required TransactionType type,
+    required int amountCentsEach,
+    required String reason,
+    required List<String> recipientStudentIds,
+    SavingsLabel? savingsLabel,
+    SpendCategory? spendCategory,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw StateError('Not signed in');
+    final token = await user.getIdToken();
+
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/api/classrooms/$contextId/transactions/bulk'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({
+        'idempotencyKey': idempotencyKey,
+        'type': type == TransactionType.earn ? 'earn' : 'spend',
+        'amountCentsEach': amountCentsEach,
+        'reason': reason,
+        'recipientStudentIds': recipientStudentIds,
+        if (savingsLabel != null) 'savingsLabel': savingsLabelToJson(savingsLabel),
+        if (spendCategory != null) 'spendCategory': spendCategoryToJson(spendCategory),
+      }),
+    );
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(data['error'] as String? ?? 'Request failed with status ${response.statusCode}');
+    }
+    return BulkTransactionResult.fromJson(data);
   }
 
   @override
@@ -396,7 +484,11 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     return _pendingStudentLinks
         .where('studentId', isEqualTo: studentId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.isEmpty ? null : _pendingStudentLinkFromDoc(snapshot.docs.first));
+        .map(
+          (snapshot) => snapshot.docs.isEmpty
+              ? null
+              : _pendingStudentLinkFromDoc(snapshot.docs.first),
+        );
   }
 
   @override
@@ -405,7 +497,10 @@ class FirestoreClassroomRepository implements ClassroomRepository {
   }
 
   @override
-  Future<void> claimPendingStudentLinkIfAny({required String uid, required String email}) async {
+  Future<void> claimPendingStudentLinkIfAny({
+    required String uid,
+    required String email,
+  }) async {
     final normalized = _normalizeEmail(email);
     final linkRef = _pendingStudentLinks.doc(normalized);
     final linkSnapshot = await linkRef.get();
@@ -413,7 +508,9 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     if (link == null) return;
 
     final batch = _firestore.batch();
-    batch.update(_students.doc(link['studentId'] as String), {'linkedUid': uid});
+    batch.update(_students.doc(link['studentId'] as String), {
+      'linkedUid': uid,
+    });
     batch.delete(linkRef);
     await batch.commit();
   }
@@ -423,10 +520,16 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     return _students
         .where('linkedUid', isEqualTo: uid)
         .snapshots()
-        .map((snapshot) => snapshot.docs.isEmpty ? null : _studentFromDoc(snapshot.docs.first));
+        .map(
+          (snapshot) => snapshot.docs.isEmpty
+              ? null
+              : _studentFromDoc(snapshot.docs.first),
+        );
   }
 
-  ClassroomContext _contextFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  ClassroomContext _contextFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     return ClassroomContext(
       id: doc.id,
@@ -456,7 +559,9 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     );
   }
 
-  PendingStudentLink _pendingStudentLinkFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  PendingStudentLink _pendingStudentLinkFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     return PendingStudentLink(
       email: doc.id,
@@ -465,13 +570,17 @@ class FirestoreClassroomRepository implements ClassroomRepository {
     );
   }
 
-  LedgerTransaction _transactionFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  LedgerTransaction _transactionFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     final createdAt = data['createdAt'] as Timestamp?;
     return LedgerTransaction(
       id: doc.id,
       studentId: data['studentId'] as String,
-      type: data['type'] == 'earn' ? TransactionType.earn : TransactionType.spend,
+      type: data['type'] == 'earn'
+          ? TransactionType.earn
+          : TransactionType.spend,
       amountCents: (data['amountCents'] as num).toInt(),
       reason: data['reason'] as String,
       createdByUid: data['createdByUid'] as String,
@@ -479,6 +588,91 @@ class FirestoreClassroomRepository implements ClassroomRepository {
       // local write, before the server round-trip lands — fall back to
       // "now" so a freshly-recorded transaction doesn't crash the list.
       createdAt: createdAt?.toDate() ?? DateTime.now(),
+      savingsLabel: savingsLabelFromJson(data['savingsLabel'] as String?),
+      goalId: data['goalId'] as String?,
+      spendCategory: spendCategoryFromJson(data['spendCategory'] as String?),
     );
+  }
+
+  Goal _goalFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    final createdAt = data['createdAt'] as Timestamp?;
+    return Goal(
+      id: doc.id,
+      studentId: data['studentId'] as String,
+      name: data['name'] as String,
+      targetCents: (data['targetCents'] as num).toInt(),
+      savedCents: (data['savedCents'] as num).toInt(),
+      createdByUid: data['createdByUid'] as String,
+      createdAt: createdAt?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  StoreItem _storeItemFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    final createdAt = data['createdAt'] as Timestamp?;
+    return StoreItem(
+      id: doc.id,
+      contextId: data['contextId'] as String,
+      name: data['name'] as String,
+      priceCents: (data['priceCents'] as num).toInt(),
+      createdByUid: data['createdByUid'] as String,
+      createdAt: createdAt?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  // ---- Goals ----
+
+  @override
+  Stream<List<Goal>> goalsForStudent(String studentId) {
+    return _students
+        .doc(studentId)
+        .collection('goals')
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(_goalFromDoc).toList());
+  }
+
+  @override
+  Future<Goal> createGoal({
+    required String studentId,
+    required String name,
+    required int targetCents,
+    required String createdByUid,
+  }) async {
+    final ref = _students.doc(studentId).collection('goals').doc();
+    await ref.set({
+      'studentId': studentId,
+      'name': name,
+      'targetCents': targetCents,
+      'savedCents': 0,
+      'createdByUid': createdByUid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return Goal(
+      id: ref.id,
+      studentId: studentId,
+      name: name,
+      targetCents: targetCents,
+      savedCents: 0,
+      createdByUid: createdByUid,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<void> deleteGoal(String studentId, String goalId) =>
+      _students.doc(studentId).collection('goals').doc(goalId).delete();
+
+  // ---- Classroom store ----
+
+  @override
+  Stream<List<StoreItem>> storeItemsForContext(String contextId) {
+    return _contexts
+        .doc(contextId)
+        .collection('storeItems')
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(_storeItemFromDoc).toList());
   }
 }

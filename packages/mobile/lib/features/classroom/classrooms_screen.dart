@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:sprout/app/capabilities.dart';
 import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
@@ -140,8 +141,16 @@ class _ClassroomList extends StatelessWidget {
         return StreamBuilder<SchoolMember?>(
           stream: schoolRepository.myMembership(schoolId, user.uid),
           builder: (context, memberSnapshot) {
-            final role = memberSnapshot.data?.role;
-            final isAtLeastAdmin = role == MemberRole.admin || role == MemberRole.superAdmin;
+            // Only canViewAllSchoolStudents is used below — hasSchoolMembership
+            // and ownClassroomCount don't affect it, so this call site (already
+            // inside the schoolIds.isNotEmpty branch) doesn't need real values
+            // for either. See app/capabilities.dart.
+            final capabilities = deriveCapabilities(
+              memberRole: memberSnapshot.data?.role,
+              hasSchoolMembership: true,
+              ownClassroomCount: 0,
+            );
+            final isAtLeastAdmin = capabilities.canViewAllSchoolStudents;
             final scope = memberSnapshot.data?.scope;
             // Admins/super_admins always have full-school visibility (no
             // `scope` field exists on their member doc — that's
@@ -217,7 +226,10 @@ class _ClassroomListView extends StatelessWidget {
         final classroom = classrooms[index];
         return ListTile(
           title: Text(classroom.name),
-          onTap: () => context.go('/classrooms/${classroom.id}'),
+          // push, not go: go replaces the nav stack, which left this
+          // screen with no way back (see student_ledger_screen.dart and
+          // classroom_detail_screen.dart for the same fix).
+          onTap: () => context.push('/classrooms/${classroom.id}'),
         );
       },
     );

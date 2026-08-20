@@ -6,7 +6,9 @@ import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
+import 'package:sprout/core/services/connectivity/connectivity_service.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
+import 'package:sprout/features/classroom/group_transaction_composer_screen.dart';
 import 'package:sprout/widgets/confirm_delete_dialog.dart';
 import 'package:sprout/widgets/sprout_app_bar.dart';
 
@@ -17,12 +19,14 @@ class ClassroomDetailScreen extends StatefulWidget {
     super.key,
     required this.classroomRepository,
     required this.schoolRepository,
+    required this.connectivityService,
     required this.user,
     required this.contextId,
   });
 
   final ClassroomRepository classroomRepository;
   final SchoolRepository schoolRepository;
+  final ConnectivityService connectivityService;
   final AppUser user;
   final String contextId;
 
@@ -37,6 +41,49 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
   String? _requestTargetUid;
   ClassroomGrantLevel _requestLevel = ClassroomGrantLevel.award;
   bool _requesting = false;
+
+  // Group/mass transactions (M-CLASS-01's "Select"/"Record for group"
+  // action row) — an opt-in mode entirely independent of the normal
+  // tap-to-open-ledger navigation below, so that flow is unchanged
+  // whenever this is off.
+  bool _selectMode = false;
+  final Set<String> _selectedIds = {};
+
+  void _toggleSelectMode() {
+    setState(() {
+      _selectMode = !_selectMode;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelected(String studentId) {
+    setState(() {
+      if (_selectedIds.contains(studentId)) {
+        _selectedIds.remove(studentId);
+      } else {
+        _selectedIds.add(studentId);
+      }
+    });
+  }
+
+  Future<void> _openGroupComposer(List<Student> students) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GroupTransactionComposerScreen(
+          classroomRepository: widget.classroomRepository,
+          connectivityService: widget.connectivityService,
+          contextId: widget.contextId,
+          students: students,
+        ),
+      ),
+    );
+    if (mounted) {
+      setState(() {
+        _selectMode = false;
+        _selectedIds.clear();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -210,24 +257,29 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
             return Scaffold(
               appBar: SproutAppBar(
                 title: classroom?.name ?? 'Classroom',
-                actions: canManage
-                    ? [
-                        IconButton(
-                          key: const Key('renameClassroomButton'),
-                          icon: const Icon(Icons.edit),
-                          tooltip: 'Rename classroom',
-                          onPressed: classroom == null
-                              ? null
-                              : () => _renameClassroom(classroom.name),
-                        ),
-                        IconButton(
-                          key: const Key('deleteClassroomButton'),
-                          icon: const Icon(Icons.delete),
-                          tooltip: 'Delete classroom',
-                          onPressed: _deleteClassroom,
-                        ),
-                      ]
-                    : null,
+                actions: [
+                  TextButton(
+                    key: const Key('selectModeButton'),
+                    onPressed: _toggleSelectMode,
+                    child: Text(_selectMode ? 'Cancel' : 'Select'),
+                  ),
+                  if (canManage) ...[
+                    IconButton(
+                      key: const Key('renameClassroomButton'),
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Rename classroom',
+                      onPressed: classroom == null
+                          ? null
+                          : () => _renameClassroom(classroom.name),
+                    ),
+                    IconButton(
+                      key: const Key('deleteClassroomButton'),
+                      icon: const Icon(Icons.delete),
+                      tooltip: 'Delete classroom',
+                      onPressed: _deleteClassroom,
+                    ),
+                  ],
+                ],
               ),
               body: Column(
                 children: [
@@ -253,17 +305,29 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
                           itemBuilder: (context, index) {
                             final student = students[index];
                             return ListTile(
+                              leading: _selectMode
+                                  ? Checkbox(
+                                      value: _selectedIds.contains(student.id),
+                                      onChanged: (_) =>
+                                          _toggleSelected(student.id),
+                                    )
+                                  : null,
                               title: Text(student.displayName),
-                              onTap: () => context.go(
-                                '/classrooms/${widget.contextId}/students/${student.id}',
-                              ),
+                              onTap: _selectMode
+                                  ? () => _toggleSelected(student.id)
+                                  // push, not go: go replaces the nav
+                                  // stack, leaving the student ledger with
+                                  // no way back.
+                                  : () => context.push(
+                                      '/classrooms/${widget.contextId}/students/${student.id}',
+                                    ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     '\$${(student.balanceCents / 100).toStringAsFixed(2)}',
                                   ),
-                                  if (canManage) ...[
+                                  if (canManage && !_selectMode) ...[
                                     IconButton(
                                       key: Key(
                                         'renameStudentButton-${student.id}',
@@ -293,7 +357,43 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
                       },
                     ),
                   ),
-                  if (canManage)
+                  if (_selectMode && _selectedIds.isNotEmpty)
+                    StreamBuilder<List<Student>>(
+                      stream: widget.classroomRepository.studentsInClassroom(
+                        widget.contextId,
+                      ),
+                      builder: (context, snapshot) {
+                        final selectedStudents =
+                            (snapshot.data ?? const <Student>[])
+                                .where((s) => _selectedIds.contains(s.id))
+                                .toList();
+                        return Material(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${_selectedIds.length} selected'),
+                                ElevatedButton(
+                                  key: const Key('recordForGroupButton'),
+                                  onPressed: selectedStudents.isEmpty
+                                      ? null
+                                      : () => _openGroupComposer(
+                                          selectedStudents,
+                                        ),
+                                  child: const Text('Record'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  if (canManage && !_selectMode)
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
