@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
+import { ArrowLeft } from 'lucide-react';
 import { useClassroomsInSchool } from '../../lib/firestore';
 import { getSchool, useMembersOfSchool, useMyMembership, useSchoolIdsForUser } from '../../lib/school';
 import { PageHeader } from '../../components/ui/page-header';
@@ -53,6 +54,11 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
 
   const selectedMember = members.find((m) => m.uid === selected);
 
+  const clearSelection = () => {
+    setSelected(null);
+    navigate('/app/school/staff');
+  };
+
   return (
     <div className="flex min-h-full flex-col text-ink">
       <PageHeader
@@ -61,6 +67,7 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
         actions={<Button onClick={() => navigate('/app/school/staff/new')}>Add Staff</Button>}
       />
       <TwoPaneLayout
+        detailSelected={selectedMember != null}
         left={
           <ul className="flex flex-col gap-2">
             {members.map((member) => (
@@ -84,19 +91,25 @@ export function StaffPage({ user, selectedUid }: { user: User; selectedUid?: str
         }
         right={
           selectedMember ? (
-            <StaffDetailPane
-              schoolId={schoolId}
-              member={selectedMember}
-              gradeOptions={activeGrades}
-              canEditScope={selectedMember.role === 'teacher' && isAtLeastAdmin}
-              canRemove={canRemove(selectedMember)}
-              schoolClassrooms={schoolClassrooms}
-              allMembers={members}
-              onRemoved={() => {
-                setSelected(null);
-                navigate('/app/school/staff');
-              }}
-            />
+            <div>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="mb-3 flex items-center gap-1 text-sm font-semibold text-ink-muted hover:text-ink lg:hidden"
+              >
+                <ArrowLeft size={16} /> Staff
+              </button>
+              <StaffDetailPane
+                schoolId={schoolId}
+                member={selectedMember}
+                gradeOptions={activeGrades}
+                canEditScope={selectedMember.role === 'teacher' && isAtLeastAdmin}
+                canRemove={canRemove(selectedMember)}
+                schoolClassrooms={schoolClassrooms}
+                allMembers={members}
+                onRemoved={clearSelection}
+              />
+            </div>
           ) : (
             <p className="text-ink-muted">Select a staff member to view details.</p>
           )

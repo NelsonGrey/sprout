@@ -3,7 +3,8 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { GraduationCap, Inbox, Sprout, Users } from 'lucide-react';
 import { useClassrooms, useClassroomsInSchool } from '../../lib/firestore';
-import { useMyMembership, usePendingAccessRequestsForSchool, useSchoolIdsForUser } from '../../lib/school';
+import { useMyMembership, usePendingAccessRequestsForSchool } from '../../lib/school';
+import { useCapabilities } from '../../app/roleContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 
@@ -13,11 +14,11 @@ import { Button } from '../../components/ui/button';
  * merged with any school-wide/grade-scoped visibility, BR-1.3.11/1.3.12)
  * — this is a visual/IA evolution of that page, not new data logic. */
 export function DashboardPage({ user }: { user: User }) {
-  const schoolIds = useSchoolIdsForUser(user.uid);
-  // Multi-school membership/switching is deferred — use the first one.
-  const schoolId = schoolIds[0];
+  const { schoolId, canViewAllSchoolStudents: isAtLeastAdmin } = useCapabilities(user);
+  // membership is still read directly here for `scope`, which isn't yet
+  // part of the shared capability model (see app/capabilities.ts) —
+  // grade/whole-school classroom visibility is a Slice 2 concern.
   const membership = useMyMembership(schoolId, user.uid);
-  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
   const scope = membership?.scope;
   // Admins/super_admins always have full-school visibility (no `scope`
   // field exists on their member doc — that's teacher-only data), mirroring

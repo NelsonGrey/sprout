@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { GraduationCap, Inbox, Pencil, Users } from 'lucide-react';
 import { getSchool, updateSchool, useMyMembership, usePendingAccessRequestsForSchool } from '../../lib/school';
+import { useCapabilities } from '../../app/roleContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
@@ -21,6 +22,13 @@ import { roleLabel, scopeSummary } from './shared';
 export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: string }) {
   const [, navigate] = useLocation();
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  // useCapabilities(user) independently derives schoolIds[0], which the
+  // caller (SchoolPage) already passed in as `schoolId` — same value, so
+  // this stays consistent with the shared capability model without a
+  // second, divergent admin check. `membership` itself is still read
+  // directly for role label/scope text and isSuperAdmin, neither of which
+  // is part of the shared capability model yet.
+  const { canManageStaff: isAtLeastAdmin } = useCapabilities(user);
   const membership = useMyMembership(schoolId, user.uid);
 
   const [renamingSchool, setRenamingSchool] = useState(false);
@@ -30,7 +38,6 @@ export function SchoolAdminPage({ user, schoolId }: { user: User; schoolId: stri
     getSchool(schoolId).then((school) => setSchoolName(school?.name ?? null));
   }, [schoolId]);
 
-  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
   const isSuperAdmin = membership?.role === 'super_admin';
 
   const pendingRequests = usePendingAccessRequestsForSchool(isAtLeastAdmin ? schoolId : undefined);

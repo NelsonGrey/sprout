@@ -10,7 +10,7 @@ import {
   useClassroomsInSchool,
   useStudentsInSchool,
 } from '../../lib/firestore';
-import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
+import { useCapabilities } from '../../app/roleContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -25,10 +25,7 @@ type SortKey = 'name' | 'grade' | 'classroom';
  * row — deferred until a real need shows up). */
 export function StudentsPage({ user }: { user: User }) {
   const [, navigate] = useLocation();
-  const schoolIds = useSchoolIdsForUser(user.uid);
-  const schoolId = schoolIds[0];
-  const membership = useMyMembership(schoolId, user.uid);
-  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
+  const { schoolId, canViewAllSchoolStudents: isAtLeastAdmin } = useCapabilities(user);
 
   const students = useStudentsInSchool(isAtLeastAdmin ? schoolId : undefined);
   const classrooms = useClassroomsInSchool(isAtLeastAdmin ? schoolId : undefined);

@@ -1,9 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { ClassroomDetailPage } from './ClassroomDetailPage';
 import * as firestoreLib from '../../lib/firestore';
 import * as schoolLib from '../../lib/school';
+import * as apiLib from '../../lib/api';
+
+vi.mock('../../lib/api', () => ({
+  recordBulkTransaction: vi.fn(),
+}));
 
 vi.mock('../../lib/firestore', () => ({
   useClassroom: vi.fn(),
@@ -180,6 +185,23 @@ describe('ClassroomDetailPage', () => {
     expect(screen.getByText('Earn')).toBeTruthy();
   });
 
+  it('clicking the mobile "Students" back link clears the selection and returns to the roster', () => {
+    vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+    vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(firestoreLib.useStoreItems).mockReturnValue([]);
+    mockNoMembership();
+    render(<ClassroomDetailPage user={user} contextId="ctx-1" studentId="student-1" />);
+
+    expect(screen.getByText('Earn')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Students' }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/ctx-1');
+    expect(screen.getByText('Select a student to view details.')).toBeTruthy();
+  });
+
   it('seeds the selected student from the studentId prop', () => {
     vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
     vi.mocked(firestoreLib.useStudents).mockReturnValue([student]);
@@ -190,5 +212,118 @@ describe('ClassroomDetailPage', () => {
     render(<ClassroomDetailPage user={user} contextId="ctx-1" studentId="student-1" />);
 
     expect(screen.getByText('Earn')).toBeTruthy();
+  });
+
+  describe('group selection mode', () => {
+    beforeEach(() => {
+      // navigateMock accumulates calls across the whole file — this
+      // block's "did not navigate" assertions need a clean slate.
+      navigateMock.mockClear();
+    });
+
+    const secondStudent = {
+      id: 'student-2',
+      firstName: 'Sam',
+      lastName: '',
+      displayName: 'Sam',
+      balanceCents: 1000,
+      contexts: {},
+      contextId: 'ctx-1',
+      ownerUids: ['teacher-1'],
+      createdAt: new Date(),
+    };
+
+    function renderWithTwoStudents() {
+      vi.mocked(firestoreLib.useClassroom).mockReturnValue(classroom);
+      vi.mocked(firestoreLib.useStudents).mockReturnValue([student, secondStudent]);
+      mockNoMembership();
+      render(<ClassroomDetailPage user={user} contextId="ctx-1" />);
+    }
+
+    it('entering select mode does not navigate on row click, and shows checkboxes', () => {
+      renderWithTwoStudents();
+
+      fireEvent.click(screen.getByText('Select'));
+      fireEvent.click(screen.getByLabelText('Select Alex'));
+
+      expect(navigateMock).not.toHaveBeenCalledWith('/app/classrooms/ctx-1/students/student-1');
+      expect(screen.getByLabelText('Select Alex')).toHaveProperty('checked', true);
+    });
+
+    it('selecting two students shows the group composer with both recipients', () => {
+      renderWithTwoStudents();
+
+      fireEvent.click(screen.getByText('Select'));
+      fireEvent.click(screen.getByLabelText('Select Alex'));
+      fireEvent.click(screen.getByLabelText('Select Sam'));
+
+      expect(screen.getByText('2 students selected')).toBeTruthy();
+      expect(screen.getByText('Record 2 transactions')).toBeTruthy();
+    });
+
+    it('"Select all visible" selects every student, and toggles to "Deselect all"', () => {
+      renderWithTwoStudents();
+
+      fireEvent.click(screen.getByText('Select'));
+      fireEvent.click(screen.getByText('Select all visible'));
+
+      expect(screen.getByText('2 students selected')).toBeTruthy();
+      expect(screen.getByLabelText('Select Alex')).toHaveProperty('checked', true);
+      expect(screen.getByLabelText('Select Sam')).toHaveProperty('checked', true);
+      expect(screen.getByText('Deselect all')).toBeTruthy();
+    });
+
+    it('submits a group transaction via recordBulkTransaction, not recordTransaction', async () => {
+      vi.mocked(apiLib.recordBulkTransaction).mockResolvedValue({ succeeded: ['student-1', 'student-2'], failed: [] });
+      renderWithTwoStudents();
+
+      fireEvent.click(screen.getByText('Select'));
+      fireEvent.click(screen.getByText('Select all visible'));
+
+      fireEvent.change(screen.getByPlaceholderText('Amount for each student'), { target: { value: '2' } });
+      fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Field trip' } });
+      fireEvent.click(screen.getByText('Record 2 transactions'));
+
+      await waitFor(() => expect(screen.getByText('2 of 2 recorded.')).toBeTruthy());
+      expect(apiLib.recordBulkTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contextId: 'ctx-1',
+          type: 'earn',
+          amountCentsEach: 200,
+          reason: 'Field trip',
+          recipientStudentIds: expect.arrayContaining(['student-1', 'student-2']),
+        }),
+      );
+      expect(firestoreLib.recordTransaction).not.toHaveBeenCalled();
+    });
+
+    it('shows per-recipient failures and offers to retry failed only', async () => {
+      vi.mocked(apiLib.recordBulkTransaction).mockResolvedValue({
+        succeeded: ['student-1'],
+        failed: [{ studentId: 'student-2', error: 'Student is archived' }],
+      });
+      renderWithTwoStudents();
+
+      fireEvent.click(screen.getByText('Select'));
+      fireEvent.click(screen.getByText('Select all visible'));
+      fireEvent.change(screen.getByPlaceholderText('Amount for each student'), { target: { value: '2' } });
+      fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Field trip' } });
+      fireEvent.click(screen.getByText('Record 2 transactions'));
+
+      await waitFor(() => expect(screen.getByText('1 of 2 recorded, 1 failed.')).toBeTruthy());
+      expect(screen.getByText('Sam: Student is archived')).toBeTruthy();
+      expect(screen.getByText('Retry failed only')).toBeTruthy();
+    });
+
+    it('canceling select mode clears the selection and returns to the plain roster', () => {
+      renderWithTwoStudents();
+
+      fireEvent.click(screen.getByText('Select'));
+      fireEvent.click(screen.getByLabelText('Select Alex'));
+      fireEvent.click(screen.getByText('Cancel select'));
+
+      expect(screen.getByText('Select')).toBeTruthy();
+      expect(screen.queryByLabelText('Select Alex')).toBeNull();
+    });
   });
 });

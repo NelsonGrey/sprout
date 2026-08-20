@@ -9,6 +9,7 @@ import * as schoolLib from '../../lib/school';
 vi.mock('../../lib/firestore', () => ({
   useStudentsInSchool: vi.fn(),
   useClassroomsInSchool: vi.fn(),
+  useClassrooms: vi.fn(() => []),
   updateStudent: vi.fn(),
   bulkMoveStudents: vi.fn(),
   bulkDeleteStudents: vi.fn(),

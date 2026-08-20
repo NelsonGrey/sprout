@@ -719,6 +719,14 @@ export function useLinkedStudent(uid: string): Student | null | undefined {
   const [student, setStudent] = useState<Student | null | undefined>(undefined);
 
   useEffect(() => {
+    // Guards callers that must call this hook unconditionally (Rules of
+    // Hooks) even before a uid exists, e.g. a signed-out Header — an empty
+    // uid can never match a real linkedUid, and querying it would fire an
+    // unauthenticated read that firestore.rules' isLinkedStudentSelf denies.
+    if (!uid) {
+      setStudent(undefined);
+      return;
+    }
     const q = query(collection(db, 'students'), where('linkedUid', '==', uid));
     return onSnapshot(q, (snapshot) => setStudent(snapshot.empty ? null : studentFromDoc(snapshot.docs[0])));
   }, [uid]);

@@ -131,6 +131,30 @@ describe('StaffPage', () => {
     expect(schoolLib.revokeClassroomGrant).toHaveBeenCalledWith('school-1', 'teacher-1', 'ctx-1');
   });
 
+  it('clicking the mobile "Staff" back link clears the selection and returns to the list', () => {
+    mockDelegateAdmin();
+    vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([
+      {
+        uid: 'teacher-1',
+        role: 'teacher',
+        displayName: 'Ms. Lord',
+        email: 'lord@example.com',
+        scope: { type: 'own' },
+        addedByUid: 'delegate-1',
+        createdAt: new Date(),
+      },
+    ]);
+
+    render(<StaffPage user={delegate} selectedUid="teacher-1" />);
+
+    expect(screen.getByText('Edit scope')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Staff' }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/app/school/staff');
+    expect(screen.getByText('Select a staff member to view details.')).toBeTruthy();
+  });
+
   it('seeds the selected member from the selectedUid prop', () => {
     mockDelegateAdmin();
     vi.mocked(schoolLib.useMembersOfSchool).mockReturnValue([

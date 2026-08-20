@@ -7,6 +7,7 @@ import { claimPendingInviteIfAny } from './lib/school';
 import { DeleteAccountPage } from './features/auth/DeleteAccountPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { LandingRouter } from './features/classroom/LandingRouter';
+import { MyStudentViewPage } from './features/student/MyStudentViewPage';
 import { ClassroomDetailPage } from './features/classroom/ClassroomDetailPage';
 import { ClassroomRosterPage } from './features/classroom/ClassroomRosterPage';
 import { ClassroomSettingsPage } from './features/classroom/ClassroomSettingsPage';
@@ -140,6 +141,9 @@ function App() {
         </Route>
         <Route path="/app/account/delete">
           <DeleteAccountPage user={user} />
+        </Route>
+        <Route path="/app/me">
+          <MyStudentViewPage user={user} />
         </Route>
         <Route path="/app">
           <LandingRouter user={user} />

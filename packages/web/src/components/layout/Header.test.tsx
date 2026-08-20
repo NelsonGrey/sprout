@@ -1,11 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { Header } from './Header';
+import * as firestoreLib from '../../lib/firestore';
 
 const signOutMock = vi.fn();
 vi.mock('../../lib/firebase', () => ({
   firebaseClient: { auth: { signOut: () => signOutMock() } },
+}));
+
+vi.mock('../../lib/firestore', () => ({
+  useLinkedStudent: vi.fn(),
 }));
 
 const navigateMock = vi.fn();
@@ -14,6 +19,10 @@ vi.mock('wouter', () => ({
 }));
 
 const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.com' } as User;
+
+beforeEach(() => {
+  vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue(null);
+});
 
 describe('Header', () => {
   it('shows the logo but no account menu when signed out', () => {
@@ -32,6 +41,22 @@ describe('Header', () => {
 
     fireEvent.click(screen.getByText('Sign out'));
     expect(signOutMock).toHaveBeenCalled();
+  });
+
+  it('hides "My student view" for an account with no linked student', () => {
+    render(<Header user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Account menu'));
+    expect(screen.queryByText('My student view')).toBeNull();
+  });
+
+  it('shows "My student view" and navigates to /app/me for a dual-role account', () => {
+    vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue({ id: 'student-1' } as never);
+    render(<Header user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Account menu'));
+    fireEvent.click(screen.getByText('My student view'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/me');
   });
 
   it('navigates to the delete-account page when Delete account is clicked', () => {

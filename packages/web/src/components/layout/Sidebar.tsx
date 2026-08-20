@@ -1,14 +1,12 @@
 import type { User } from 'firebase/auth';
 import { Link, useLocation } from 'wouter';
 import { House, School as SchoolIcon, Sprout, Users, X } from 'lucide-react';
-import { useClassrooms } from '../../lib/firestore';
-import { useMyMembership, useSchoolIdsForUser } from '../../lib/school';
+import { useCapabilities } from '../../app/roleContext';
 
-/** Persistent left navigation — role-aware, computed the same way every
- * other page already computes role (no shared context/provider, matching
- * this codebase's existing per-page-hook convention). Renders nothing for
- * a linked-student-only account (mirrors LandingRouter's own
- * hasAnyStaffAccess check) — preserves the deliberate "no navigation
+/** Persistent left navigation — role-aware via the shared capability
+ * resolver (see app/roleContext.tsx), not a locally re-derived role check.
+ * Renders nothing for a linked-student-only account (mirrors LandingRouter's
+ * own hasAnyStaffAccess check) — preserves the deliberate "no navigation
  * elsewhere" constraint from BR-1.3.3/1.4.1. */
 export function Sidebar({
   user,
@@ -20,13 +18,8 @@ export function Sidebar({
   onCloseMobile: () => void;
 }) {
   const [path] = useLocation();
-  const schoolIds = useSchoolIdsForUser(user.uid);
-  const schoolId = schoolIds[0];
-  const ownClassrooms = useClassrooms(user.uid);
-  const membership = useMyMembership(schoolId, user.uid);
-  const isAtLeastAdmin = membership?.role === 'admin' || membership?.role === 'super_admin';
+  const { hasAnyStaffAccess, canViewAllSchoolStudents, canManageStaff } = useCapabilities(user);
 
-  const hasAnyStaffAccess = schoolIds.length > 0 || ownClassrooms.length > 0;
   if (!hasAnyStaffAccess) return null;
 
   const navItems = [
@@ -36,7 +29,7 @@ export function Sidebar({
       icon: House,
       active: path === '/app' || path.startsWith('/app/classrooms'),
     },
-    ...(isAtLeastAdmin
+    ...(canViewAllSchoolStudents
       ? [
           {
             href: '/app/students',
@@ -44,6 +37,10 @@ export function Sidebar({
             icon: Users,
             active: path.startsWith('/app/students'),
           },
+        ]
+      : []),
+    ...(canManageStaff
+      ? [
           {
             href: '/app/school',
             label: 'School',

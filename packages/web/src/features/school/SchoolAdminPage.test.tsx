@@ -15,6 +15,11 @@ vi.mock('../../lib/school', () => ({
   updateSchool: vi.fn(),
   useMyMembership: vi.fn(),
   usePendingAccessRequestsForSchool: vi.fn(),
+  useSchoolIdsForUser: vi.fn(() => ['school-1']),
+}));
+
+vi.mock('../../lib/firestore', () => ({
+  useClassrooms: vi.fn(() => []),
 }));
 
 const superAdmin = { uid: 'super-admin-1', displayName: 'Principal Lee', email: 'lee@example.com' } as User;
