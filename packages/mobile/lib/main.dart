@@ -12,6 +12,7 @@ import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/classroom/firestore_classroom_repository.dart';
 import 'package:sprout/core/services/connectivity/connectivity_plus_service.dart';
 import 'package:sprout/core/services/connectivity/connectivity_service.dart';
+import 'package:sprout/core/services/content/lesson_repository.dart';
 import 'package:sprout/core/services/school/firestore_school_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/design_system/sprout_theme.dart';
@@ -20,6 +21,9 @@ import 'package:sprout/features/auth/login_screen.dart';
 import 'package:sprout/features/classroom/classroom_detail_screen.dart';
 import 'package:sprout/features/classroom/landing_screen.dart';
 import 'package:sprout/features/classroom/student_ledger_screen.dart';
+import 'package:sprout/features/learn/learn_list_screen.dart';
+import 'package:sprout/features/learn/learn_prepare_screen.dart';
+import 'package:sprout/features/learn/learn_run_screen.dart';
 import 'package:sprout/features/school/school_screen.dart';
 import 'package:sprout/features/student/archive_students_screen.dart';
 import 'package:sprout/features/student/promote_students_screen.dart';
@@ -35,6 +39,7 @@ Future<void> main() async {
       classroomRepository: FirestoreClassroomRepository(),
       schoolRepository: FirestoreSchoolRepository(),
       connectivityService: ConnectivityPlusService(),
+      lessonRepository: const AssetLessonRepository(),
     ),
   );
 }
@@ -46,17 +51,20 @@ class SproutApp extends StatelessWidget {
     required this.classroomRepository,
     required this.schoolRepository,
     required this.connectivityService,
+    required this.lessonRepository,
   }) : _router = _buildRouter(
          authService,
          classroomRepository,
          schoolRepository,
          connectivityService,
+         lessonRepository,
        );
 
   final AuthService authService;
   final ClassroomRepository classroomRepository;
   final SchoolRepository schoolRepository;
   final ConnectivityService connectivityService;
+  final LessonRepository lessonRepository;
   final GoRouter _router;
 
   static GoRouter _buildRouter(
@@ -64,6 +72,7 @@ class SproutApp extends StatelessWidget {
     ClassroomRepository classroomRepository,
     SchoolRepository schoolRepository,
     ConnectivityService connectivityService,
+    LessonRepository lessonRepository,
   ) {
     return GoRouter(
       refreshListenable: _AuthStateRefresh(
@@ -99,6 +108,19 @@ class SproutApp extends StatelessWidget {
                 if (user == null) return const SizedBox.shrink();
                 return LandingScreen(
                   authService: authService,
+                  classroomRepository: classroomRepository,
+                  schoolRepository: schoolRepository,
+                  user: user,
+                );
+              },
+            ),
+            GoRoute(
+              path: '/learn',
+              builder: (context, state) {
+                final user = authService.currentUser;
+                if (user == null) return const SizedBox.shrink();
+                return LearnListScreen(
+                  lessonRepository: lessonRepository,
                   classroomRepository: classroomRepository,
                   schoolRepository: schoolRepository,
                   user: user,
@@ -156,6 +178,30 @@ class SproutApp extends StatelessWidget {
               user: user,
               contextId: state.pathParameters['contextId']!,
               studentId: state.pathParameters['studentId']!,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/learn/:lessonSlug/prepare',
+          builder: (context, state) {
+            return LearnPrepareScreen(
+              lessonRepository: lessonRepository,
+              lessonSlug: state.pathParameters['lessonSlug']!,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/learn/:lessonSlug/run',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return LearnRunScreen(
+              lessonRepository: lessonRepository,
+              classroomRepository: classroomRepository,
+              schoolRepository: schoolRepository,
+              authService: authService,
+              user: user,
+              lessonSlug: state.pathParameters['lessonSlug']!,
             );
           },
         ),

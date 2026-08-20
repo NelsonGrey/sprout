@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sprout/app/capabilities.dart';
+import 'package:sprout/app/feature_flags.dart';
 import 'package:sprout/core/models/classroom_context.dart';
 import 'package:sprout/core/models/school.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
@@ -23,6 +24,12 @@ class _NavDestinationSpec {
 
 List<_NavDestinationSpec> _destinationsFor(Capabilities capabilities) => [
   const _NavDestinationSpec(icon: Icons.home_rounded, label: 'Home', path: '/'),
+  if (isFeatureEnabled(AppFeature.authenticatedLearning))
+    const _NavDestinationSpec(
+      icon: Icons.menu_book_rounded,
+      label: 'Learn',
+      path: '/learn',
+    ),
   if (capabilities.canViewAllSchoolStudents)
     const _NavDestinationSpec(
       icon: Icons.groups_rounded,

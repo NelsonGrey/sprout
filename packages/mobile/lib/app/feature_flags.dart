@@ -13,6 +13,6 @@ enum AppFeature {
   districtWorkspace,
 }
 
-const Set<AppFeature> _enabledFeatures = {};
+const Set<AppFeature> _enabledFeatures = {AppFeature.authenticatedLearning};
 
 bool isFeatureEnabled(AppFeature feature) => _enabledFeatures.contains(feature);

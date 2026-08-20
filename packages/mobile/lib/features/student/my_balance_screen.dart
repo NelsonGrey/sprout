@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:sprout/app/feature_flags.dart';
 import 'package:sprout/core/models/ledger_transaction.dart';
 import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
@@ -8,10 +10,12 @@ import 'package:sprout/widgets/account_menu_button.dart';
 import 'package:sprout/widgets/sprout_app_bar.dart';
 
 /// A student's own read-only balance and transaction history — no
-/// earn/spend controls, no navigation elsewhere. This is the entire
-/// student-facing experience (BR-1.3.3/1.4.1): sign in with the same real
-/// account a teacher would use, land here automatically instead of "My
-/// Classrooms" (see the routing decision in [LandingScreen]).
+/// earn/spend controls. This is the entire student-facing experience
+/// (BR-1.3.3/1.4.1): sign in with the same real account a teacher would
+/// use, land here automatically instead of "My Classrooms" (see the
+/// routing decision in [LandingScreen]). The one navigation entry point is
+/// the learning library (Slice 3) — full student nav is Slice 4 scope, not
+/// built here.
 class MyBalanceScreen extends StatelessWidget {
   const MyBalanceScreen({
     super.key,
@@ -30,6 +34,12 @@ class MyBalanceScreen extends StatelessWidget {
       appBar: SproutAppBar(
         title: student.contextName ?? 'My Balance',
         actions: [
+          if (isFeatureEnabled(AppFeature.authenticatedLearning))
+            IconButton(
+              icon: const Icon(Icons.menu_book_rounded),
+              tooltip: 'Learning library',
+              onPressed: () => context.push('/learn'),
+            ),
           AccountMenuButton(authService: authService),
         ],
       ),

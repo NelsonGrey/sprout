@@ -62,8 +62,8 @@ void main() {
   });
 
   testWidgets(
-    'renders the child with no chrome for a plain teacher with only Home to go to (NavigationBar rejects '
-    'a single destination)',
+    'shows Home and Learn on a bottom nav bar for a plain teacher with no other destination '
+    '(authenticatedLearning is enabled, so Home alone no longer means chromeless)',
     (tester) async {
       _setPhoneSize(tester);
       final classroomRepository = FakeClassroomRepository();
@@ -74,9 +74,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('screen content'), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
-      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('Learn'), findsOneWidget);
+      expect(find.text('Students'), findsNothing);
+      expect(find.text('School'), findsNothing);
     },
   );
 
@@ -132,6 +134,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navBar.selectedIndex, 1);
+    // Home=0, Learn=1 (authenticatedLearning is enabled), Students=2.
+    expect(navBar.selectedIndex, 2);
   });
 }
