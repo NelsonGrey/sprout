@@ -16,6 +16,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "check": "tsc --noEmit",
+    "generate:mobile-content": "npm run build && node scripts/generate-mobile-content.mjs",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",

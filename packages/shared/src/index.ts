@@ -1,6 +1,25 @@
 // Domain types mirroring the Firestore schema in firestore.rules / TRD §3.2.
 // packages/mobile (Dart) mirrors these shapes independently — there's no
 // cross-language codegen here, so keep the two in sync by hand.
+//
+// Exception: starter-lesson content (see ./content/lessons.ts) is too large
+// to safely hand-duplicate in Dart, so it's generated into a JSON asset
+// instead — see scripts/generate-mobile-content.mjs.
+
+export {
+  lessons,
+  getLesson,
+} from './content/lessons.js';
+export {
+  LessonSchema,
+  LessonsSchema,
+  LessonBandSchema,
+  LessonStrandSchema,
+  type Lesson,
+  type LessonBand,
+  type LessonStrand,
+  type LessonMissionStep,
+} from './content/lessonSchema.js';
 
 export type ContextType = 'classroom' | 'family';
 
