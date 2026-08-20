@@ -48,46 +48,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('No classrooms yet')).toBeTruthy();
   });
 
-  it('the Add Classroom button navigates to the create-classroom page', () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
-    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
-    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
-    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
-
-    render(<DashboardPage user={user} />);
-
-    fireEvent.click(screen.getByText('Add Classroom'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/new');
-  });
-
-  it('the Add Student button navigates to the top-level add-student page', () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
-    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
-    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
-    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
-
-    render(<DashboardPage user={user} />);
-
-    fireEvent.click(screen.getByText('Add Student'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/students/new');
-  });
-
-  it('the School button navigates to /app/school for a schoolless (non-admin) user', () => {
-    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
-    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
-    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
-    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
-    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
-
-    render(<DashboardPage user={user} />);
-
-    fireEvent.click(screen.getByText('School'));
-    expect(navigateMock).toHaveBeenCalledWith('/app/school');
-  });
-
-  it('hides the School button for an admin — already in the sidebar', () => {
+  it('the Add Classroom and Add Student buttons navigate correctly for an admin', () => {
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
     vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
     vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
@@ -103,6 +64,46 @@ describe('DashboardPage', () => {
 
     render(<DashboardPage user={user} />);
 
+    fireEvent.click(screen.getByText('Add Classroom'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/classrooms/new');
+
+    fireEvent.click(screen.getByText('Add Student'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/students/new');
+  });
+
+  it('hides Add Classroom, Add Student, and School for a schoolless (no membership) user', () => {
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue(null);
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<DashboardPage user={user} />);
+
+    expect(screen.queryByText('Add Classroom')).toBeNull();
+    expect(screen.queryByText('Add Student')).toBeNull();
+    expect(screen.queryByText('School')).toBeNull();
+  });
+
+  it('hides Add Classroom, Add Student, and School for a school-affiliated plain teacher', () => {
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useClassroomsInSchool).mockReturnValue([]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue(['school-1']);
+    vi.mocked(schoolLib.useMyMembership).mockReturnValue({
+      uid: 'teacher-1',
+      role: 'teacher',
+      displayName: 'Ms. Lord',
+      email: 'lord@example.com',
+      scope: { type: 'own' },
+      addedByUid: 'super-1',
+      createdAt: new Date(),
+    });
+    vi.mocked(schoolLib.usePendingAccessRequestsForSchool).mockReturnValue([]);
+
+    render(<DashboardPage user={user} />);
+
+    expect(screen.queryByText('Add Classroom')).toBeNull();
+    expect(screen.queryByText('Add Student')).toBeNull();
     expect(screen.queryByText('School')).toBeNull();
   });
 

@@ -45,20 +45,14 @@ export function DashboardPage({ user }: { user: User }) {
       <PageHeader
         title={`Welcome back, ${firstName}`}
         actions={
-          <>
-            <Button onClick={() => navigate('/app/classrooms/new')}>Add Classroom</Button>
-            <Button variant="secondary" onClick={() => navigate('/app/students/new')}>
-              Add Student
-            </Button>
-            {/* Admins already have School in the sidebar — this is the
-             * only path a schoolless or non-admin member has to found a
-             * school (CreateSchoolPage) or see their own role/scope. */}
-            {!isAtLeastAdmin && (
-              <Button variant="secondary" onClick={() => navigate('/app/school')}>
-                School
+          isAtLeastAdmin && (
+            <>
+              <Button onClick={() => navigate('/app/classrooms/new')}>Add Classroom</Button>
+              <Button variant="secondary" onClick={() => navigate('/app/students/new')}>
+                Add Student
               </Button>
-            )}
-          </>
+            </>
+          )
         }
       />
 
@@ -101,7 +95,11 @@ export function DashboardPage({ user }: { user: User }) {
             </span>
             <div>
               <p className="font-bold text-ink">No classrooms yet</p>
-              <p className="mt-1 text-sm text-ink-muted">Add one above to start recording earn/spend and goals.</p>
+              <p className="mt-1 text-sm text-ink-muted">
+                {isAtLeastAdmin
+                  ? 'Add one above to start recording earn/spend and goals.'
+                  : "Ask your school's admin to add you to a classroom."}
+              </p>
             </div>
           </div>
         ) : (
