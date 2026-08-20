@@ -125,6 +125,7 @@ npm run deploy:web      # deploy web only
 - **Documentation**: this README, plus:
   - [Business Requirements](docs/BUSINESS_REQUIREMENTS.md) — market/competitive analysis (ETM Machine + ClassBank deep dives), personas, revenue model
   - [Technical Requirements](docs/TECHNICAL_REQUIREMENTS.md) — architecture, implementation status, proposed Firestore data model
+  - [Application Detailed Designs](docs/detailed-design/README.md) — implementation-ready responsive web, iPhone/iPad, and Android phone/tablet designs with persona/use-case traceability
 - **Security**: see `.github/SECURITY.md`
 
 ---
