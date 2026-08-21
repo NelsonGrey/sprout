@@ -1735,3 +1735,361 @@ describe('firestore.rules — student self-access (BR-1.3.3/1.4.1)', () => {
     );
   });
 });
+
+describe('firestore.rules — family mode (06_FAMILY_MODE_TECHNICAL_DESIGN.md)', () => {
+  const PLATFORM_ADMIN_UID = 'fm-platform-admin-1';
+  const MANAGER_UID = 'fm-manager-1';
+  const CO_MANAGER_UID = 'fm-co-manager-1';
+  const OUTSIDER_UID = 'fm-outsider-1';
+  const CLASSROOM_TEACHER_UID = 'fm-classroom-teacher-1';
+  const CONTEXT_ID = 'fm-family-ctx-1';
+  const MEMBER_ID = 'fm-member-1';
+  const PROFILE_ID = 'fm-profile-1';
+  const CO_MANAGER_EMAIL = 'co-manager@example.com';
+  const MEMBER_EMAIL = 'child@example.com';
+
+  async function platformAdmin() {
+    return testEnv.authenticatedContext(PLATFORM_ADMIN_UID, { platformAdmin: true }).firestore();
+  }
+
+  async function seedEnabledProfile() {
+    const admin = await platformAdmin();
+    await setDoc(doc(admin, `familyPolicyProfiles/${PROFILE_ID}`), {
+      label: 'Test profile',
+      enabled: true,
+      isPlatformDefault: true,
+      consentRequired: true,
+      consentStatement: 'Test consent statement.',
+      retentionDays: null,
+      createdByUid: PLATFORM_ADMIN_UID,
+      updatedByUid: PLATFORM_ADMIN_UID,
+      updatedAt: new Date(),
+    });
+  }
+
+  async function seedFamilyWithMember() {
+    await seedEnabledProfile();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await setDoc(doc(manager, `contexts/${CONTEXT_ID}`), {
+      type: 'family',
+      name: 'The Rivera Family',
+      ownerUids: [MANAGER_UID],
+      policyProfileId: PROFILE_ID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(manager, `familyMembers/${MEMBER_ID}`), {
+      firstName: 'Alex',
+      lastName: 'Rivera',
+      displayName: 'Alex Rivera',
+      balanceCents: 0,
+      contextId: CONTEXT_ID,
+      ownerUids: [MANAGER_UID],
+      createdAt: new Date(),
+    });
+  }
+
+  it('denies creating a family context with no policy profile configured, and denies naming a disabled one', async () => {
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await assertFails(
+      setDoc(doc(manager, `contexts/${CONTEXT_ID}`), {
+        type: 'family',
+        name: 'The Rivera Family',
+        ownerUids: [MANAGER_UID],
+        createdAt: new Date(),
+      }),
+    );
+
+    const admin = await platformAdmin();
+    await setDoc(doc(admin, `familyPolicyProfiles/${PROFILE_ID}`), {
+      label: 'Disabled profile',
+      enabled: false,
+      isPlatformDefault: false,
+      consentRequired: false,
+      consentStatement: '',
+      retentionDays: null,
+      createdByUid: PLATFORM_ADMIN_UID,
+      updatedByUid: PLATFORM_ADMIN_UID,
+      updatedAt: new Date(),
+    });
+    await assertFails(
+      setDoc(doc(manager, `contexts/${CONTEXT_ID}`), {
+        type: 'family',
+        name: 'The Rivera Family',
+        ownerUids: [MANAGER_UID],
+        policyProfileId: PROFILE_ID,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('lets a family context be created once an enabled policy profile exists', async () => {
+    await seedEnabledProfile();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(manager, `contexts/${CONTEXT_ID}`), {
+        type: 'family',
+        name: 'The Rivera Family',
+        ownerUids: [MANAGER_UID],
+        policyProfileId: PROFILE_ID,
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('only a platform admin (custom claim) may author familyPolicyProfiles; any signed-in user may read one', async () => {
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(
+      setDoc(doc(outsider, `familyPolicyProfiles/${PROFILE_ID}`), {
+        label: 'Forged profile',
+        enabled: true,
+        isPlatformDefault: false,
+        consentRequired: false,
+        consentStatement: '',
+        retentionDays: null,
+        createdByUid: OUTSIDER_UID,
+        updatedByUid: OUTSIDER_UID,
+        updatedAt: new Date(),
+      }),
+    );
+
+    await seedEnabledProfile();
+    await assertSucceeds(getDoc(doc(outsider, `familyPolicyProfiles/${PROFILE_ID}`)));
+  });
+
+  it('lets the family manager create, read, and update a family member; denies an outsider entirely', async () => {
+    await seedEnabledProfile();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await setDoc(doc(manager, `contexts/${CONTEXT_ID}`), {
+      type: 'family',
+      name: 'The Rivera Family',
+      ownerUids: [MANAGER_UID],
+      policyProfileId: PROFILE_ID,
+      createdAt: new Date(),
+    });
+
+    await assertSucceeds(
+      setDoc(doc(manager, `familyMembers/${MEMBER_ID}`), {
+        firstName: 'Alex',
+        lastName: 'Rivera',
+        displayName: 'Alex Rivera',
+        balanceCents: 0,
+        contextId: CONTEXT_ID,
+        ownerUids: [MANAGER_UID],
+        createdAt: new Date(),
+      }),
+    );
+    await assertSucceeds(getDoc(doc(manager, `familyMembers/${MEMBER_ID}`)));
+    await assertSucceeds(
+      setDoc(doc(manager, `familyMembers/${MEMBER_ID}`), { lastName: 'Riviera' }, { merge: true }),
+    );
+
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(getDoc(doc(outsider, `familyMembers/${MEMBER_ID}`)));
+    await assertFails(
+      setDoc(doc(outsider, `familyMembers/${MEMBER_ID}`), { lastName: 'Hijacked' }, { merge: true }),
+    );
+  });
+
+  it('lets the family manager record a transaction and create a goal for a family member; denies an outsider', async () => {
+    await seedFamilyWithMember();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+
+    await assertSucceeds(
+      setDoc(doc(manager, `familyMembers/${MEMBER_ID}/goals/goal-1`), {
+        studentId: MEMBER_ID,
+        name: 'New bike',
+        targetCents: 5000,
+        savedCents: 0,
+        createdByUid: MANAGER_UID,
+        createdAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(manager, `contexts/${CONTEXT_ID}/transactions/tx-1`), {
+        studentId: MEMBER_ID,
+        type: 'earn',
+        amountCents: 500,
+        reason: 'Helped with chores',
+        createdByUid: MANAGER_UID,
+        createdAt: new Date(),
+        ownerUids: [MANAGER_UID],
+      }),
+    );
+
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(
+      setDoc(doc(outsider, `familyMembers/${MEMBER_ID}/goals/goal-2`), {
+        studentId: MEMBER_ID,
+        name: 'Hijack',
+        targetCents: 100,
+        savedCents: 0,
+        createdByUid: OUTSIDER_UID,
+        createdAt: new Date(),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(outsider, `contexts/${CONTEXT_ID}/transactions/tx-2`), {
+        studentId: MEMBER_ID,
+        type: 'earn',
+        amountCents: 999999,
+        reason: 'Hijack',
+        createdByUid: OUTSIDER_UID,
+        createdAt: new Date(),
+        ownerUids: [OUTSIDER_UID],
+      }),
+    );
+  });
+
+  it('lets a linked family member read their own record/transactions/goals, but never write, and never see another family', async () => {
+    await seedFamilyWithMember();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await setDoc(doc(manager, `pendingFamilyMemberLinks/${MEMBER_EMAIL}`), {
+      familyMemberId: MEMBER_ID,
+      invitedByUid: MANAGER_UID,
+      createdAt: new Date(),
+    });
+    const linkedUid = 'fm-member-uid';
+    const member = testEnv.authenticatedContext(linkedUid, { email: MEMBER_EMAIL }).firestore();
+    await assertSucceeds(
+      setDoc(doc(member, `familyMembers/${MEMBER_ID}`), { linkedUid }, { merge: true }),
+    );
+    await deleteDoc(doc(member, `pendingFamilyMemberLinks/${MEMBER_EMAIL}`));
+
+    await assertSucceeds(getDoc(doc(member, `familyMembers/${MEMBER_ID}`)));
+    await assertFails(
+      setDoc(doc(member, `familyMembers/${MEMBER_ID}`), { balanceCents: 999999 }, { merge: true }),
+    );
+    await assertFails(
+      setDoc(doc(member, `contexts/${CONTEXT_ID}/transactions/tx-self`), {
+        studentId: MEMBER_ID,
+        type: 'earn',
+        amountCents: 999999,
+        reason: 'Self-serve',
+        createdByUid: linkedUid,
+        createdAt: new Date(),
+        ownerUids: [linkedUid],
+      }),
+    );
+
+    // A second, unrelated family — the linked member must never see it.
+    const otherManager = testEnv.authenticatedContext('fm-other-manager').firestore();
+    await setDoc(doc(otherManager, 'contexts/fm-other-ctx'), {
+      type: 'family',
+      name: 'The Chen Family',
+      ownerUids: ['fm-other-manager'],
+      policyProfileId: PROFILE_ID,
+      createdAt: new Date(),
+    });
+    await setDoc(doc(otherManager, 'familyMembers/fm-other-member'), {
+      firstName: 'Jamie',
+      lastName: 'Chen',
+      displayName: 'Jamie Chen',
+      balanceCents: 0,
+      contextId: 'fm-other-ctx',
+      ownerUids: ['fm-other-manager'],
+      createdAt: new Date(),
+    });
+    await assertFails(getDoc(doc(member, 'familyMembers/fm-other-member')));
+  });
+
+  it('lets a co-manager claim a pending invite by appending to ownerUids, exactly once', async () => {
+    await seedFamilyWithMember();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await setDoc(doc(manager, `pendingFamilyManagerInvites/${CO_MANAGER_EMAIL}`), {
+      contextId: CONTEXT_ID,
+      invitedByUid: MANAGER_UID,
+      createdAt: new Date(),
+    });
+
+    const coManager = testEnv.authenticatedContext(CO_MANAGER_UID, { email: CO_MANAGER_EMAIL }).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(coManager, `contexts/${CONTEXT_ID}`),
+        { ownerUids: [MANAGER_UID, CO_MANAGER_UID] },
+        { merge: true },
+      ),
+    );
+    await deleteDoc(doc(coManager, `pendingFamilyManagerInvites/${CO_MANAGER_EMAIL}`));
+
+    // Now a full family manager — can read/manage the family member.
+    await assertSucceeds(getDoc(doc(coManager, `familyMembers/${MEMBER_ID}`)));
+
+    // An outsider (no matching pending invite) cannot self-grant the same way.
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID, { email: 'unrelated@example.com' }).firestore();
+    await assertFails(
+      setDoc(
+        doc(outsider, `contexts/${CONTEXT_ID}`),
+        { ownerUids: [MANAGER_UID, CO_MANAGER_UID, OUTSIDER_UID] },
+        { merge: true },
+      ),
+    );
+  });
+
+  it("keeps family and classroom fully separate: a classroom teacher can't touch familyMembers, and a family manager can't touch students/classroom contexts", async () => {
+    await seedFamilyWithMember();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+
+    const teacher = testEnv.authenticatedContext(CLASSROOM_TEACHER_UID).firestore();
+    await setDoc(doc(teacher, 'contexts/fm-classroom-ctx'), {
+      type: 'classroom',
+      name: '3rd Grade',
+      ownerUids: [CLASSROOM_TEACHER_UID],
+      createdAt: new Date(),
+    });
+    await setDoc(doc(teacher, 'students/fm-classroom-student'), {
+      firstName: 'Sam',
+      lastName: 'Patel',
+      displayName: 'Sam Patel',
+      balanceCents: 0,
+      contexts: { 'fm-classroom-ctx': { type: 'classroom', role: 'member' } },
+      contextId: 'fm-classroom-ctx',
+      ownerUids: [CLASSROOM_TEACHER_UID],
+      createdAt: new Date(),
+    });
+
+    // Classroom teacher, uninvolved in the family, can't read/write it.
+    await assertFails(getDoc(doc(teacher, `familyMembers/${MEMBER_ID}`)));
+    await assertFails(
+      setDoc(doc(teacher, `familyMembers/${MEMBER_ID}`), { balanceCents: 999999 }, { merge: true }),
+    );
+
+    // Family manager, uninvolved in the classroom, can't read/write it.
+    await assertFails(getDoc(doc(manager, 'students/fm-classroom-student')));
+    await assertFails(
+      setDoc(doc(manager, 'students/fm-classroom-student'), { balanceCents: 999999 }, { merge: true }),
+    );
+  });
+
+  it("resolves familyMembers LIST queries (linkedUid-filtered and contextId-filtered), not just single-document reads", async () => {
+    await seedFamilyWithMember();
+    const manager = testEnv.authenticatedContext(MANAGER_UID).firestore();
+    await setDoc(doc(manager, `pendingFamilyMemberLinks/${MEMBER_EMAIL}`), {
+      familyMemberId: MEMBER_ID,
+      invitedByUid: MANAGER_UID,
+      createdAt: new Date(),
+    });
+    const linkedUid = 'fm-lq-member-uid';
+    const member = testEnv.authenticatedContext(linkedUid, { email: MEMBER_EMAIL }).firestore();
+    await setDoc(doc(member, `familyMembers/${MEMBER_ID}`), { linkedUid }, { merge: true });
+
+    // "My family memberships" — linkedUid-filtered list query.
+    const myMembershipsSnapshot = await assertSucceeds(
+      getDocs(query(collection(member, 'familyMembers'), where('linkedUid', '==', linkedUid))),
+    );
+    if (myMembershipsSnapshot.empty) {
+      throw new Error('expected the linkedUid-filtered query to return the seeded family member');
+    }
+
+    // "Family roster for a manager" — contextId-filtered list query.
+    const rosterSnapshot = await assertSucceeds(
+      getDocs(query(collection(manager, 'familyMembers'), where('contextId', '==', CONTEXT_ID))),
+    );
+    if (rosterSnapshot.empty) {
+      throw new Error('expected the contextId-filtered query to return the seeded family member');
+    }
+    const outsider = testEnv.authenticatedContext(OUTSIDER_UID).firestore();
+    await assertFails(
+      getDocs(query(collection(outsider, 'familyMembers'), where('contextId', '==', CONTEXT_ID))),
+    );
+  });
+});

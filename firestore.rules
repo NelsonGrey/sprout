@@ -189,6 +189,70 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pendingStudentLinks/$(request.auth.token.email.lower())).data.studentId == studentId;
     }
 
+    // ---- Family mode (Slice 5 — see docs/detailed-design/06_FAMILY_MODE_TECHNICAL_DESIGN.md) ----
+    // Family contexts reuse contexts/{contextId} (type: 'family') and the
+    // existing canManageClassroom/isReadableClassroom helpers verbatim: both
+    // already reduce to plain isContextOwner(data) whenever schoolId is
+    // absent, which is always true for a family context (family has no
+    // school-award tier at all — a co-manager has full rights, not a
+    // delegated subset). Nothing family-specific is needed for context-level
+    // read/manage; only the collection this section adds (familyMembers, in
+    // place of students) and its own link-claim mechanism are genuinely new.
+
+    // A platform administrator — the small, explicitly-trusted set of
+    // people who author FamilyPolicyProfile documents (consent language,
+    // retention policy). Set only via a Firebase Auth custom claim written
+    // by the Admin SDK; no self-serve path exists or should exist, same
+    // trust tier as isFoundingSuperAdmin but one level up (not scoped to a
+    // single school).
+    function isPlatformAdmin() {
+      return isAuthenticated() && request.auth.token.get('platformAdmin', false) == true;
+    }
+
+    // A family member's own real Firebase Auth account, linked to their
+    // familyMembers/{id} entry — the family-mode mirror of
+    // isLinkedStudentSelf.
+    function isLinkedFamilyMemberSelf(data) {
+      return isAuthenticated() && data.get('linkedUid', null) == request.auth.uid;
+    }
+    // Manage access to the family context that owns [familyMemberId] —
+    // mirrors canManageStudentLink, reading ownerUids denormalized onto the
+    // familyMembers doc itself rather than trusting a caller-supplied
+    // contextId.
+    function canManageFamilyMemberLink(familyMemberId) {
+      return exists(/databases/$(database)/documents/familyMembers/$(familyMemberId))
+        && canManageClassroom(get(/databases/$(database)/documents/familyMembers/$(familyMemberId)).data);
+    }
+    // Mirrors isValidStudentLinkClaim exactly, keyed off
+    // pendingFamilyMemberLinks/familyMemberId instead of
+    // pendingStudentLinks/studentId.
+    function isValidFamilyMemberLinkClaim(familyMemberId, existingData, newData) {
+      return isAuthenticated() && 'email' in request.auth.token
+        && existingData.get('linkedUid', null) == null
+        && newData.linkedUid == request.auth.uid
+        && newData.diff(existingData).affectedKeys().hasOnly(['linkedUid'])
+        && exists(/databases/$(database)/documents/pendingFamilyMemberLinks/$(request.auth.token.email.lower()))
+        && get(/databases/$(database)/documents/pendingFamilyMemberLinks/$(request.auth.token.email.lower())).data.familyMemberId == familyMemberId;
+    }
+    // Manage access to a family context itself (for co-manager invites) —
+    // reuses canManageClassroom, which already reduces to isContextOwner
+    // for any schoolless context, family included.
+    function canManageFamilyContext(contextId) {
+      return contextId is string && exists(/databases/$(database)/documents/contexts/$(contextId))
+        && canManageClassroom(get(/databases/$(database)/documents/contexts/$(contextId)).data);
+    }
+    // A co-manager claiming a pending invite: the only field allowed to
+    // change is ownerUids, and only by appending exactly the claimant's own
+    // uid — mirrors isValidStudentLinkClaim's "touches exactly one field"
+    // invariant, adapted for an array append instead of a scalar set.
+    function isValidFamilyManagerInviteClaim(contextId, existingData, newData) {
+      return isAuthenticated() && 'email' in request.auth.token
+        && newData.diff(existingData).affectedKeys().hasOnly(['ownerUids'])
+        && newData.ownerUids == existingData.get('ownerUids', []).concat([request.auth.uid])
+        && exists(/databases/$(database)/documents/pendingFamilyManagerInvites/$(request.auth.token.email.lower()))
+        && get(/databases/$(database)/documents/pendingFamilyManagerInvites/$(request.auth.token.email.lower())).data.contextId == contextId;
+    }
+
     // A user's own profile document.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
@@ -289,6 +353,43 @@ service cloud.firestore {
         && request.resource.data.invitedByUid == request.auth.uid;
     }
 
+    // Doc ID is the invitee's lowercased email — mirrors pendingInvites, but
+    // for a family co-manager rather than a school staff member. Claimed by
+    // isValidFamilyManagerInviteClaim (appends to contexts/{contextId}
+    // .ownerUids), not by creating a new membership document — family has
+    // no separate members subcollection.
+    match /pendingFamilyManagerInvites/{email} {
+      allow read, delete: if isAuthenticated() && (
+        email == request.auth.token.email.lower() || canManageFamilyContext(resource.data.get('contextId', null))
+      );
+      allow create: if canManageFamilyContext(request.resource.data.contextId)
+        && request.resource.data.invitedByUid == request.auth.uid;
+    }
+
+    // Doc ID is the target family member's real email, lowercased. Mirrors
+    // pendingStudentLinks exactly — created by a family manager, claimed
+    // automatically the first time that email signs in (see
+    // isValidFamilyMemberLinkClaim and the familyMembers/{familyMemberId}
+    // update rule below).
+    match /pendingFamilyMemberLinks/{email} {
+      allow read, delete: if isAuthenticated() && (
+        email == request.auth.token.email.lower() || canManageFamilyMemberLink(resource.data.get('familyMemberId', null))
+      );
+      allow create: if canManageFamilyMemberLink(request.resource.data.familyMemberId)
+        && request.resource.data.invitedByUid == request.auth.uid;
+    }
+
+    // Admin-authored family-mode policy bundles (consent language, retention
+    // policy) — see 06_FAMILY_MODE_TECHNICAL_DESIGN.md §7. Readable by any
+    // authenticated user (the family-creation UI needs to show enabled
+    // profiles to pick from and display consent text); profile CONTENT
+    // isn't sensitive the way family DATA is — it's policy text, not a
+    // child's information. Only a platform admin may author/change one.
+    match /familyPolicyProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isPlatformAdmin();
+    }
+
     // A classroom or family unit. Only 'classroom' is populated today —
     // 'family' is additive later, not a migration (see TRD §3.2). schoolId
     // is optional: absent for standalone teacher-created classrooms and for
@@ -317,18 +418,31 @@ service cloud.firestore {
       // ownership); for a school-affiliated one, canManageClassroom
       // already requires admin, so it's automatically satisfied. Classroom
       // assignment is an admin/staff-only capability (see StaffDetailPane).
-      allow update: if canManageClassroom(resource.data) && (
+      // isValidFamilyManagerInviteClaim is the one OTHER way ownerUids may
+      // change: a family co-manager claiming a pending invite appends
+      // themselves — see that function's comment.
+      allow update: if (canManageClassroom(resource.data) && (
         request.resource.data.get('ownerUids', []) == resource.data.get('ownerUids', [])
         || (resource.data.get('schoolId', null) != null && isAtLeastAdmin(resource.data.get('schoolId', null)))
-      );
+      )) || isValidFamilyManagerInviteClaim(contextId, resource.data, request.resource.data);
       allow delete: if canManageClassroom(resource.data);
       // Narrowed: a grade/whole-school-scoped teacher never spontaneously
       // creates a classroom — only the owner (naming themselves) or a
       // school admin. A classroom grant can't apply here either way,
       // since it names an existing contextId that doesn't exist yet at
-      // create time.
-      allow create: if isContextOwner(request.resource.data)
-        || (request.resource.data.schoolId != null && isAtLeastAdmin(request.resource.data.schoolId));
+      // create time. A family context (type 'family', never has schoolId)
+      // additionally requires naming an existing, enabled
+      // familyPolicyProfiles document — see
+      // 06_FAMILY_MODE_TECHNICAL_DESIGN.md §7: family creation fails closed
+      // with zero profiles configured, both here and in the UI.
+      allow create: if (isContextOwner(request.resource.data)
+        || (request.resource.data.schoolId != null && isAtLeastAdmin(request.resource.data.schoolId)))
+        && request.resource.data.type in ['classroom', 'family']
+        && (request.resource.data.type != 'family' || (
+          request.resource.data.policyProfileId is string
+          && exists(/databases/$(database)/documents/familyPolicyProfiles/$(request.resource.data.policyProfileId))
+          && get(/databases/$(database)/documents/familyPolicyProfiles/$(request.resource.data.policyProfileId)).data.enabled == true
+        ));
 
       // An immutable earn/spend ledger entry against one student in this
       // context — no update/delete once created. Recording an earn/spend
@@ -340,16 +454,41 @@ service cloud.firestore {
         // award-access via a get() on the classroom's own document rather
         // than reading schoolId/gradeLevel off the scanned transaction —
         // see isReadableClassroom's comment above for why that's required.
+        // isReadableClassroom(contextId) already covers a family manager's
+        // read too — it reduces to isContextOwner whenever the parent
+        // context has no schoolId, which is always true for family (see
+        // the family-mode note above match /contexts/{contextId}). Only the
+        // MEMBER's own self-read needs a family-specific branch, mirroring
+        // the student one — studentId here names either a students/ or a
+        // familyMembers/ document depending on the parent context's type;
+        // exactly one of the two exists() checks below can ever be true.
         allow read: if isReadableClassroom(contextId) || (
           exists(/databases/$(database)/documents/students/$(resource.data.studentId))
             && isLinkedStudentSelf(get(/databases/$(database)/documents/students/$(resource.data.studentId)).data)
+        ) || (
+          exists(/databases/$(database)/documents/familyMembers/$(resource.data.studentId))
+            && isLinkedFamilyMemberSelf(get(/databases/$(database)/documents/familyMembers/$(resource.data.studentId)).data)
         );
-        allow create: if (
-          isContextOwner(request.resource.data) || (
-            request.resource.data.schoolId != null
-              && hasAwardAccess(request.resource.data.schoolId, request.resource.data.gradeLevel, contextId)
-          )
-        )
+        // isReadableClassroom(contextId) resolves owner/award-access via a
+        // get() on the REAL contexts/{contextId} document — exactly the
+        // same read-tier bar this collection's own read rule already uses
+        // above, and "recording an earn/spend IS granting an award" (see
+        // this match block's top comment), so reusing it here is the
+        // correct bar, not just a convenient one. This also already
+        // reduces correctly for a family context (isContextOwner alone,
+        // since family never has schoolId) — no separate family branch
+        // needed. Previously this checked isContextOwner/hasAwardAccess
+        // against request.resource.data — fields on the INCOMING,
+        // caller-supplied transaction document, not the real classroom —
+        // which let any authenticated caller forge ownerUids/schoolId on
+        // their own payload to record a transaction against a classroom
+        // they don't belong to. Found via the family-mode "denies an
+        // outsider" rules test unexpectedly succeeding; the same class of
+        // bug that isReadableClassroom's own comment already describes
+        // (never trust a field that isn't the query/path-constrained one
+        // or read via a foreign get()) — just on the write side instead of
+        // list-query reads.
+        allow create: if isReadableClassroom(contextId)
           && request.resource.data.amountCents is int
           && request.resource.data.amountCents > 0
           && request.resource.data.type in ['earn', 'spend']
@@ -360,12 +499,17 @@ service cloud.firestore {
               && request.resource.data.savingsLabel in ['goal', 'just_in_case']
           ))
           // goalId must name a real goal already owned by this same
-          // student — prevents crediting progress onto someone else's
-          // goal (or a fabricated one) by just guessing/naming an id.
+          // student (or family member — see the read rule's note on
+          // studentId's dual meaning) — prevents crediting progress onto
+          // someone else's goal (or a fabricated one) by just guessing/
+          // naming an id.
           && (!('goalId' in request.resource.data) || (
             request.resource.data.type == 'earn'
               && request.resource.data.savingsLabel == 'goal'
-              && exists(/databases/$(database)/documents/students/$(request.resource.data.studentId)/goals/$(request.resource.data.goalId))
+              && (
+                exists(/databases/$(database)/documents/students/$(request.resource.data.studentId)/goals/$(request.resource.data.goalId))
+                || exists(/databases/$(database)/documents/familyMembers/$(request.resource.data.studentId)/goals/$(request.resource.data.goalId))
+              )
           ))
           // spendCategory (need/want/both) is the mirror image of
           // savingsLabel — only ever makes sense on a spend.
@@ -523,6 +667,78 @@ service cloud.firestore {
           && request.resource.data.savedCents is int
           && request.resource.data.savedCents >= 0;
         allow delete: if hasGoalAccess();
+      }
+    }
+
+    // A family member's roster entry + own balance — the family-mode
+    // mirror of students/{studentId}, deliberately a SEPARATE collection
+    // rather than a type-filtered view of students: see
+    // 06_FAMILY_MODE_TECHNICAL_DESIGN.md §1 for why (Firestore's list-query
+    // authorization constraint already forced a proven, safe shape for
+    // "one scalar contextId, resolved via a foreign get()" — reusing that
+    // shape a second time is far lower-risk than generalizing the first
+    // one). canManageClassroom/isReadableClassroom are reused verbatim:
+    // both already reduce to plain isContextOwner whenever schoolId is
+    // absent, which is always true here — family has no award-access tier,
+    // a co-manager has full rights, not a delegated subset. No classroom
+    // rule, query, or index changes as a result of this collection
+    // existing — see the Hard Stop this design is built to satisfy.
+    match /familyMembers/{familyMemberId} {
+      allow read: if isLinkedFamilyMemberSelf(resource.data) || (
+        resource.data.get('contextId', null) != null &&
+        isReadableClassroom(resource.data.get('contextId', null))
+      );
+      // Two ways to update, mirroring students/{studentId} minus the
+      // "moved to a different classroom" case (a family member never
+      // transfers between family contexts):
+      //  1. The family manager's normal update (rename, etc.) — requires
+      //     linkedUid stay byte-for-byte unchanged, same reasoning as
+      //     students: an ordinary write must never silently hand an
+      //     arbitrary uid read access.
+      //  2. The manager unlinking — clears linkedUid back to null, touches
+      //     nothing else.
+      //  3. The family member's own verified-email claim
+      //     (isValidFamilyMemberLinkClaim, first-claim-wins).
+      allow update: if (
+        canManageClassroom(resource.data)
+        && request.resource.data.contextId == resource.data.contextId
+        && request.resource.data.get('linkedUid', null) == resource.data.get('linkedUid', null)
+      ) || (
+        canManageClassroom(resource.data)
+        && request.resource.data.get('linkedUid', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid'])
+      ) || isValidFamilyMemberLinkClaim(familyMemberId, resource.data, request.resource.data);
+      allow delete: if canManageClassroom(resource.data);
+      allow create: if canManageClassroom(request.resource.data);
+
+      // A family member's simulated savings goal — identical shape and
+      // access tier to students/{studentId}/goals, minus the school-award
+      // branch (family has none).
+      match /goals/{goalId} {
+        function parentFamilyMember() {
+          return get(/databases/$(database)/documents/familyMembers/$(familyMemberId)).data;
+        }
+        allow read: if isLinkedFamilyMemberSelf(parentFamilyMember()) || (
+          parentFamilyMember().get('contextId', null) != null &&
+          isReadableClassroom(parentFamilyMember().get('contextId', null))
+        );
+        allow create: if isContextOwner(parentFamilyMember())
+          && request.resource.data.studentId == familyMemberId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.targetCents is int
+          && request.resource.data.targetCents > 0
+          && request.resource.data.savedCents == 0
+          && request.resource.data.createdByUid == request.auth.uid;
+        allow update: if isContextOwner(parentFamilyMember())
+          && request.resource.data.studentId == resource.data.studentId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.targetCents is int
+          && request.resource.data.targetCents > 0
+          && request.resource.data.savedCents is int
+          && request.resource.data.savedCents >= 0;
+        allow delete: if isContextOwner(parentFamilyMember());
       }
     }
 
