@@ -43,6 +43,37 @@ void main() {
     expect(find.text('My Classrooms'), findsNothing);
   });
 
+  testWidgets('shows the collapsed early-reader Today for a linked student in Pre-K-2', (tester) async {
+    final classroomRepository = FakeClassroomRepository();
+    final schoolRepository = FakeSchoolRepository();
+    final classroom = await classroomRepository.createClassroom(name: 'Room 4', ownerUid: _owner.uid);
+    final student = await classroomRepository.addStudent(
+      contextId: classroom.id,
+      firstName: 'Sam',
+      lastName: 'Lee',
+      ownerUids: [_owner.uid],
+      gradeLevel: 'K',
+    );
+    await classroomRepository.linkStudentAccount(
+      studentId: student.id,
+      email: _studentUser.email!,
+      invitedByUid: _owner.uid,
+    );
+    await classroomRepository.claimPendingStudentLinkIfAny(uid: _studentUser.uid, email: _studentUser.email!);
+
+    await tester.pumpWidget(MaterialApp(
+      home: LandingScreen(
+        authService: FakeAuthService(),
+        classroomRepository: classroomRepository,
+        schoolRepository: schoolRepository,
+        user: _studentUser,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pause · Choose · Grow'), findsOneWidget);
+  });
+
   testWidgets('shows the staff classrooms view for an unlinked user', (tester) async {
     final classroomRepository = FakeClassroomRepository();
     final schoolRepository = FakeSchoolRepository();

@@ -6,12 +6,16 @@ import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/features/classroom/classrooms_screen.dart';
-import 'package:sprout/features/student/my_balance_screen.dart';
+import 'package:sprout/features/student/early_reader_today_screen.dart';
+import 'package:sprout/features/student/student_presentation.dart';
+import 'package:sprout/features/student/today_screen.dart';
 
-/// Routed at `/`. Decides between the student-facing balance view and the
+/// Routed at `/`. Decides between the student-facing Today view and the
 /// staff "My Classrooms" landing:
-///   - linked student, no staff access at all -> [MyBalanceScreen] (the
-///     common case for an actual student — see BR-1.3.3/1.4.1).
+///   - linked student, no staff access at all -> [TodayScreen], or its
+///     collapsed [EarlyReaderTodayScreen] presentation for a Pre-K–2
+///     account (the common case for an actual student — see
+///     BR-1.3.3/1.4.1).
 ///   - everyone else (unlinked, OR linked but also staff, OR a brand-new
 ///     self-serve teacher who's never linked to anything) ->
 ///     [ClassroomsScreen], unchanged from before this feature existed. A
@@ -53,11 +57,17 @@ class LandingScreen extends StatelessWidget {
                 final hasAnyStaffAccess = schoolIds.isNotEmpty || ownClassrooms.isNotEmpty;
 
                 if (linkedStudent != null && !hasAnyStaffAccess) {
-                  return MyBalanceScreen(
-                    classroomRepository: classroomRepository,
-                    authService: authService,
-                    student: linkedStudent,
-                  );
+                  return isEarlyReaderPresentation(linkedStudent)
+                      ? EarlyReaderTodayScreen(
+                          classroomRepository: classroomRepository,
+                          authService: authService,
+                          student: linkedStudent,
+                        )
+                      : TodayScreen(
+                          classroomRepository: classroomRepository,
+                          authService: authService,
+                          student: linkedStudent,
+                        );
                 }
                 return ClassroomsScreen(
                   authService: authService,

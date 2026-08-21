@@ -7,7 +7,9 @@ import 'package:sprout/core/services/content/lesson_repository.dart';
 import 'package:sprout/core/services/school/school_repository.dart';
 import 'package:sprout/features/classroom/classrooms_screen.dart';
 import 'package:sprout/features/learn/lesson_activity_links.dart';
-import 'package:sprout/features/student/my_balance_screen.dart';
+import 'package:sprout/features/student/early_reader_today_screen.dart';
+import 'package:sprout/features/student/student_presentation.dart';
+import 'package:sprout/features/student/today_screen.dart';
 import 'package:sprout/widgets/sprout_app_bar.dart';
 
 sealed class _RunStep {
@@ -114,11 +116,17 @@ class _LearnRunScreenState extends State<LearnRunScreen> {
       if (student == null || !mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => MyBalanceScreen(
-            classroomRepository: widget.classroomRepository,
-            authService: widget.authService,
-            student: student,
-          ),
+          builder: (_) => isEarlyReaderPresentation(student)
+              ? EarlyReaderTodayScreen(
+                  classroomRepository: widget.classroomRepository,
+                  authService: widget.authService,
+                  student: student,
+                )
+              : TodayScreen(
+                  classroomRepository: widget.classroomRepository,
+                  authService: widget.authService,
+                  student: student,
+                ),
         ),
       );
     } else {

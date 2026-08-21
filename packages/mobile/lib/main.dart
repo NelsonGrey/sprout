@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sprout/app/adaptive_shell.dart';
 import 'package:sprout/core/config/firebase_options.dart';
+import 'package:sprout/core/models/student.dart';
 import 'package:sprout/core/services/auth/auth_service.dart';
 import 'package:sprout/core/services/auth/firebase_auth_service.dart';
 import 'package:sprout/core/services/classroom/classroom_repository.dart';
@@ -26,6 +27,8 @@ import 'package:sprout/features/learn/learn_prepare_screen.dart';
 import 'package:sprout/features/learn/learn_run_screen.dart';
 import 'package:sprout/features/school/school_screen.dart';
 import 'package:sprout/features/student/archive_students_screen.dart';
+import 'package:sprout/features/student/goals_screen.dart';
+import 'package:sprout/features/student/history_screen.dart';
 import 'package:sprout/features/student/promote_students_screen.dart';
 import 'package:sprout/features/student/student_import_screen.dart';
 import 'package:sprout/features/student/students_screen.dart';
@@ -178,6 +181,42 @@ class SproutApp extends StatelessWidget {
               user: user,
               contextId: state.pathParameters['contextId']!,
               studentId: state.pathParameters['studentId']!,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/me/history',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return StreamBuilder<Student?>(
+              stream: classroomRepository.linkedStudentForUser(user.uid),
+              builder: (context, snapshot) {
+                final student = snapshot.data;
+                if (student == null) return const SizedBox.shrink();
+                return HistoryScreen(
+                  classroomRepository: classroomRepository,
+                  student: student,
+                );
+              },
+            );
+          },
+        ),
+        GoRoute(
+          path: '/me/goals',
+          builder: (context, state) {
+            final user = authService.currentUser;
+            if (user == null) return const SizedBox.shrink();
+            return StreamBuilder<Student?>(
+              stream: classroomRepository.linkedStudentForUser(user.uid),
+              builder: (context, snapshot) {
+                final student = snapshot.data;
+                if (student == null) return const SizedBox.shrink();
+                return GoalsScreen(
+                  classroomRepository: classroomRepository,
+                  student: student,
+                );
+              },
             );
           },
         ),

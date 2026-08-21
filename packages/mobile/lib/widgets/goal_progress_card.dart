@@ -19,11 +19,17 @@ class GoalProgressCard extends StatefulWidget {
     required this.goal,
     this.onDelete,
     this.onApplyInterest,
+    this.footer,
   });
 
   final Goal goal;
   final VoidCallback? onDelete;
   final ValueChanged<double>? onApplyInterest;
+
+  /// Extra content rendered below the progress bar/interest section —
+  /// e.g. GoalsScreen's SpendDetourPreview — so a caller doesn't need a
+  /// second Card wrapping this one just to attach something.
+  final Widget? footer;
 
   @override
   State<GoalProgressCard> createState() => _GoalProgressCardState();
@@ -172,6 +178,7 @@ class _GoalProgressCardState extends State<GoalProgressCard> {
                   ],
                 ),
               ),
+            if (widget.footer != null) widget.footer!,
           ],
         ),
       ),

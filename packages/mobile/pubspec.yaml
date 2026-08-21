@@ -78,6 +78,13 @@ dependencies:
   # 03_NATIVE_MOBILE_APPS.md: "without student identifiers."
   url_launcher: ^6.3.1
 
+  # Optional read-aloud for the Pre-K-2 early-reader Today presentation —
+  # 01_EXPERIENCE_FOUNDATIONS.md §9: pair text with an icon "and optional
+  # text-to-speech; icon-only meaning is insufficient." Dart/mobile
+  # equivalent of web's native Web Speech API usage (no browser API to
+  # reach for on-device, hence a plugin).
+  flutter_tts: ^4.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
