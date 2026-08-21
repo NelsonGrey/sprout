@@ -4,6 +4,7 @@ import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { firebaseClient } from './lib/firebase';
 import { claimPendingStudentLinkIfAny } from './lib/firestore';
 import { claimPendingInviteIfAny } from './lib/school';
+import { claimPendingFamilyManagerInviteIfAny, claimPendingFamilyMemberLinkIfAny } from './lib/family';
 import { DeleteAccountPage } from './features/auth/DeleteAccountPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { LandingRouter } from './features/classroom/LandingRouter';
@@ -11,6 +12,13 @@ import { MyStudentViewPage } from './features/student/MyStudentViewPage';
 import { LearnListPage } from './features/learn/LearnListPage';
 import { LearnPreparePage } from './features/learn/LearnPreparePage';
 import { LearnRunPage } from './features/learn/LearnRunPage';
+import { AddFamilyMemberPage } from './features/family/AddFamilyMemberPage';
+import { CreateFamilyPage } from './features/family/CreateFamilyPage';
+import { FamilyHomePage } from './features/family/FamilyHomePage';
+import { FamilyListPage } from './features/family/FamilyListPage';
+import { FamilyMemberDetailPage } from './features/family/FamilyMemberDetailPage';
+import { FamilyPolicyProfilesAdminPage } from './features/family/FamilyPolicyProfilesAdminPage';
+import { MyFamilyMemberViewPage } from './features/family/MyFamilyMemberViewPage';
 import { ClassroomDetailPage } from './features/classroom/ClassroomDetailPage';
 import { ClassroomRosterPage } from './features/classroom/ClassroomRosterPage';
 import { ClassroomSettingsPage } from './features/classroom/ClassroomSettingsPage';
@@ -49,6 +57,14 @@ function App() {
           displayName: nextUser.displayName,
         });
         claimPendingStudentLinkIfAny({
+          uid: nextUser.uid,
+          email: nextUser.email,
+        });
+        claimPendingFamilyManagerInviteIfAny({
+          uid: nextUser.uid,
+          email: nextUser.email,
+        });
+        claimPendingFamilyMemberLinkIfAny({
           uid: nextUser.uid,
           email: nextUser.email,
         });
@@ -153,6 +169,29 @@ function App() {
         </Route>
         <Route path="/app/me">
           <MyStudentViewPage user={user} />
+        </Route>
+        <Route path="/app/family/policy-profiles">
+          <FamilyPolicyProfilesAdminPage user={user} />
+        </Route>
+        <Route path="/app/family/me">
+          <MyFamilyMemberViewPage user={user} />
+        </Route>
+        <Route path="/app/family/new">
+          <CreateFamilyPage user={user} />
+        </Route>
+        <Route path="/app/family/:contextId/children/new">
+          {params => <AddFamilyMemberPage user={user} contextId={params.contextId} />}
+        </Route>
+        <Route path="/app/family/:contextId/children/:familyMemberId">
+          {params => (
+            <FamilyMemberDetailPage user={user} contextId={params.contextId} familyMemberId={params.familyMemberId} />
+          )}
+        </Route>
+        <Route path="/app/family/:contextId">
+          {params => <FamilyHomePage user={user} contextId={params.contextId} />}
+        </Route>
+        <Route path="/app/family">
+          <FamilyListPage user={user} />
         </Route>
         <Route path="/app/learn/:lessonSlug/prepare">
           {params => <LearnPreparePage lessonSlug={params.lessonSlug} />}

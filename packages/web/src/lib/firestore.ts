@@ -78,7 +78,7 @@ export function splitDisplayName(name: string): { firstName: string; lastName: s
   return { firstName: trimmed.slice(0, lastSpace).trim(), lastName: trimmed.slice(lastSpace + 1).trim() };
 }
 
-function combineDisplayName(firstName: string, lastName: string): string {
+export function combineDisplayName(firstName: string, lastName: string): string {
   return [firstName, lastName].filter(Boolean).join(' ').trim();
 }
 
@@ -625,7 +625,7 @@ export async function deleteStoreItem(contextId: string, itemId: string): Promis
   await deleteDoc(doc(db, 'contexts', contextId, 'storeItems', itemId));
 }
 
-function normalizeEmail(email: string): string {
+export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 

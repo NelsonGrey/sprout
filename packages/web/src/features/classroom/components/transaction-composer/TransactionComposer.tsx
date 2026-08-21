@@ -1,19 +1,39 @@
 import { useState } from 'react';
-import type { Goal, SpendCategory, StoreItem } from '@sprout/shared';
+import type { Goal, SavingsLabel, SpendCategory, StoreItem } from '@sprout/shared';
 import { recordTransaction } from '../../../../lib/firestore';
 import { useOnlineStatus } from '../../../../lib/useOnlineStatus';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { OfflineNotice } from '../../../../components/ui/offline-notice';
 
+type RecordArgs = {
+  contextId: string;
+  studentId: string;
+  type: 'earn' | 'spend';
+  amountCents: number;
+  reason: string;
+  goalId?: string;
+  savingsLabel?: SavingsLabel;
+  spendCategory?: SpendCategory;
+  createdByUid: string;
+  ownerUids: string[];
+  schoolId?: string;
+  gradeLevel?: string;
+};
+
 /**
  * The single-recipient earn/spend composer (`C-TRANSACTION-COMPOSER`,
  * compact mode) — extracted from StudentDetailPane so a future group/mass
  * composer (Slice 2 step 4) can reuse the same amount/reason/tag fields
- * and write semantics without duplicating them. Owns its own draft state
- * and calls recordTransaction directly; the caller only supplies the
- * target and the goal/store context needed to render the optional tags.
- * Write semantics are unchanged from the pre-extraction StudentDetailPane.
+ * and write semantics without duplicating them. Owns its own draft state;
+ * the caller only supplies the target, the goal/store context needed to
+ * render the optional tags, and — since Slice 5 — optionally which record
+ * function to call. Defaults to the classroom recordTransaction so every
+ * existing caller is unchanged; FamilyMemberDetailPage passes
+ * recordFamilyTransaction instead, reusing this component "with family
+ * language" per 06_FAMILY_MODE_TECHNICAL_DESIGN.md §9 rather than forking
+ * it — the fields and write shape are identical, only which
+ * collection/balance gets updated differs.
  */
 export function TransactionComposer({
   contextId,
@@ -24,6 +44,7 @@ export function TransactionComposer({
   createdByUid,
   goals,
   storeItems,
+  onRecord = recordTransaction,
 }: {
   contextId: string;
   studentId: string;
@@ -33,6 +54,7 @@ export function TransactionComposer({
   createdByUid: string;
   goals: Goal[];
   storeItems: StoreItem[];
+  onRecord?: (args: RecordArgs) => Promise<void>;
 }) {
   // The Opportunity Cost Challenge starter lesson's prompt: before a
   // spend, name what's being chosen not to fund yet. Purely a computed
@@ -54,7 +76,7 @@ export function TransactionComposer({
     if (!online || !Number.isFinite(parsed) || parsed <= 0 || !reason.trim() || recording) return;
     setRecording(true);
     const targetGoal = goals.find((g) => g.id === saveAs);
-    await recordTransaction({
+    await onRecord({
       contextId,
       studentId,
       type,

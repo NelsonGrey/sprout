@@ -9,6 +9,10 @@ vi.mock('../../lib/firestore', () => ({
   useClassrooms: vi.fn(),
 }));
 
+vi.mock('../../lib/family', () => ({
+  useMyFamilyContexts: vi.fn(() => []),
+}));
+
 vi.mock('../../lib/school', () => ({
   useSchoolIdsForUser: vi.fn(),
   useMyMembership: vi.fn(),

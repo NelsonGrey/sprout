@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { useLocation } from 'wouter';
 import { Menu } from 'lucide-react';
 import { firebaseClient } from '../../lib/firebase';
-import { useIsLinkedStudent } from '../../app/roleContext';
+import { useIsLinkedFamilyMember, useIsLinkedStudent } from '../../app/roleContext';
 
 /** Persistent top bar — account menu, sign-out, and (mobile only) the
  * hamburger that opens Sidebar's drawer plus the logo, since Sidebar
@@ -21,6 +21,7 @@ export function Header({
   // Dual-role switcher entry (§2.1) — called unconditionally (Rules of
   // Hooks); useIsLinkedStudent itself tolerates a null user.
   const isLinkedStudent = useIsLinkedStudent(user);
+  const isLinkedFamilyMember = useIsLinkedFamilyMember(user);
 
   return (
     <header className="z-20 shrink-0 border-b border-border bg-header-bg">
@@ -72,6 +73,18 @@ export function Header({
                       className="w-full rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-bg"
                     >
                       My student view
+                    </button>
+                  )}
+                  {isLinkedFamilyMember && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate('/app/family/me');
+                      }}
+                      className="w-full rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-bg"
+                    >
+                      My family view
                     </button>
                   )}
                   <button

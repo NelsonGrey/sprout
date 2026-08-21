@@ -1,14 +1,18 @@
 import type { User } from 'firebase/auth';
 import { Link, useLocation } from 'wouter';
-import { BookOpen, House, School as SchoolIcon, Sprout, Users, X } from 'lucide-react';
+import { BookOpen, HeartHandshake, House, School as SchoolIcon, Sprout, Users, X } from 'lucide-react';
 import { useCapabilities } from '../../app/roleContext';
+import { useMyFamilyContexts } from '../../lib/family';
 import { isFeatureEnabled } from '../../app/featureFlags';
 
 /** Persistent left navigation — role-aware via the shared capability
  * resolver (see app/roleContext.tsx), not a locally re-derived role check.
  * Renders nothing for a linked-student-only account (mirrors LandingRouter's
  * own hasAnyStaffAccess check) — preserves the deliberate "no navigation
- * elsewhere" constraint from BR-1.3.3/1.4.1. */
+ * elsewhere" constraint from BR-1.3.3/1.4.1. A family-manager-only account
+ * (no school staff access) is the one other case that still needs some
+ * chrome — "Family activity stays separate from school administration"
+ * only holds if it's not hidden behind a staff-gated sidebar entirely. */
 export function Sidebar({
   user,
   mobileOpen,
@@ -20,16 +24,22 @@ export function Sidebar({
 }) {
   const [path] = useLocation();
   const { hasAnyStaffAccess, canViewAllSchoolStudents, canManageStaff } = useCapabilities(user);
+  const familyContexts = useMyFamilyContexts(user.uid);
+  const hasAnyFamilyAccess = isFeatureEnabled('familyContexts') && familyContexts.length > 0;
 
-  if (!hasAnyStaffAccess) return null;
+  if (!hasAnyStaffAccess && !hasAnyFamilyAccess) return null;
 
   const navItems = [
-    {
-      href: '/app',
-      label: 'Home',
-      icon: House,
-      active: path === '/app' || path.startsWith('/app/classrooms'),
-    },
+    ...(hasAnyStaffAccess
+      ? [
+          {
+            href: '/app',
+            label: 'Home',
+            icon: House,
+            active: path === '/app' || path.startsWith('/app/classrooms'),
+          },
+        ]
+      : []),
     ...(isFeatureEnabled('authenticatedLearning')
       ? [
           {
@@ -37,6 +47,16 @@ export function Sidebar({
             label: 'Learn',
             icon: BookOpen,
             active: path.startsWith('/app/learn'),
+          },
+        ]
+      : []),
+    ...(hasAnyFamilyAccess
+      ? [
+          {
+            href: '/app/family',
+            label: 'Family',
+            icon: HeartHandshake,
+            active: path.startsWith('/app/family'),
           },
         ]
       : []),

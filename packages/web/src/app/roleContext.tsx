@@ -1,5 +1,6 @@
 import type { User } from 'firebase/auth';
 import { useClassrooms, useLinkedStudent } from '../lib/firestore';
+import { useLinkedFamilyMember } from '../lib/family';
 import { useMyMembership, useSchoolIdsForUser } from '../lib/school';
 import { deriveCapabilities, type Capabilities } from './capabilities';
 
@@ -36,4 +37,13 @@ export function useIsLinkedStudent(user: User | null): boolean | undefined {
   const linkedStudent = useLinkedStudent(user?.uid ?? '');
   if (!user || linkedStudent === undefined) return undefined;
   return linkedStudent !== null;
+}
+
+/** Family-mode mirror of useIsLinkedStudent — whether this account is also
+ * linked to a familyMembers record, independent of any staff/student
+ * access. Used by the account menu to offer "My family view" (Slice 5). */
+export function useIsLinkedFamilyMember(user: User | null): boolean | undefined {
+  const linkedFamilyMember = useLinkedFamilyMember(user?.uid ?? '');
+  if (!user || linkedFamilyMember === undefined) return undefined;
+  return linkedFamilyMember !== null;
 }

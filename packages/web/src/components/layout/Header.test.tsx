@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import { Header } from './Header';
 import * as firestoreLib from '../../lib/firestore';
+import * as familyLib from '../../lib/family';
 
 const signOutMock = vi.fn();
 vi.mock('../../lib/firebase', () => ({
@@ -11,6 +12,10 @@ vi.mock('../../lib/firebase', () => ({
 
 vi.mock('../../lib/firestore', () => ({
   useLinkedStudent: vi.fn(),
+}));
+
+vi.mock('../../lib/family', () => ({
+  useLinkedFamilyMember: vi.fn(),
 }));
 
 const navigateMock = vi.fn();
@@ -22,6 +27,7 @@ const user = { uid: 'teacher-1', displayName: 'Ms. Lord', email: 'lord@example.c
 
 beforeEach(() => {
   vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue(null);
+  vi.mocked(familyLib.useLinkedFamilyMember).mockReturnValue(null);
 });
 
 describe('Header', () => {
@@ -57,6 +63,22 @@ describe('Header', () => {
     fireEvent.click(screen.getByLabelText('Account menu'));
     fireEvent.click(screen.getByText('My student view'));
     expect(navigateMock).toHaveBeenCalledWith('/app/me');
+  });
+
+  it('hides "My family view" for an account with no linked family member', () => {
+    render(<Header user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Account menu'));
+    expect(screen.queryByText('My family view')).toBeNull();
+  });
+
+  it('shows "My family view" and navigates to /app/family/me for a linked family member', () => {
+    vi.mocked(familyLib.useLinkedFamilyMember).mockReturnValue({ id: 'member-1' } as never);
+    render(<Header user={user} />);
+
+    fireEvent.click(screen.getByLabelText('Account menu'));
+    fireEvent.click(screen.getByText('My family view'));
+    expect(navigateMock).toHaveBeenCalledWith('/app/family/me');
   });
 
   it('navigates to the delete-account page when Delete account is clicked', () => {
