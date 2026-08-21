@@ -149,6 +149,61 @@ export interface StoreItem {
   createdAt: Date;
 }
 
+// ---- Family mode (Slice 5) ----
+// See docs/detailed-design/06_FAMILY_MODE_TECHNICAL_DESIGN.md and
+// firestore.rules' "Family mode" section for the full design and its
+// enforcement. familyMembers is a deliberately SEPARATE collection from
+// students — same shape, same balance/goal/history pattern, but never
+// joined to a classroom in any query, rule, or index. LedgerTransaction
+// and Goal above are reused as-is: their studentId field names either a
+// students/ or a familyMembers/ document id depending on which type of
+// contexts/{contextId} owns the parent transaction/goal subcollection.
+
+/** A family member's roster entry + own balance — the family-mode mirror
+ * of Student. Nested under a contexts/{contextId} doc with
+ * type: 'family'. No schoolId concept exists here at all: a family has no
+ * award-access tier, only owner-level manager access (see
+ * canManageClassroom's reduction for a schoolless context). */
+export interface FamilyMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  balanceCents: number;
+  contextId: string;
+  ownerUids: string[];
+  /** The family member's own real Firebase Auth account, once claimed via
+   * pendingFamilyMemberLinks — mirrors Student.linkedUid exactly. */
+  linkedUid?: string;
+  archivedAt?: Date;
+  createdAt: Date;
+}
+
+/** An admin-authored family-mode policy bundle — consent language,
+ * whether consent is required, and a retention duration — never a single
+ * hard-coded policy. A school may pin one via
+ * School.familyPolicyProfileId; an independent family resolves the
+ * platform-default (isPlatformDefault) profile, or picks from every
+ * `enabled` one if the operator has published more than one (e.g. by
+ * region). Authored only by a platform admin (a Firebase custom claim, see
+ * firestore.rules' isPlatformAdmin) — never by a school admin, since a
+ * profile's content is meant to reflect an actual policy determination,
+ * not something redefined per school ad hoc. */
+export interface FamilyPolicyProfile {
+  id: string;
+  label: string;
+  jurisdictionNote?: string;
+  enabled: boolean;
+  isPlatformDefault: boolean;
+  consentRequired: boolean;
+  consentStatement: string;
+  /** null = no automatic deletion. */
+  retentionDays: number | null;
+  createdByUid: string;
+  updatedByUid: string;
+  updatedAt: Date;
+}
+
 // ---- School security matrix (BR-1.3.11/1.3.12) ----
 // See firestore.rules for the enforcement side of this model.
 
@@ -168,6 +223,17 @@ export interface School {
    * an admin explicitly trims it. Not a security boundary — gradeLevel
    * stays free-text and unenforced at the rules layer regardless. */
   enabledGrades?: string[];
+  /** Whether family mode is offered/promoted to this school's connected
+   * families at all — absent/false means disabled, matching every other
+   * flag in this codebase's fail-closed default. Never creates a data link
+   * between this school and any family context — see FamilyPolicyProfile's
+   * doc comment and firestore.rules' family-mode section; this is a policy
+   * pointer only. */
+  familyModeEnabled?: boolean;
+  /** Which FamilyPolicyProfile applies to this school's connected
+   * families, when familyModeEnabled. Absent falls back to the
+   * platform-default profile. */
+  familyPolicyProfileId?: string;
   createdAt: Date;
 }
 
