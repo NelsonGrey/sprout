@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import type { Goal } from '@sprout/shared';
 import { PartyPopper, Target, TrendingUp, Trash2 } from 'lucide-react';
 import { Button } from './button';
@@ -17,10 +18,15 @@ export function GoalProgressCard({
   goal,
   onDelete,
   onApplyInterest,
+  footer,
 }: {
   goal: Goal;
   onDelete?: () => void;
   onApplyInterest?: (ratePercent: number) => void;
+  /** Extra content rendered below the progress bar/interest section —
+   * e.g. GoalsPage's SpendDetourPreview — so a caller doesn't need a
+   * second bordered box wrapping this one just to attach something. */
+  footer?: ReactNode;
 }) {
   const [rate, setRate] = useState(DEFAULT_RATE_PERCENT);
   const pct = goal.targetCents > 0 ? Math.min(100, (goal.savedCents / goal.targetCents) * 100) : 0;
@@ -79,6 +85,7 @@ export function GoalProgressCard({
           </Button>
         </div>
       )}
+      {footer}
     </div>
   );
 }

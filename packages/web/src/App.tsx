@@ -145,6 +145,12 @@ function App() {
         <Route path="/app/account/delete">
           <DeleteAccountPage user={user} />
         </Route>
+        <Route path="/app/me/history">
+          <MyStudentViewPage user={user} view="history" />
+        </Route>
+        <Route path="/app/me/goals">
+          <MyStudentViewPage user={user} view="goals" />
+        </Route>
         <Route path="/app/me">
           <MyStudentViewPage user={user} />
         </Route>

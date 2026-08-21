@@ -89,6 +89,18 @@ describe('LandingRouter', () => {
     expect(screen.getByText('Welcome back, Alex')).toBeTruthy();
   });
 
+  it('shows the collapsed early-reader Today for a linked student in Pre-K-2', () => {
+    vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue({ ...linkedStudent, gradeLevel: 'K' });
+    vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
+    vi.mocked(firestoreLib.useTransactions).mockReturnValue([]);
+    vi.mocked(firestoreLib.useGoals).mockReturnValue([]);
+    vi.mocked(schoolLib.useSchoolIdsForUser).mockReturnValue([]);
+
+    render(<LandingRouter user={user} />);
+
+    expect(screen.getByText('Pause · Choose · Grow')).toBeTruthy();
+  });
+
   it('renders nothing while the linked-student lookup is still loading', () => {
     vi.mocked(firestoreLib.useLinkedStudent).mockReturnValue(undefined);
     vi.mocked(firestoreLib.useClassrooms).mockReturnValue([]);
