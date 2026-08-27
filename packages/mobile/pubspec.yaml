@@ -71,7 +71,7 @@ dependencies:
   # directly (withData: true) rather than just a path — needed for reliable
   # reads on iOS's sandboxed filesystem and on web.
   file_picker: ^8.1.2
-  csv: ^6.0.0
+  csv: ^8.0.0
 
   # Opens the public /curriculum lesson page in the system browser from
   # the learning library's "View printable version" (M-LEARN-01/02) —
