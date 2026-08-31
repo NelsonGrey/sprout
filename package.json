@@ -27,7 +27,7 @@
     "@firebase/rules-unit-testing": "^5.0.1",
     "@types/node": "^26.4.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/parser": "^8.68.0",
     "eslint": "^10.9.1",
     "eslint-plugin-react": "^7.33.0",
     "eslint-plugin-react-hooks": "^7.1.1",
