@@ -15,7 +15,7 @@ This repository holds the Sprout Streak web and mobile client. Only the code cur
 This repository doesn't have a public issue tracker, so please don't report security concerns that way. Use one of:
 
 - GitHub's [private vulnerability reporting](https://github.com/NelsonGrey/sprout/security/advisories/new) (enabled on this repo), or
-- Email **security@nelsongrey.com** (or **support@nelsongrey.com**)
+- Email **support@nelsongrey.com**
 
 Either way, include:
 
