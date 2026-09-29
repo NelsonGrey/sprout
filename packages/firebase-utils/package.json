@@ -24,7 +24,7 @@
     "clean": "rm -rf node_modules dist"
   },
   "dependencies": {
-    "firebase": "^12.14.0",
+    "firebase": "^12.19.0",
     "firebase-admin": "^14.3.0"
   },
   "devDependencies": {
@@ -37,6 +37,6 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "firebase": "^12.14.0"
+    "firebase": "^12.19.0"
   }
 }
