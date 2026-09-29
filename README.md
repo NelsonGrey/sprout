@@ -24,6 +24,87 @@ ships. The repository contains a working web/mobile product foundation,
 public stakeholder and curriculum pages, school/classroom workflows, and the
 implemented Firestore schema and security rules.
 
+## Demo
+
+Sprout Streak is a no-ads, subscription reward/behavior-tracking app for
+classrooms and families: teachers or parents award "earn"/"spend" ledger
+transactions in practice dollars (never real money — see the "Practice
+money" label in `TodayPage.tsx`), students track a running balance and
+savings goals, and eight starter financial-literacy lessons
+(`packages/shared/src/content/lessons.ts`) tie the mechanics back to a
+CFPB-aligned curriculum.
+
+### Architecture
+
+```mermaid
+flowchart LR
+  subgraph Clients
+    Web["packages/web\nReact 19 + Vite + Wouter"]
+    Mobile["packages/mobile\nFlutter, go_router"]
+  end
+  Shared["packages/shared\ndomain types + lesson content"]
+  FBUtils["packages/firebase-utils\nclient/admin SDK wrappers"]
+  Auth["Firebase Auth\nGoogle / Apple / email"]
+  Firestore[("Firestore\ncontexts, students, familyMembers,\ntransactions, goals, storeItems...")]
+  Hosting["Firebase Hosting\n/api/** rewrite"]
+  API["sprout-functions (private repo)\nsingle consolidated api Cloud Function\nsrc/router.ts"]
+
+  Web -- "direct SDK reads/writes,\nsecurity-rules enforced" --> Firestore
+  Mobile -- "direct SDK reads/writes" --> Firestore
+  Web --> Shared
+  Mobile -. "generated JSON asset" .-> Shared
+  Web --> FBUtils
+  Web -- "sign in" --> Auth
+  Mobile -- "sign in" --> Auth
+  Web -- "POST /api/** (bearer ID token)\nbulk/privileged ops" --> Hosting
+  Hosting --> API
+  API -- "admin SDK writes,\nidempotency + server re-auth" --> Firestore
+```
+
+The business-logic Cloud Function itself lives in the private
+`sprout-functions` repo, so its internals aren't shown here — only the
+client-side contract this repo calls into it with.
+
+### Walkthrough: a teacher awards a whole class
+
+1. On the roster, the teacher checks several students and opens the group
+   composer (`packages/web/src/features/classroom/components/transaction-composer/GroupTransactionComposer.tsx`),
+   picking "Earn", an amount, a reason, and an optional `just_in_case`
+   savings label.
+2. Submit calls `recordBulkTransaction()` (`packages/web/src/lib/api.ts`),
+   which `POST`s to `/api/classrooms/{contextId}/transactions/bulk` with a
+   client-generated `idempotencyKey` and a bearer ID token:
+   ```json
+   {
+     "idempotencyKey": "00000000-0000-0000-0000-000000000000",
+     "type": "earn",
+     "amountCentsEach": 50,
+     "reason": "Weekly reading log",
+     "recipientStudentIds": ["stu_123", "stu_456"],
+     "savingsLabel": "just_in_case"
+   }
+   ```
+3. The private `sprout-functions` repo's consolidated `api` function handles
+   it: it re-checks award authorization server-side and uses the
+   idempotency key so a retried request can never double-credit a student
+   (see the doc comment on `recordBulkTransaction`). It replies with a
+   `BulkTransactionOutcome`:
+   ```json
+   { "succeeded": ["stu_123", "stu_456"], "failed": [] }
+   ```
+4. For a single student instead, the client skips the Cloud Function and
+   writes straight to Firestore via `recordTransaction()`
+   (`packages/web/src/lib/firestore.ts`): one batch that adds a
+   `contexts/{contextId}/transactions` doc, increments
+   `students/{studentId}.balanceCents`, and — if the earn is tied to a
+   goal — increments that goal's `savedCents`, all gated by
+   `firestore.rules`.
+5. The student's `TodayPage`
+   (`packages/web/src/features/student/TodayPage.tsx`) has a live
+   `onSnapshot` subscription via `useTransactions`/`useGoals`
+   (`lib/firestore.ts`), so the new balance, goal progress bar, and the
+   transaction itself appear immediately with no page reload.
+
 ## Key Features
 
 The current foundation provides:
