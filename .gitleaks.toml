@@ -14,3 +14,12 @@ paths = [
 regexes = [
   '''AIza[0-9A-Za-z_-]{20,}''',
 ]
+
+[[allowlists]]
+description = "Placeholder idempotencyKey UUID in the README demo walkthrough (never a real credential; flagged by generic-api-key entropy rule)"
+paths = [
+  '''README\.md''',
+]
+regexes = [
+  '''b7e2b6b0-2f9b-4c3a-9c1e-2a6b1a0e9f11''',
+]
