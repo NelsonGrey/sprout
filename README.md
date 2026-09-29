@@ -1,5 +1,22 @@
 # Sprout Streak
 
+[![CI](https://github.com/NelsonGrey/sprout/actions/workflows/master-pipeline.yml/badge.svg?branch=develop)](https://github.com/NelsonGrey/sprout/actions/workflows/master-pipeline.yml) [![License](https://img.shields.io/badge/license-proprietary-lightgrey.svg)](https://github.com/NelsonGrey/sprout/blob/develop/LICENSE)
+
+## Contents
+
+- [Key Features](#key-features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start](#quick-start)
+  - [Tests](#tests)
+- [Technical Details](#technical-details)
+  - [Architecture](#architecture)
+  - [System Requirements](#system-requirements)
+  - [Firebase Projects](#firebase-projects)
+- [Automated Deployment](#automated-deployment)
+  - [Manual Deployment](#manual-deployment)
+- [Getting Help](#getting-help)
+
 Sprout Streak is a subscription-based classroom and family financial-literacy app — a
 digital reward/behavior-tracking system with no ads, built for schools and
 families rather than the ad-monetized arcade-game portfolio this org also
