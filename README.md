@@ -59,7 +59,7 @@ client-side contract this repo calls into it with.
    client-generated `idempotencyKey` and a bearer ID token:
    ```json
    {
-     "idempotencyKey": "b7e2b6b0-2f9b-4c3a-9c1e-2a6b1a0e9f11",
+     "idempotencyKey": "00000000-0000-0000-0000-000000000000",
      "type": "earn",
      "amountCentsEach": 50,
      "reason": "Weekly reading log",
